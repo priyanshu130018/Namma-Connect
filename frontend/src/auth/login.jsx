@@ -47,6 +47,8 @@ export default function Login() {
           loginId: res.data.login_id,
           role: res.data.role,
           name: res.data.name,
+          email: res.data.email,
+          mobile: res.data.mobile,
         });
 
       } else {
@@ -258,6 +260,8 @@ export default function Login() {
                     loginId: res.data.login_id,
                     role: res.data.role,
                     name: res.data.name,
+                    email: res.data.email,
+                    mobile: res.data.mobile,
                   });
                 } catch (err) {
                   setError(err.response?.data?.detail || "Google sign-in failed. Please try email.");

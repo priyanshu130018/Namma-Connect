@@ -111,7 +111,7 @@ Before setting up the project, ensure you have:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/Namma_Gig.git
+git clone https://github.com/priyanshu130018/Namma_Gig.git
 cd Namma_Gig
 ```
 
@@ -393,11 +393,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-## 👥 Contributors
-
-- Your Name - Initial work
-
----
 
 ## ✉️ Contact & Support
 
@@ -431,12 +426,12 @@ npm run build
 
 ## 📈 Future Enhancements
 
+- [ ] Multi-language support
 - [ ] Payment integration (Stripe/Razorpay)
 - [ ] Real-time notifications
 - [ ] Video conferencing for consultations
 - [ ] Mobile app (React Native)
 - [ ] Advanced analytics dashboard
-- [ ] Multi-language support
 - [ ] Weather-based recommendations
 - [ ] Sustainability tracking
 

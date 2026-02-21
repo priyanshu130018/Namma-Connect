@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { FiMapPin, FiPhone, FiMail, FiInstagram, FiYoutube, FiArrowLeft, FiCheckCircle, FiUser, FiBriefcase, FiLink } from "react-icons/fi";
 import Navbar from "@/components/layout/navbar";
 import Footer from "@/components/layout/footer";
-import { creatorAPI } from "@/services/api";
+import { creatorAPI, bookingAPI } from "@/services/api";
 
 export default function CreatorCard() {
   const { id } = useParams();
@@ -12,6 +12,13 @@ export default function CreatorCard() {
   const [creator, setCreator] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [checkIn, setCheckIn] = useState("");
+  const [checkOut, setCheckOut] = useState("");
+  const [guests, setGuests] = useState(1);
+  const [bookingNote, setBookingNote] = useState("");
+  const [bookingLoading, setBookingLoading] = useState(false);
+  const [bookingError, setBookingError] = useState("");
+  const [bookingSuccess, setBookingSuccess] = useState("");
 
   useEffect(() => {
     if (id) {
@@ -26,6 +33,49 @@ export default function CreatorCard() {
         });
     }
   }, [id]);
+
+  const handleBookCreator = async () => {
+    setBookingError("");
+    setBookingSuccess("");
+    const user = JSON.parse(localStorage.getItem("ng_user") || "null");
+    if (!user || !user.loginId) {
+      navigate("/login");
+      return;
+    }
+    if (!checkIn || !checkOut) {
+      setBookingError("Please select both start and end dates.");
+      return;
+    }
+    if (new Date(checkOut) < new Date(checkIn)) {
+      setBookingError("End date must be after start date.");
+      return;
+    }
+
+    try {
+      setBookingLoading(true);
+      await bookingAPI.create(user.loginId, {
+        booking_type: "creator",
+        item_id: creator.id,
+        item_name: creator.name,
+        item_emoji: "🎬",
+        region: creator.state,
+        check_in: checkIn,
+        check_out: checkOut,
+        guests,
+        total_price: 0,
+        collab_note: bookingNote || null,
+      });
+      setBookingSuccess("Collaboration request sent. We will confirm availability soon.");
+      setTimeout(() => navigate("/tourist/bookings"), 800);
+    } catch (err) {
+      setBookingError(
+        err.response?.data?.detail ||
+          "Could not create booking. Please try different dates.",
+      );
+    } finally {
+      setBookingLoading(false);
+    }
+  };
 
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -133,11 +183,82 @@ export default function CreatorCard() {
                   </a>
                 )}
                 
-                <button className="w-full border-2 border-slate-100 text-slate-600 font-bold py-3 rounded-2xl hover:bg-slate-50 transition-all text-sm mb-3">
-                  Send Message
+                <div className="space-y-4 mb-4 text-left">
+                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
+                    Select Dates
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">
+                        Start
+                      </label>
+                      <input
+                        type="date"
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
+                        value={checkIn}
+                        onChange={(e) => setCheckIn(e.target.value)}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">
+                        End
+                      </label>
+                      <input
+                        type="date"
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
+                        value={checkOut}
+                        onChange={(e) => setCheckOut(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">
+                      Guests
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
+                      value={guests}
+                      onChange={(e) => setGuests(Math.max(1, Number(e.target.value) || 1))}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">
+                      Note for creator (optional)
+                    </label>
+                    <textarea
+                      rows={3}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 resize-none"
+                      placeholder="Share brief about your project or expectations."
+                      value={bookingNote}
+                      onChange={(e) => setBookingNote(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {bookingError && (
+                  <p className="text-xs text-red-500 font-medium mb-2">
+                    {bookingError}
+                  </p>
+                )}
+                {bookingSuccess && (
+                  <p className="text-xs text-emerald-600 font-medium mb-2">
+                    {bookingSuccess}
+                  </p>
+                )}
+
+                <button
+                  onClick={handleBookCreator}
+                  disabled={bookingLoading}
+                  className="w-full bg-slate-900 text-white font-black py-3 rounded-2xl hover:bg-slate-800 transition-all shadow-lg active:scale-95 mb-3 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {bookingLoading ? "Booking..." : "Book Creator"}
                 </button>
                 <button className="w-full flex items-center justify-center gap-2 text-amber-500 font-bold text-sm py-2 hover:opacity-80 transition-all">
-                   Save Creator
+                  Save Creator
                 </button>
               </div>
             </div>

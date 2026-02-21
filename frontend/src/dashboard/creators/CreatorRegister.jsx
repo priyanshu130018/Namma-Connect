@@ -12,15 +12,21 @@ const getUser = () => {
   try { return JSON.parse(localStorage.getItem("ng_user") || "null"); } catch { return null; }
 };
 
-const Field = ({ label, name, type = "text", placeholder, icon, required, value, onChange }) => (
+const Field = ({ label, name, type = "text", placeholder, icon, required, value, onChange, inputMode, maxLength, pattern }) => (
   <div>
     <label className="text-xs font-semibold text-slate-500 block mb-1.5">{label}</label>
     <div className="relative">
       {icon && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">{icon}</span>}
       <input
-        type={type} required={required}
-        placeholder={placeholder} value={value} onChange={onChange}
+        type={type}
+        required={required}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
         className={`input-field text-sm ${icon ? "pl-10" : ""}`}
+        inputMode={inputMode}
+        maxLength={maxLength}
+        pattern={pattern}
       />
     </div>
   </div>
@@ -40,7 +46,10 @@ export default function CreatorRegister() {
   });
 
   const upd = (k) => (e) => {
-    const val = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+    let val = e.target.type === "checkbox" ? e.target.checked : e.target.value;
+    if (k === "mobile" || k === "aadhaar_no") {
+      val = val.replace(/\D/g, "");
+    }
     setForm(p => ({ ...p, [k]: val }));
   };
 
@@ -111,7 +120,19 @@ export default function CreatorRegister() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Field label="Full Name *" name="name" value={form.name} onChange={upd("name")} placeholder="Sana Shaikh" icon={<FiUser size={15} />} required />
-              <Field label="Mobile Number *" name="mobile" value={form.mobile} onChange={upd("mobile")} placeholder="+91 ..." icon={<FiPhone size={15} />} required />
+              <Field
+                label="Mobile Number *"
+                name="mobile"
+                value={form.mobile}
+                onChange={upd("mobile")}
+                placeholder="+91 9876543210"
+                icon={<FiPhone size={15} />}
+                required
+                type="tel"
+                inputMode="numeric"
+                maxLength={10}
+                pattern="\d{10}"
+              />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Field label="Age" name="age" value={form.age} onChange={upd("age")} type="number" placeholder="25" />
@@ -149,7 +170,19 @@ export default function CreatorRegister() {
             <div className="p-4 bg-purple-50 border border-purple-200 rounded-2xl text-sm text-purple-700 mb-4">
               🔒 Your Aadhaar is encrypted and stored securely. Used only for creator verification.
             </div>
-            <Field label="Aadhaar Number *" name="aadhaar_no" value={form.aadhaar_no} onChange={upd("aadhaar_no")} placeholder="XXXX XXXX XXXX" icon={<FiFileText size={15} />} required />
+            <Field
+              label="Aadhaar Number *"
+              name="aadhaar_no"
+              value={form.aadhaar_no}
+              onChange={upd("aadhaar_no")}
+              placeholder="XXXX XXXX XXXX"
+              icon={<FiFileText size={15} />}
+              required
+              type="tel"
+              inputMode="numeric"
+              maxLength={12}
+              pattern="\d{12}"
+            />
           </div>
 
           {error && (

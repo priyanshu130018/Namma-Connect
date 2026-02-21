@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { FiMapPin, FiPhone, FiMail, FiCalendar, FiArrowLeft, FiCheckCircle, FiHome, FiTruck, FiList, FiTrendingUp } from "react-icons/fi";
 import Navbar from "@/components/layout/navbar";
 import Footer from "@/components/layout/footer";
-import { farmAPI } from "@/services/api";
+import { farmAPI, bookingAPI } from "@/services/api";
 
 export default function FarmerCard() {
   const { id } = useParams();
@@ -12,6 +12,12 @@ export default function FarmerCard() {
   const [farm, setFarm] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+   const [checkIn, setCheckIn] = useState("");
+   const [checkOut, setCheckOut] = useState("");
+   const [guests, setGuests] = useState(1);
+   const [bookingLoading, setBookingLoading] = useState(false);
+   const [bookingError, setBookingError] = useState("");
+   const [bookingSuccess, setBookingSuccess] = useState("");
 
   useEffect(() => {
     if (id) {
@@ -26,6 +32,49 @@ export default function FarmerCard() {
         });
     }
   }, [id]);
+
+  const handleBookFarm = async () => {
+    setBookingError("");
+    setBookingSuccess("");
+    const user = JSON.parse(localStorage.getItem("ng_user") || "null");
+    if (!user || !user.loginId) {
+      navigate("/login");
+      return;
+    }
+    if (!checkIn || !checkOut) {
+      setBookingError("Please select both start and end dates.");
+      return;
+    }
+    if (new Date(checkOut) < new Date(checkIn)) {
+      setBookingError("End date must be after start date.");
+      return;
+    }
+
+    try {
+      setBookingLoading(true);
+      await bookingAPI.create(user.loginId, {
+        booking_type: "farm",
+        item_id: farm.id,
+        item_name: farm.name,
+        item_emoji: farm.emoji || "🌾",
+        region: farm.state,
+        check_in: checkIn,
+        check_out: checkOut,
+        guests,
+        total_price: 0,
+        collab_note: null,
+      });
+      setBookingSuccess("Booking confirmed for selected dates.");
+      setTimeout(() => navigate("/tourist/bookings"), 800);
+    } catch (err) {
+      setBookingError(
+        err.response?.data?.detail ||
+          "Farm is not available for these dates. Try a different range.",
+      );
+    } finally {
+      setBookingLoading(false);
+    }
+  };
 
   if (loading) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -148,33 +197,77 @@ export default function FarmerCard() {
                   </div>
                 </div>
 
-                <div className="space-y-4 mb-8">
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Check In</span>
-                      <div className="flex items-center gap-2 text-sm font-bold text-slate-700">
-                        <FiCalendar size={14} className="text-amber-500" /> Select Date
+                <div className="space-y-4 mb-4">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                        Check In
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <FiCalendar size={14} className="text-amber-500" />
+                        <input
+                          type="date"
+                          className="flex-1 border border-slate-200 rounded-xl px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200"
+                          value={checkIn}
+                          onChange={(e) => setCheckIn(e.target.value)}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                        Check Out
+                      </span>
+                      <div className="flex items-center gap-2">
+                        <FiCalendar size={14} className="text-amber-500" />
+                        <input
+                          type="date"
+                          className="flex-1 border border-slate-200 rounded-xl px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200"
+                          value={checkOut}
+                          onChange={(e) => setCheckOut(e.target.value)}
+                        />
                       </div>
                     </div>
                   </div>
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Guests</span>
-                      <div className="flex items-center gap-2 text-sm font-bold text-slate-700 text-slate-900">
-                        1 Adult
-                      </div>
-                    </div>
+
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
+                      Guests
+                    </span>
+                    <input
+                      type="number"
+                      min={1}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200"
+                      value={guests}
+                      onChange={(e) => setGuests(Math.max(1, Number(e.target.value) || 1))}
+                    />
                   </div>
                 </div>
 
-                <button className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl hover:bg-slate-800 transition-all shadow-lg active:scale-95 mb-4">
-                  Request to Book
+                {bookingError && (
+                  <p className="text-xs text-red-500 font-medium mb-2">
+                    {bookingError}
+                  </p>
+                )}
+                {bookingSuccess && (
+                  <p className="text-xs text-emerald-600 font-medium mb-2">
+                    {bookingSuccess}
+                  </p>
+                )}
+
+                <button
+                  onClick={handleBookFarm}
+                  disabled={bookingLoading}
+                  className="w-full bg-slate-900 text-white font-black py-4 rounded-2xl hover:bg-slate-800 transition-all shadow-lg active:scale-95 mb-3 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {bookingLoading ? "Booking..." : "Book Farm"}
                 </button>
                 <button className="w-full border-2 border-slate-100 text-slate-600 font-bold py-3 rounded-2xl hover:bg-slate-50 transition-all text-sm">
                   Save to Wishlist
                 </button>
                 
-                <p className="text-center text-slate-400 text-[11px] font-medium mt-4">No charges until booking confirmation</p>
+                <p className="text-center text-slate-400 text-[11px] font-medium mt-4">
+                  No charges until booking confirmation
+                </p>
               </div>
 
               {/* Host Contact (Shortened) */}

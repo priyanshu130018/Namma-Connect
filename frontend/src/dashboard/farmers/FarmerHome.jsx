@@ -29,6 +29,7 @@ export default function FarmerHome() {
   const [query, setQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [timeSlot, setTimeSlot] = useState("");
   
   const [bookings, setBookings] = useState([]);
   const [creators, setCreators] = useState([]);
@@ -63,13 +64,19 @@ export default function FarmerHome() {
   ];
 
   const handleSearch = () => {
-    navigate(`/home?q=${query}&start=${startDate}&end=${endDate}`);
+    const params = new URLSearchParams();
+    if (query) params.append("q", query);
+    if (startDate) params.append("start", startDate);
+    if (endDate) params.append("end", endDate);
+    if (timeSlot) params.append("slot", timeSlot);
+    const qs = params.toString();
+    navigate(`/home${qs ? `?${qs}` : ""}`);
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {/* Sidebar ... */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-md">
@@ -117,9 +124,17 @@ export default function FarmerHome() {
           
           {/* Header */}
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-black text-slate-900">Welcome back, {user?.name?.split(" ")[0]} 👋</h1>
-              <p className="text-slate-500 text-sm mt-1">Grow your farm business today</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 shadow-sm"
+              >
+                <FiMenu size={16} />
+              </button>
+              <div>
+                <h1 className="text-3xl font-black text-slate-900">Welcome back, {user?.name?.split(" ")[0]} 👋</h1>
+                <p className="text-slate-500 text-sm mt-1">Grow your farm business today</p>
+              </div>
             </div>
             <Link to="/farmer/listings" className="bg-amber-500 hover:bg-amber-400 text-white font-black px-5 py-3 rounded-2xl shadow-lg transition-all flex items-center gap-2 text-sm">
               <FiPlus size={16} /> New Listing
@@ -133,6 +148,7 @@ export default function FarmerHome() {
               query={query} setQuery={setQuery}
               startDate={startDate} setStartDate={setStartDate}
               endDate={endDate} setEndDate={setEndDate}
+              timeSlot={timeSlot} setTimeSlot={setTimeSlot}
               onSearch={handleSearch}
             />
           </section>
@@ -226,7 +242,7 @@ export default function FarmerHome() {
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40"
           />
         )}
       </AnimatePresence>

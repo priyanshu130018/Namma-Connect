@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const api = axios.create({
-  baseURL: "http://localhost:8000",
+  baseURL: "http://localhost:8000/api",
   headers: { "Content-Type": "application/json" },
 });
 
@@ -102,8 +102,23 @@ export const searchAPI = {
 };
 
 export const aiAPI = {
-  recommendFarms: (loginId, query) => api.get(`/farmer/search/${loginId}?query=${encodeURIComponent(query)}`),
-  recommendCreators: (loginId, query) => api.get(`/creator/search/${loginId}?query=${encodeURIComponent(query)}`),
+  recommendFarms: (loginId, query, startDate, endDate, timeSlot) => {
+    const params = new URLSearchParams();
+    if (query) params.append("query", query);
+    if (startDate) params.append("date_start", startDate);
+    if (endDate) params.append("date_end", endDate);
+    if (timeSlot) params.append("time_slot", timeSlot);
+    const qs = params.toString();
+    return api.get(`/farmer/search/${loginId}${qs ? `?${qs}` : ""}`);
+  },
+  recommendCreators: (loginId, query, startDate, endDate) => {
+    const params = new URLSearchParams();
+    if (query) params.append("query", query);
+    if (startDate) params.append("date_start", startDate);
+    if (endDate) params.append("date_end", endDate);
+    const qs = params.toString();
+    return api.get(`/creator/search/${loginId}${qs ? `?${qs}` : ""}`);
+  },
   planTripChat: (prompt) => api.post(`/farmer/trip-planner?prompt=${encodeURIComponent(prompt)}`),
 };
 

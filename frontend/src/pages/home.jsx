@@ -1,15 +1,14 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { FiChevronDown, FiTrendingUp, FiMapPin } from "react-icons/fi";
+import { FiChevronDown, FiTrendingUp, FiMapPin, FiArrowRight } from "react-icons/fi";
 import { useNavigate, Link } from "react-router-dom";
 import Navbar from "@/components/layout/navbar";
 import Footer from "@/components/layout/footer";
 import SearchBar from "@/components/ui/searchBar";
 import ItemCard from "@/components/ui/card";
 import { farmAPI, creatorAPI, aiAPI } from "@/services/api";
-import { useAuth } from "@/context/AuthContext"; // or get from storage directly if Context not available
 
-const VISIBLE_FARMS = 6;
+const VISIBLE_FARMS = 4;
 const VISIBLE_CREATORS = 4;
 
 export default function Home() {
@@ -17,9 +16,11 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [timeSlot, setTimeSlot] = useState("");
   
   const [farms, setFarms] = useState([]);
   const [creators, setCreators] = useState([]);
+  const [availableFarms, setAvailableFarms] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [visibleFarms, setVisibleFarms] = useState(VISIBLE_FARMS);
@@ -57,20 +58,25 @@ export default function Home() {
     const loginId = user.id || 0;
 
     try {
-      if (query.trim()) {
+      if (query.trim() || startDate || endDate || timeSlot) {
         const [farmRes, creatorRes] = await Promise.all([
-          aiAPI.recommendFarms(loginId, query),
-          aiAPI.recommendCreators(loginId, query)
+          aiAPI.recommendFarms(loginId, query, startDate, endDate, timeSlot),
+          aiAPI.recommendCreators(loginId, query, startDate, endDate)
         ]);
-        setFarms(farmRes.data || []);
+        const farmData = farmRes.data || [];
+        setFarms(farmData);
+        setAvailableFarms(
+          farmData.filter((f) => f.available || false)
+        );
         setCreators(creatorRes.data || []);
       } else {
-        // Default fetch if no query
         const [farmRes, creatorRes] = await Promise.all([
           farmAPI.listFarms(),
           creatorAPI.listCreators()
         ]);
-        setFarms(farmRes.data || []);
+        const farmData = farmRes.data || [];
+        setFarms(farmData);
+        setAvailableFarms([]);
         setCreators(creatorRes.data || []);
       }
     } catch (err) {
@@ -106,6 +112,7 @@ export default function Home() {
             query={query} setQuery={setQuery}
             startDate={startDate} setStartDate={setStartDate}
             endDate={endDate} setEndDate={setEndDate}
+            timeSlot={timeSlot} setTimeSlot={setTimeSlot}
             onSearch={handleSearch}
           />
         </section>
@@ -180,9 +187,41 @@ export default function Home() {
           )}
         </section>
 
+        {/* ── Available in Selected Slot ── */}
+        <section>
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-3xl font-black text-slate-900">Available Places in Selected Time Slot</h2>
+              <p className="text-slate-500 text-sm font-medium">
+                Based on your dates{timeSlot ? ` and ${timeSlot} slot` : ""}, these farms are marked available.
+              </p>
+            </div>
+          </div>
+
+          {!startDate && !endDate && availableFarms.length === 0 ? (
+            <div className="py-10 text-center text-slate-400 text-sm">
+              Select your dates and time slot above to see live availability.
+            </div>
+          ) : loading ? (
+            <div className="py-10 text-center text-slate-400 text-sm">
+              Checking availability...
+            </div>
+          ) : availableFarms.length === 0 ? (
+            <div className="py-10 text-center text-slate-400 text-sm">
+              No farms are marked available for the selected range. Try adjusting your dates or time slot.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+              {availableFarms.slice(0, 6).map((farm) => (
+                <ItemCard key={farm.id} item={farm} type="farm" />
+              ))}
+            </div>
+          )}
+        </section>
+
         {/* ── CTA Banner ── */}
         <motion.section initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
-          className="bg-slate-900 rounded-[48px] p-12 py-16 text-center shadow-2xl relative overflow-hidden"
+          className="bg-slate-800 rounded-[48px] p-12 py-16 text-center shadow-2xl relative overflow-hidden"
         >
           <div className="relative z-10">
             <h2 className="text-4xl md:text-5xl font-black text-white mb-4">Start your journey today</h2>
@@ -191,7 +230,7 @@ export default function Home() {
             </p>
             <div className="flex gap-4 justify-center flex-wrap">
               <Link to="/ai-planner" className="bg-amber-500 text-white font-black px-8 py-4 rounded-2xl shadow-lg shadow-amber-500/20 hover:bg-amber-400 transition-all text-sm uppercase tracking-widest flex items-center gap-2">
-                Plan with AI <FiArrowRight size={16} />
+                AI Trip Planner <FiArrowRight size={16} />
               </Link>
               <Link to="/about" className="bg-white/10 backdrop-blur-md text-white border border-white/20 font-black px-8 py-4 rounded-2xl hover:bg-white/20 transition-all text-sm uppercase tracking-widest">
                 Learn More

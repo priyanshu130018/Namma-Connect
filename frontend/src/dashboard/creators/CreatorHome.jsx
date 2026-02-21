@@ -7,7 +7,6 @@ import {
 } from "react-icons/fi";
 import { useNavigate } from "react-router-dom";
 import { creatorAPI, bookingAPI, farmAPI } from "@/services/api";
-import SearchBar from "@/components/ui/searchBar";
 import ItemCard from "@/components/ui/card";
 
 const navItems = [
@@ -26,10 +25,6 @@ export default function CreatorHome() {
   const user = getUser();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  
   const [collaborations, setCollaborations] = useState([]); // Bookings on this creator
   const [myTrips, setMyTrips] = useState([]); // Bookings by this creator
   const [farms, setFarms] = useState([]);
@@ -63,14 +58,10 @@ export default function CreatorHome() {
     { label: "Saved", value: "0", icon: <FiHeart />, color: "bg-rose-50 text-rose-600 border-rose-200" },
   ];
 
-  const handleSearch = () => {
-    navigate(`/home?q=${query}&start=${startDate}&end=${endDate}`);
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {/* Sidebar ... */}
-      <aside className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
+      <aside className={`fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}>
         <div className="p-6 border-b border-slate-100 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-violet-600 flex items-center justify-center shadow-md">
@@ -118,26 +109,22 @@ export default function CreatorHome() {
           
           {/* Header */}
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-black text-slate-900">Creator Studio 🎬</h1>
-              <p className="text-slate-500 text-sm mt-1">Capture moments, tell stories.</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className="w-9 h-9 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-50 shadow-sm"
+              >
+                <FiMenu size={16} />
+              </button>
+              <div>
+                <h1 className="text-3xl font-black text-slate-900">Creator Studio 🎬</h1>
+                <p className="text-slate-500 text-sm mt-1">Capture moments, tell stories.</p>
+              </div>
             </div>
             <Link to="/ai-planner" className="bg-purple-600 hover:bg-purple-500 text-white font-black px-5 py-3 rounded-2xl shadow-lg transition-all flex items-center gap-2 text-sm">
                AI Trip Planner <FiArrowRight size={16} />
             </Link>
           </div>
-
-          {/* Search Bar */}
-          <section className="bg-white p-6 rounded-[32px] border border-slate-200 shadow-sm">
-             <h3 className="font-bold text-slate-900 mb-4 px-2 italic text-sm">Find your next cinematic location...</h3>
-             <SearchBar 
-              query={query} setQuery={setQuery}
-              startDate={startDate} setStartDate={setStartDate}
-              endDate={endDate} setEndDate={setEndDate}
-              onSearch={handleSearch}
-              placeholder="Search by crop, location, or farm name"
-            />
-          </section>
 
           <div className="grid lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-8">
@@ -225,7 +212,7 @@ export default function CreatorHome() {
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={() => setSidebarOpen(false)}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40 lg:hidden"
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-40"
           />
         )}
       </AnimatePresence>

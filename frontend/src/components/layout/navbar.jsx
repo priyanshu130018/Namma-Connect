@@ -97,7 +97,13 @@ export default function Navbar({ minimal = false }) {
           {/* Center Nav Links (hidden if minimal) */}
           {!minimal && (
             <div className="hidden md:flex items-center gap-1">
-              {navLinks.map((link) => (
+              {navLinks
+                .filter((link) => {
+                  if (link.label !== "Services") return true;
+                  if (!user) return true;
+                  return user.role === "tourist";
+                })
+                .map((link) => (
                 <Link
                   key={link.path}
                   to={link.path}

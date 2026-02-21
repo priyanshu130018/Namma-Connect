@@ -5,6 +5,7 @@ export default function SearchBar({
   query, setQuery, 
   startDate, setStartDate, 
   endDate, setEndDate, 
+  timeSlot, setTimeSlot,
   onSearch,
   placeholder = "Where to? (e.g. Coorg, Tea, Kerala)"
 }) {
@@ -58,7 +59,24 @@ export default function SearchBar({
             onChange={(e) => setEndDate(e.target.value)}
           />
         </div>
-        
+
+        <div className="h-8 w-[1px] bg-slate-100 mx-2" />
+
+        <div className="flex flex-col">
+          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Time</span>
+          <select
+            className="bg-transparent outline-none text-slate-700 text-xs font-black cursor-pointer"
+            value={timeSlot}
+            onChange={(e) => setTimeSlot(e.target.value)}
+          >
+            <option value="">Any time</option>
+            <option value="morning">Morning</option>
+            <option value="afternoon">Afternoon</option>
+            <option value="evening">Evening</option>
+            <option value="full day">Full day</option>
+          </select>
+        </div>
+
         <button 
           onClick={onSearch}
           className="bg-slate-900 text-white p-4 rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-200 active:scale-95 ml-2"
