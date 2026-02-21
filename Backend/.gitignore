@@ -1,0 +1,8 @@
+# Ignore all files in the 'backend' directory
+.env
+
+__pycache__
+
+.gig_venv
+
+.pytest_cache
