@@ -1,247 +1,379 @@
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { FiChevronDown, FiTrendingUp, FiMapPin, FiArrowRight } from "react-icons/fi";
-import { useNavigate, Link } from "react-router-dom";
+import { useState, useEffect, useCallback } from "react";
+import { motion as Motion, AnimatePresence } from "framer-motion";
+import { FiArrowRight, FiStar, FiSearch, FiX, FiRefreshCw } from "react-icons/fi";
+import { Link, useLocation } from "react-router-dom";
 import Navbar from "@/components/layout/navbar";
 import Footer from "@/components/layout/footer";
 import SearchBar from "@/components/ui/searchBar";
 import ItemCard from "@/components/ui/card";
-import { farmAPI, creatorAPI, aiAPI } from "@/services/api";
+import { aiAPI } from "@/services/api";
 
-const VISIBLE_FARMS = 4;
-const VISIBLE_CREATORS = 4;
+// ── Constants ──────────────────────────────────────────────────────────────────
+const PAGE_SIZE = 4;           // cards shown initially per section
+const LOAD_STEP = 4;           // how many more to reveal per click
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const normalize = (f) => ({ ...f, name: f.farm_name || f.name || "" });
 
 export default function Home() {
-  const navigate = useNavigate();
-  const [query, setQuery] = useState("");
+  const location = useLocation();
+
+  // ── Permanent data (always visible) ─────────────────────────────────────────
+  const [allFarms,    setAllFarms]    = useState([]);
+  const [allCreators, setAllCreators] = useState([]);
+  const [baseLoading, setBaseLoading] = useState(true);
+  const [baseError,   setBaseError]   = useState("");
+
+  // ── Visible counts (load more) ───────────────────────────────────────────────
+  const [farmVisible,    setFarmVisible]    = useState(PAGE_SIZE);
+  const [creatorVisible, setCreatorVisible] = useState(PAGE_SIZE);
+
+  // ── Search state ─────────────────────────────────────────────────────────────
+  const [query,     setQuery]     = useState("");
   const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [timeSlot, setTimeSlot] = useState("");
-  
-  const [farms, setFarms] = useState([]);
-  const [creators, setCreators] = useState([]);
-  const [availableFarms, setAvailableFarms] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [endDate,   setEndDate]   = useState("");
 
-  const [visibleFarms, setVisibleFarms] = useState(VISIBLE_FARMS);
-  const [visibleCreators, setVisibleCreators] = useState(VISIBLE_CREATORS);
+  // ── Search results (only visible after search, cleared on location change) ───
+  const [searchFarms,    setSearchFarms]    = useState([]);
+  const [searchCreators, setSearchCreators] = useState([]);
+  const [searchLabel,    setSearchLabel]    = useState("");
+  const [searching,      setSearching]      = useState(false);
+  const [searchError,    setSearchError]    = useState("");
+  const [sfVisible,      setSfVisible]      = useState(PAGE_SIZE);
+  const [scVisible,      setScVisible]      = useState(PAGE_SIZE);
 
-  const [search, setSearch] = useState(""); 
-
-  useEffect(() => {
-    Promise.all([
-      farmAPI.listFarms(),
-      creatorAPI.listCreators()
-    ]).then(([fRes, cRes]) => {
-      setFarms(fRes.data);
-      setCreators(cRes.data);
-      setLoading(false);
-    }).catch(err => {
-      console.error("Failed to fetch home data:", err);
-      setLoading(false);
-    });
+  // ── Load base data ────────────────────────────────────────────────────────────
+  const loadBaseData = useCallback(async () => {
+    setBaseLoading(true);
+    setBaseError("");
+    // Use the same endpoints that power search (proven to work)
+    // Pass userId=0 and empty query → returns all farms/creators
+    try {
+      const [fRes, cRes] = await Promise.all([
+        aiAPI.recommendFarms(0, "", "", "", ""),
+        aiAPI.recommendCreators(0, "", "", ""),
+      ]);
+      setAllFarms((fRes.data || []).map(normalize));
+      setAllCreators(cRes.data || []);
+    } catch (err) {
+      console.error("Home load error:", err);
+      // silently keep empty — don't show error banner
+    } finally {
+      setBaseLoading(false);
+    }
   }, []);
 
-  const filteredFarms = farms.filter(f =>
-    !search || f.name.toLowerCase().includes(search.toLowerCase()) ||
-    (f.area && f.area.toLowerCase().includes(search.toLowerCase())) ||
-    (f.state && f.state.toLowerCase().includes(search.toLowerCase())) ||
-    (f.crop_types && f.crop_types.toLowerCase().includes(search.toLowerCase()))
-  );
+  useEffect(() => { loadBaseData(); }, [loadBaseData]);
 
+  // Clear search results on navigation (location key changes on every push)
+  useEffect(() => {
+    setSearchFarms([]);
+    setSearchCreators([]);
+    setSearchLabel("");
+    setSearchError("");
+    setQuery("");
+    setStartDate("");
+    setEndDate("");
+    setSfVisible(PAGE_SIZE);
+    setScVisible(PAGE_SIZE);
+  }, [location.key]);
+
+  // ── Search / AI recommendation ────────────────────────────────────────────────
   const handleSearch = async () => {
-    setLoading(true);
-    setSearch(query);
-    
-    // Get loginId from storage if available, fallback to 0
-    const user = JSON.parse(localStorage.getItem("ng_user") || "{}");
-    const loginId = user.id || 0;
+    const q = query.trim();
+    if (!q && !startDate && !endDate) return;
+
+    setSearching(true);
+    setSearchError("");
+    setSfVisible(PAGE_SIZE);
+    setScVisible(PAGE_SIZE);
+
+    const user = (() => { try { return JSON.parse(localStorage.getItem("ng_user") || "null"); } catch { return null; } })();
+    const userId = user?.userId ?? 0;
 
     try {
-      if (query.trim() || startDate || endDate || timeSlot) {
-        const [farmRes, creatorRes] = await Promise.all([
-          aiAPI.recommendFarms(loginId, query, startDate, endDate, timeSlot),
-          aiAPI.recommendCreators(loginId, query, startDate, endDate)
-        ]);
-        const farmData = farmRes.data || [];
-        setFarms(farmData);
-        setAvailableFarms(
-          farmData.filter((f) => f.available || false)
-        );
-        setCreators(creatorRes.data || []);
-      } else {
-        const [farmRes, creatorRes] = await Promise.all([
-          farmAPI.listFarms(),
-          creatorAPI.listCreators()
-        ]);
-        const farmData = farmRes.data || [];
-        setFarms(farmData);
-        setAvailableFarms([]);
-        setCreators(creatorRes.data || []);
-      }
+      const [fRes, cRes] = await Promise.all([
+        aiAPI.recommendFarms(userId, q, startDate, endDate, ""),
+        aiAPI.recommendCreators(userId, q, startDate, endDate),
+      ]);
+      setSearchFarms((fRes.data || []).map(normalize));
+      setSearchCreators(cRes.data || []);
+      setSearchLabel(q || "your filters");
     } catch (err) {
       console.error("Search error:", err);
+      setSearchError("Search failed. Please try again.");
     } finally {
-      setLoading(false);
-      setVisibleFarms(VISIBLE_FARMS);
+      setSearching(false);
     }
   };
 
-  const shownFarms = filteredFarms.slice(0, visibleFarms);
-  const shownCreators = creators.slice(0, visibleCreators);
-  const hasMoreFarms = visibleFarms < filteredFarms.length;
-  const hasMoreCreators = visibleCreators < creators.length;
+  const clearSearch = () => {
+    setSearchFarms([]);
+    setSearchCreators([]);
+    setSearchLabel("");
+    setSearchError("");
+    setQuery("");
+    setStartDate("");
+    setEndDate("");
+  };
 
+  const hasSearchResults = searchLabel !== "";
+
+  // ── Sorting (by review count then rating) ─────────────────────────────────────
+  const byRank = (a, b) => {
+    const ra = Number(a.reviews || a.review_count || 0);
+    const rb = Number(b.reviews || b.review_count || 0);
+    if (rb !== ra) return rb - ra;
+    return Number(b.rating || b.avg_rating || 0) - Number(a.rating || a.avg_rating || 0);
+  };
+
+  const sortedFarms    = [...allFarms].sort(byRank);
+  const sortedCreators = [...allCreators].sort(byRank);
+
+  // ── Section component ─────────────────────────────────────────────────────────
+  const CardSection = ({
+    title, subtitle, accent = "amber",
+    items, type, visibleCount, onLoadMore,
+    loading, emptyEmoji, emptyTitle, emptyMsg,
+    isSearch = false,
+  }) => {
+    const shown = items.slice(0, visibleCount);
+    const hasMore = visibleCount < items.length;
+
+    return (
+      <section>
+        {/* Header */}
+        <div className="flex items-end justify-between mb-6">
+          <div>
+            {isSearch && (
+              <span className={`text-xs font-black uppercase tracking-widest text-${accent}-500 mb-1 block`}>
+                Search Results
+              </span>
+            )}
+            <h2 className="text-2xl md:text-3xl font-black text-slate-900">{title}</h2>
+            <p className="text-slate-500 text-sm font-medium mt-0.5">{subtitle}</p>
+          </div>
+          {hasMore && (
+            <button
+              onClick={onLoadMore}
+              className={`flex items-center gap-1.5 px-5 py-2.5 rounded-xl text-sm font-bold border border-slate-200 bg-white hover:bg-${accent}-50 hover:border-${accent}-300 hover:text-${accent}-700 text-slate-600 transition-all shadow-sm`}
+            >
+              Load More <FiArrowRight size={13} />
+            </button>
+          )}
+        </div>
+
+        {/* Cards */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20 text-slate-300">
+            <div className={`w-10 h-10 border-4 border-${accent}-200 border-t-${accent}-500 rounded-full animate-spin mb-4`} />
+            <p className="text-sm font-medium text-slate-400">Loading…</p>
+          </div>
+        ) : shown.length === 0 ? (
+          <div className="py-14 text-center">
+            <div className="text-5xl mb-3">{emptyEmoji}</div>
+            <h3 className="font-black text-slate-600 text-lg mb-1">{emptyTitle}</h3>
+            <p className="text-slate-400 text-sm max-w-xs mx-auto">{emptyMsg}</p>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {shown.map((item, i) => (
+                <Motion.div
+                  key={item.id ?? i}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: i * 0.05, duration: 0.35 }}
+                >
+                  <ItemCard item={item} type={type} />
+                </Motion.div>
+              ))}
+            </div>
+
+            {/* Load More button below grid (mobile-friendly) */}
+            {hasMore && (
+              <div className="flex justify-center mt-8">
+                <button
+                  onClick={onLoadMore}
+                  className={`flex items-center gap-2 px-8 py-3 rounded-2xl text-sm font-bold bg-${accent}-500 text-white hover:bg-${accent}-400 transition-all shadow-lg shadow-${accent}-200`}
+                >
+                  Show More ({items.length - visibleCount} remaining)
+                </button>
+              </div>
+            )}
+          </>
+        )}
+      </section>
+    );
+  };
+
+  // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar />
-      <div className="pt-24 pb-16 px-6 max-w-6xl mx-auto space-y-16">
 
-        {/* ── Headline & Search ── */}
-        <section className="text-center space-y-8 py-10">
-          <motion.div initial={{ opacity:0, y: 20 }} animate={{ opacity:1, y: 0 }}>
-            <h1 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tighter mb-4">
+      <div className="pt-24 pb-20 px-5 max-w-7xl mx-auto space-y-16">
+
+        {/* ── Hero ─────────────────────────────────────────────────────────── */}
+        <section className="text-center space-y-8 py-8">
+          <Motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+            <h1 className="text-5xl md:text-7xl font-black text-slate-900 tracking-tighter mb-4 leading-none">
               Explore the <span className="text-amber-500">Unexplored</span>
             </h1>
             <p className="text-slate-500 font-medium max-w-xl mx-auto text-lg">
               Book unique farm stays and collaborate with top creators to tell your story.
             </p>
-          </motion.div>
+          </Motion.div>
 
-          <SearchBar 
-            query={query} setQuery={setQuery}
-            startDate={startDate} setStartDate={setStartDate}
-            endDate={endDate} setEndDate={setEndDate}
-            timeSlot={timeSlot} setTimeSlot={setTimeSlot}
+          <SearchBar
+            query={query}
+            setQuery={setQuery}
+            startDate={startDate}
+            setStartDate={setStartDate}
+            endDate={endDate}
+            setEndDate={setEndDate}
             onSearch={handleSearch}
           />
-        </section>
 
-        {/* ── Best Places to Visit (Farms) ── */}
-        <section>
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-3xl font-black text-slate-900">Best Places to Visit</h2>
-              <p className="text-slate-500 text-sm font-medium">Handpicked farm stays for your next adventure</p>
-            </div>
-            <Link to="/services" className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-              View All
-            </Link>
-          </div>
-          
-          {loading ? (
-            <div className="py-20 text-center text-slate-400">Finding best farms for you...</div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {shownFarms.map((farm) => (
-                <ItemCard key={farm.id} item={farm} type="farm" />
-              ))}
-            </div>
-          )}
-
-          {hasMoreFarms && (
-            <div className="flex justify-center mt-10">
-              <motion.button
-                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                onClick={() => setVisibleFarms(v => v + 6)}
-                className="flex items-center gap-2 bg-white border border-slate-200 hover:border-amber-400 text-slate-700 hover:text-amber-600 font-black px-8 py-3 rounded-2xl shadow-sm transition-all text-sm uppercase tracking-widest"
+          {/* Search status bar */}
+          <AnimatePresence>
+            {(hasSearchResults || searching) && (
+              <Motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="flex items-center justify-center gap-3 flex-wrap"
               >
-                <FiChevronDown size={16} /> Load More Destiantions
-              </motion.button>
-            </div>
+                {searching ? (
+                  <div className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-full text-sm font-bold">
+                    <div className="w-3.5 h-3.5 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                    Searching…
+                  </div>
+                ) : (
+                  <>
+                    <div className="inline-flex items-center gap-2 bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2 rounded-full text-sm font-bold">
+                      <FiSearch size={13} />
+                      Results for: &ldquo;<span className="italic">{searchLabel}</span>&rdquo;
+                    </div>
+                    <button
+                      onClick={clearSearch}
+                      className="inline-flex items-center gap-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 px-4 py-2 rounded-full text-sm font-bold transition-all"
+                    >
+                      <FiX size={12} /> Clear
+                    </button>
+                  </>
+                )}
+              </Motion.div>
+            )}
+          </AnimatePresence>
+
+          {searchError && (
+            <p className="text-red-500 text-sm font-medium">{searchError}</p>
           )}
         </section>
 
-        {/* ── Top Creators ── */}
-        <section>
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-3xl font-black text-slate-900">Top Creators</h2>
-              <p className="text-slate-500 text-sm font-medium">Collaborate with the best visual storytellers</p>
-            </div>
-            <Link to="/services" className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-all">
-              Explore All
-            </Link>
-          </div>
-          
-          {loading ? (
-             <div className="py-20 text-center text-slate-400">Loading creators...</div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-              {shownCreators.map((creator) => (
-                <ItemCard key={creator.id} item={creator} type="creator" />
-              ))}
-            </div>
+        {/* ── Search Result Sections (appear only after search) ────────────── */}
+        <AnimatePresence>
+          {hasSearchResults && !searching && (
+            <Motion.div
+              key="search-results"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4 }}
+              className="space-y-16"
+            >
+              {/* Best Farms based on search */}
+              <div className="bg-amber-50/60 border border-amber-100 rounded-3xl p-8">
+                <CardSection
+                  title={`Best Farms for "${searchLabel}"`}
+                  subtitle="AI-ranked farm stays matching your search"
+                  accent="amber"
+                  items={searchFarms}
+                  type="farm"
+                  visibleCount={sfVisible}
+                  onLoadMore={() => setSfVisible(v => Math.min(v + LOAD_STEP, searchFarms.length))}
+                  loading={false}
+                  emptyEmoji="🔍"
+                  emptyTitle="No matching farms"
+                  emptyMsg="Try different keywords or remove date filters."
+                  isSearch
+                />
+              </div>
+
+              {/* Best Creators based on search */}
+              <div className="bg-purple-50/60 border border-purple-100 rounded-3xl p-8">
+                <CardSection
+                  title={`Best Creators for "${searchLabel}"`}
+                  subtitle="Content creators matched to your search"
+                  accent="purple"
+                  items={searchCreators}
+                  type="creator"
+                  visibleCount={scVisible}
+                  onLoadMore={() => setScVisible(v => Math.min(v + LOAD_STEP, searchCreators.length))}
+                  loading={false}
+                  emptyEmoji="🔍"
+                  emptyTitle="No matching creators"
+                  emptyMsg="Try different keywords or niche terms."
+                  isSearch
+                />
+              </div>
+
+              {/* Separator */}
+              <div className="flex items-center gap-4">
+                <div className="flex-1 h-px bg-slate-200" />
+                <span className="text-slate-400 text-xs font-bold uppercase tracking-widest">All Listings Below</span>
+                <div className="flex-1 h-px bg-slate-200" />
+              </div>
+            </Motion.div>
           )}
+        </AnimatePresence>
 
-          {hasMoreCreators && (
-            <div className="flex justify-center mt-10">
-              <motion.button
-                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                onClick={() => setVisibleCreators(v => v + 4)}
-                className="flex items-center gap-2 bg-white border border-slate-200 hover:border-purple-400 text-slate-700 hover:text-purple-600 font-black px-8 py-3 rounded-2xl shadow-sm transition-all text-sm uppercase tracking-widest"
-              >
-                <FiChevronDown size={16} /> View More Creators
-              </motion.button>
-            </div>
-          )}
-        </section>
-
-        {/* ── Available in Selected Slot ── */}
-        <section>
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-3xl font-black text-slate-900">Available Places in Selected Time Slot</h2>
-              <p className="text-slate-500 text-sm font-medium">
-                Based on your dates{timeSlot ? ` and ${timeSlot} slot` : ""}, these farms are marked available.
-              </p>
-            </div>
+        {/* ── Base error ─────────────────────────────────────────────────────── */}
+        {baseError && (
+          <div className="flex flex-col items-center gap-3 text-center py-8">
+            <p className="text-red-500 font-bold">{baseError}</p>
+            <button
+              onClick={loadBaseData}
+              className="flex items-center gap-2 px-5 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold hover:bg-slate-700 transition-all"
+            >
+              <FiRefreshCw size={13} /> Retry
+            </button>
           </div>
+        )}
 
-          {!startDate && !endDate && availableFarms.length === 0 ? (
-            <div className="py-10 text-center text-slate-400 text-sm">
-              Select your dates and time slot above to see live availability.
-            </div>
-          ) : loading ? (
-            <div className="py-10 text-center text-slate-400 text-sm">
-              Checking availability...
-            </div>
-          ) : availableFarms.length === 0 ? (
-            <div className="py-10 text-center text-slate-400 text-sm">
-              No farms are marked available for the selected range. Try adjusting your dates or time slot.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {availableFarms.slice(0, 6).map((farm) => (
-                <ItemCard key={farm.id} item={farm} type="farm" />
-              ))}
-            </div>
-          )}
-        </section>
+        {/* ── Permanent: New & Top Rated Farms ────────────────────────────── */}
+        <CardSection
+          title="New & Top Rated Farms"
+          subtitle="Discover the newest and highest-rated farm stays across India"
+          accent="amber"
+          items={sortedFarms}
+          type="farm"
+          visibleCount={farmVisible}
+          onLoadMore={() => setFarmVisible(v => Math.min(v + LOAD_STEP, sortedFarms.length))}
+          loading={baseLoading}
+          emptyEmoji="🌾"
+          emptyTitle="No farms yet"
+          emptyMsg="Be the first farmer to list your farm on NammaGig!"
+        />
 
-        {/* ── CTA Banner ── */}
-        <motion.section initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }}
-          className="bg-slate-800 rounded-[48px] p-12 py-16 text-center shadow-2xl relative overflow-hidden"
-        >
-          <div className="relative z-10">
-            <h2 className="text-4xl md:text-5xl font-black text-white mb-4">Start your journey today</h2>
-            <p className="text-slate-400 text-lg mb-10 max-w-xl mx-auto">
-              Whether you're a farmer looking for guests or a creator looking for stories, NammaGig is your gateway.
-            </p>
-            <div className="flex gap-4 justify-center flex-wrap">
-              <Link to="/ai-planner" className="bg-amber-500 text-white font-black px-8 py-4 rounded-2xl shadow-lg shadow-amber-500/20 hover:bg-amber-400 transition-all text-sm uppercase tracking-widest flex items-center gap-2">
-                AI Trip Planner <FiArrowRight size={16} />
-              </Link>
-              <Link to="/about" className="bg-white/10 backdrop-blur-md text-white border border-white/20 font-black px-8 py-4 rounded-2xl hover:bg-white/20 transition-all text-sm uppercase tracking-widest">
-                Learn More
-              </Link>
-            </div>
-          </div>
-          <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/10 blur-[100px] -mr-32 -mt-32" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 blur-[100px] -ml-32 -mb-32" />
-        </motion.section>
+        {/* ── Permanent: New & Top Creators ───────────────────────────────── */}
+        <CardSection
+          title="New & Top Creators"
+          subtitle="Newest and top-rated agri-content creators"
+          accent="purple"
+          items={sortedCreators}
+          type="creator"
+          visibleCount={creatorVisible}
+          onLoadMore={() => setCreatorVisible(v => Math.min(v + LOAD_STEP, sortedCreators.length))}
+          loading={baseLoading}
+          emptyEmoji="🎬"
+          emptyTitle="No creators yet"
+          emptyMsg="Creators will appear here once they join NammaGig."
+        />
 
       </div>
+
       <Footer />
     </div>
   );

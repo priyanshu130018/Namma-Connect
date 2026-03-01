@@ -7,7 +7,7 @@ export default function TouristSetting() {
     <div className="min-h-screen bg-slate-50">
       <Navbar minimal />
       <div className="pt-20 flex flex-col items-center min-h-[calc(100vh-80px)]">
-        <div className="w-full">
+        <div className="w-full py-8 px-4">
           <SettingPanel
             title="Account Settings"
             subtitle="Manage notifications, security, and preferences"

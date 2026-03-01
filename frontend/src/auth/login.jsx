@@ -1,17 +1,23 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FiMail, FiLock, FiEye, FiEyeOff, FiUser } from "react-icons/fi";
-import { FcGoogle } from "react-icons/fc";
+import { FiMail, FiLock, FiEye, FiEyeOff, FiUser, FiPhone } from "react-icons/fi";
 import { useNavigate, Link } from "react-router-dom";
 import { GoogleLogin } from "@react-oauth/google";
 import { authAPI } from "@/services/api";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [tab, setTab] = useState(new URLSearchParams(window.location.search).get("tab") === "signup" ? "signup" : "login");
+
+  const [tab, setTab] = useState(
+    new URLSearchParams(window.location.search).get("tab") === "signup"
+      ? "signup"
+      : "login"
+  );
+
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
   const [form, setForm] = useState({
     name: "",
@@ -21,52 +27,94 @@ export default function Login() {
     mobile: ""      // signup
   });
 
+  /**
+   * Reset form when switching tabs to prevent sensitive data leakage (e.g. password auto-fill)
+   */
+  const handleTabChange = (newTab) => {
+    setTab(newTab);
+    setError("");
+    setForm({
+      name: "",
+      identifier: "",
+      email: "",
+      password: "",
+      mobile: ""
+    });
+  };
+
+  /**
+   * Save token & user → Redirect based on role
+   */
   const saveAndRedirect = (token, user) => {
     localStorage.setItem("ng_token", token);
     localStorage.setItem("ng_user", JSON.stringify(user));
 
-    if (user.role === "farmer") navigate("/farmer/home");
+    if (user.role === "admin")   navigate("/admin/home");
+    else if (user.role === "farmer")  navigate("/farmer/home");
     else if (user.role === "creator") navigate("/creator/home");
     else navigate("/home");
   };
 
+  /**
+   * Login / Signup Submit
+   */
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
 
     try {
+      let res;
+
       if (tab === "login") {
-        const res = await authAPI.login({
+        res = await authAPI.login({
           identifier: form.identifier,
           password: form.password
         });
-
         saveAndRedirect(res.data.access_token, {
-          id: res.data.user_id,
-          loginId: res.data.login_id,
+          userId: res.data.user_id,
+          profileId: res.data.profile_id,
           role: res.data.role,
           name: res.data.name,
           email: res.data.email,
           mobile: res.data.mobile,
         });
-
       } else {
+        // Validate mobile before calling API
+        if (form.mobile.replace(/\D/g, "").length !== 10) {
+          setError("Mobile number must be exactly 10 digits.");
+          setLoading(false);
+          return;
+        }
         await authAPI.register({
-          name: form.name,
+          full_name: form.name,
           email: form.email,
-          mobile: form.mobile,
+          mobile: form.mobile.replace(/\D/g, ""),
           password: form.password
         });
-
-        // Show success message and switch to login
-        setError({ type: "success", msg: `Welcome ${form.name}! Registration successful. Please log in to continue.` });
-        setTab("login");
-        setForm(p => ({ ...p, identifier: form.email, password: "" })); // Pre-fill email for login
+        setSuccessMessage(`${form.name} can login now.`);
+        handleTabChange("login"); // Switch to login tab
       }
 
     } catch (err) {
-      setError(err.response?.data?.detail || "Something went wrong. Please try again.");
+      const detail = err.response?.data?.detail;
+
+      if (err.response?.status === 401) {
+        setError(detail || "Invalid email or password");
+      } else if (err.response?.status === 404) {
+        setError(detail || "User not found");
+      } else if (err.response?.status === 400) {
+        setError(detail || "Registration failed. Please check your details.");
+      } else if (err.response?.status === 422) {
+        const errors = err.response?.data?.detail;
+        if (Array.isArray(errors)) {
+          setError(errors.map(e => e.msg).join(", "));
+        } else {
+          setError(detail || "Invalid input.");
+        }
+      } else {
+        setError(detail || "Something went wrong. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
@@ -74,27 +122,18 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center px-4 py-16">
-      {/* Background orbs */}
-      <div className="orb w-96 h-96 bg-green-400 -top-32 -left-32" />
-      <div className="orb w-80 h-80 bg-emerald-300 bottom-0 -right-20" />
-
       <motion.div
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="relative z-10 w-full max-w-md"
+        className="w-full max-w-md"
       >
+
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg">
-              <span className="text-white font-black">NG</span>
-            </div>
-            <span className="font-black text-2xl text-slate-900">
-              Namma<span className="text-green-600">Gig</span>
-            </span>
+          <Link to="/" className="text-2xl font-black">
+            Namma<span className="text-green-600">Gig</span>
           </Link>
-          <p className="text-slate-500 text-sm">
+          <p className="text-slate-500 text-sm mt-1">
             Your agri-tourism journey starts here
           </p>
         </div>
@@ -106,11 +145,11 @@ export default function Login() {
             {["login", "signup"].map(t => (
               <button
                 key={t}
-                onClick={() => { setTab(t); setError(""); }}
+                onClick={() => handleTabChange(t)}
                 className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all capitalize ${
                   tab === t
                     ? "bg-white text-slate-900 shadow-sm"
-                    : "text-slate-500 hover:text-slate-700"
+                    : "text-slate-500"
                 }`}
               >
                 {t === "login" ? "Log In" : "Sign Up"}
@@ -119,26 +158,23 @@ export default function Login() {
           </div>
 
           {error && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className={`mb-5 p-4 border rounded-xl text-sm ${
-                error.type === "success" 
-                  ? "bg-green-50 border-green-200 text-green-600" 
-                  : "bg-red-50 border-red-200 text-red-600"
-              }`}
-            >
-              {error.msg || error}
-            </motion.div>
+            <div className="mb-5 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm">
+              {error}
+            </div>
+          )}
+
+          {successMessage && (
+            <div className="mb-5 p-4 bg-green-50 border border-green-200 rounded-xl text-green-600 text-sm">
+              {successMessage}
+            </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
 
-            {/* Full Name - Signup Only */}
+            {/* Name - Signup Only */}
             <AnimatePresence>
               {tab === "signup" && (
                 <motion.div
-                  key="name"
                   initial={{ height: 0, opacity: 0 }}
                   animate={{ height: "auto", opacity: 1 }}
                   exit={{ height: 0, opacity: 0 }}
@@ -147,27 +183,26 @@ export default function Login() {
                     Full Name
                   </label>
                   <div className="relative">
-                    <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                    <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input
                       required
                       value={form.name}
                       onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
-                      placeholder="Your name"
                       className="input-field pl-9 text-sm"
+                      placeholder="Your name"
                     />
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
 
-            {/* Email OR Mobile (Login) | Email (Signup) */}
+            {/* Email or Mobile */}
             <div>
               <label className="text-xs font-semibold text-slate-500 block mb-1.5">
                 {tab === "login" ? "Email or Mobile" : "Email Address"}
               </label>
-
               <div className="relative">
-                <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   required
                   value={tab === "login" ? form.identifier : form.email}
@@ -177,26 +212,38 @@ export default function Login() {
                       [tab === "login" ? "identifier" : "email"]: e.target.value
                     }))
                   }
-                  placeholder={tab === "login" ? "Enter email or mobile" : "you@example.com"}
                   className="input-field pl-9 text-sm"
+                  placeholder={
+                    tab === "login"
+                      ? "Enter email or mobile"
+                      : "you@example.com"
+                  }
                 />
               </div>
             </div>
 
-            {/* Mobile - Signup Only */}
+            {/* Mobile - Signup */}
             {tab === "signup" && (
               <div>
                 <label className="text-xs font-semibold text-slate-500 block mb-1.5">
                   Mobile Number
                 </label>
                 <div className="relative">
-                  <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                  <FiPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                   <input
                     required
+                    type="tel"
                     value={form.mobile}
-                    onChange={e => setForm(p => ({ ...p, mobile: e.target.value }))}
-                    placeholder="Your mobile"
+                    onChange={e => {
+                      // Only allow digits, max 10
+                      const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                      setForm(p => ({ ...p, mobile: val }));
+                    }}
                     className="input-field pl-9 text-sm"
+                    placeholder="10-digit mobile number"
+                    maxLength={10}
+                    inputMode="numeric"
+                    pattern="\d{10}"
                   />
                 </div>
               </div>
@@ -208,24 +255,29 @@ export default function Login() {
                 <label className="text-xs font-semibold text-slate-500">
                   Password
                 </label>
-                <Link to="/change-password" className="text-[10px] font-bold text-green-600 hover:underline">
-                  Forgot Password?
-                </Link>
+                {tab === "login" && (
+                  <Link
+                    to="/change-password"
+                    className="text-xs font-semibold text-green-600 hover:text-green-700 hover:underline transition-colors"
+                  >
+                    Forgot Password?
+                  </Link>
+                )}
               </div>
               <div className="relative">
-                <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   required
                   type={showPw ? "text" : "password"}
                   value={form.password}
                   onChange={e => setForm(p => ({ ...p, password: e.target.value }))}
-                  placeholder="••••••••"
                   className="input-field pl-9 pr-10 text-sm"
+                  placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw(p => !p)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
                 >
                   {showPw ? <FiEyeOff size={16} /> : <FiEye size={16} />}
                 </button>
@@ -244,27 +296,29 @@ export default function Login() {
           {/* Divider */}
           <div className="flex items-center gap-3 my-6">
             <div className="flex-1 h-px bg-slate-200" />
-            <span className="text-slate-400 text-xs font-medium">or continue with</span>
+            <span className="text-slate-400 text-xs">or continue with</span>
             <div className="flex-1 h-px bg-slate-200" />
           </div>
 
-          {/* Google Login (UNCHANGED) */}
+          {/* Google Login */}
           <div className="flex justify-center">
             <GoogleLogin
               onSuccess={async (cred) => {
                 try {
                   setLoading(true);
                   const res = await authAPI.googleLogin(cred.credential);
+
                   saveAndRedirect(res.data.access_token, {
-                    id: res.data.user_id,
-                    loginId: res.data.login_id,
+                    userId: res.data.user_id,
+                    profileId: res.data.profile_id,
                     role: res.data.role,
                     name: res.data.name,
                     email: res.data.email,
                     mobile: res.data.mobile,
                   });
+
                 } catch (err) {
-                  setError(err.response?.data?.detail || "Google sign-in failed. Please try email.");
+                  setError("Google sign-in failed.");
                 } finally {
                   setLoading(false);
                 }
@@ -273,7 +327,6 @@ export default function Login() {
               theme="outline"
               shape="pill"
               size="large"
-              text={tab === "login" ? "signin_with" : "signup_with"}
             />
           </div>
 

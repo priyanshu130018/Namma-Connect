@@ -1,42 +1,76 @@
-import { useState } from "react";
+// ─────────────────────────────────────────────
+// Farmer Registration Page — Premium Split Design
+// ─────────────────────────────────────────────
+
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion as Motion, AnimatePresence } from "framer-motion";
 import {
   FiSun, FiUser, FiMapPin, FiPhone, FiFileText,
-  FiAlertCircle, FiCheckCircle, FiList, FiActivity, FiArrowRight, FiMail, FiCamera, FiHome, FiTruck, FiLink
+  FiCheckCircle, FiArrowRight, FiMail, FiAlertTriangle, FiX,
+  FiHome, FiCalendar, FiShield, FiStar,
 } from "react-icons/fi";
+
 import Navbar from "@/components/layout/navbar";
 import { farmAPI } from "@/services/api";
+
+function Toast({ message, type = "success", onClose, duration = 4000 }) {
+  useEffect(() => {
+    if (!onClose) return;
+    const t = setTimeout(onClose, duration);
+    return () => clearTimeout(t);
+  }, [onClose, duration]);
+
+  return (
+    <AnimatePresence>
+      <Motion.div
+        initial={{ opacity: 0, y: 32, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 16, scale: 0.95 }}
+        transition={{ type: "spring", damping: 22, stiffness: 320 }}
+        className={`fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white text-sm font-bold max-w-sm ${
+          type === "error" ? "bg-red-600" : "bg-emerald-600"
+        }`}
+      >
+        {type === "error"
+          ? <FiAlertTriangle size={16} className="flex-shrink-0" />
+          : <FiCheckCircle size={16} className="flex-shrink-0" />}
+        <span className="flex-1">{message}</span>
+        {onClose && <button onClick={onClose} className="text-white/60 hover:text-white ml-1"><FiX size={14} /></button>}
+      </Motion.div>
+    </AnimatePresence>
+  );
+}
+
+const INDIAN_STATES = [
+  "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh","Goa",
+  "Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka","Kerala",
+  "Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram",
+  "Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu",
+  "Telangana","Tripura","Uttar Pradesh","Uttarakhand","West Bengal",
+  "Andaman and Nicobar Islands","Chandigarh","Delhi","Jammu and Kashmir",
+  "Ladakh","Lakshadweep","Puducherry"
+];
 
 const getUser = () => {
   try { return JSON.parse(localStorage.getItem("ng_user") || "null"); } catch { return null; }
 };
 
-const Field = ({ label, name, type = "text", placeholder, icon, required, textarea, value, onChange, inputMode, maxLength, pattern }) => (
+const Field = ({ label, type = "text", placeholder, icon, required, value, onChange, inputMode, maxLength, pattern, as }) => (
   <div>
-    <label className="text-xs font-semibold text-slate-500 block mb-1.5">{label}</label>
+    <label className="text-xs font-bold text-slate-500 block mb-1.5 uppercase tracking-widest">{label}</label>
     <div className="relative">
-      {icon && !textarea && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">{icon}</span>}
-      {textarea ? (
-        <textarea
-          required={required}
-          rows={3}
-          placeholder={placeholder}
-          value={value}
-          onChange={onChange}
-          className="input-field text-sm resize-none"
-        />
+      {icon && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-amber-500">{icon}</span>}
+      {as === "select" ? (
+        <select value={value} onChange={onChange} className={`input-field text-sm ${icon ? "pl-10" : ""} bg-white`}>
+          <option value="">Select state…</option>
+          {INDIAN_STATES.map(s => <option key={s} value={s}>{s}</option>)}
+        </select>
       ) : (
         <input
-          type={type}
-          required={required}
-          placeholder={placeholder}
-          value={value}
-          onChange={onChange}
-          className={`input-field text-sm ${icon ? "pl-10" : ""}`}
-          inputMode={inputMode}
-          maxLength={maxLength}
-          pattern={pattern}
+          type={type} required={required} placeholder={placeholder} value={value} onChange={onChange}
+          className={`input-field text-sm ${icon ? "pl-10" : ""} focus:border-amber-400`}
+          inputMode={inputMode} maxLength={maxLength} pattern={pattern}
         />
       )}
     </div>
@@ -48,231 +82,190 @@ export default function FarmerRegister() {
   const user = getUser();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const sessionName = user?.name || user?.full_name || "";
 
   const [form, setForm] = useState({
-    name: user?.name || "",
-    age: "",
-    area: "",
-    state: "",
-    country: "India",
-    mobile: user?.mobile || "",
-    email: user?.email || "",
-    aadhaar_no: "",
-    farm_location: "",
-    farm_description: "",
-    crop_types: "",
-    farm_photo: "",
-    stay_available: "",
-    transport_available: "",
-    activities: "",
-    identity_proof: "",
+    name: sessionName, age: "", address: "", city: "",
+    state: "", country: "India", postal_code: "",
+    mobile: user?.mobile || "", email: user?.email || "",
+    aadhaar_no: "", identity_proof: "",
   });
 
-  const upd = (k) => (e) => {
+  const upd = (key) => (e) => {
     let val = e.target.value;
-    if (k === "mobile" || k === "aadhaar_no") {
-      val = val.replace(/\D/g, "");
-    }
-    setForm(p => ({ ...p, [k]: val }));
+    if (["mobile", "aadhaar_no", "postal_code"].includes(key)) val = val.replace(/\D/g, "");
+    setForm(prev => ({ ...prev, [key]: val }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!user) { navigate("/login"); return; }
+    if (form.aadhaar_no.length !== 12) { setError("Aadhaar number must be exactly 12 digits."); return; }
     setLoading(true); setError("");
     try {
-      const payload = {
+      await farmAPI.register(user.userId, {
         profile: {
-          name: form.name,
-          age: form.age || null,
-          area: form.area,
-          state: form.state,
-          country: form.country || "India",
-          mobile: form.mobile,
-          aadhaar_no: form.aadhaar_no,
-        },
-        listing: {
-          name: form.name,
-          description: form.farm_description,
-          location: form.farm_location,
-          area: form.area,
-          state: form.state,
-          mobile: form.mobile,
-          email: form.email || null,
-          crop_types: form.crop_types,
-          farm_photo: form.farm_photo || null,
-          stay_available: form.stay_available || null,
-          transport_available: form.transport_available || null,
-          activities: form.activities,
-        },
-      };
-
-      const res = await farmAPI.register(user.loginId, payload);
-      const updated = { ...user, role: "farmer", id: res.data.id };
-      localStorage.setItem("ng_user", JSON.stringify(updated));
-      setSuccess(true);
-      setTimeout(() => navigate("/farmer/home"), 1000);
+          name: form.name, age: form.age ? Number(form.age) : null,
+          address: form.address, city: form.city, state: form.state,
+          country: form.country, postal_code: form.postal_code,
+          mobile: form.mobile, email: form.email,
+          aadhaar_no: form.aadhaar_no, identity_proof: form.identity_proof,
+        }
+      });
+      localStorage.setItem("ng_user", JSON.stringify({ ...user, role: "farmer", name: form.name }));
+      setShowToast(true);
+      setTimeout(() => navigate("/farmer/home"), 1500);
     } catch (err) {
-      setError(err.response?.data?.detail || "Registration failed. Try again.");
+      setError(err.response?.data?.detail || "Registration failed. Please try again.");
     } finally { setLoading(false); }
   };
 
   if (user?.role === "farmer") {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-        <div className="text-center p-10 bg-white rounded-3xl border border-slate-200 shadow-sm max-w-sm">
-          <FiCheckCircle size={50} className="text-green-500 mx-auto mb-4" />
+        <Motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+          className="text-center p-12 bg-white rounded-3xl shadow-lg max-w-sm"
+        >
+          <FiCheckCircle size={56} className="text-emerald-500 mx-auto mb-5" />
           <h2 className="text-2xl font-black mb-2">Already Registered</h2>
-          <p className="text-slate-500 text-sm mb-6">You are already registered as a farmer.</p>
+          <p className="text-slate-500 text-sm mb-6">You're already onboarded as a farmer.</p>
           <button onClick={() => navigate("/farmer/home")} className="btn-primary w-full">Go to Dashboard</button>
-        </div>
+        </Motion.div>
       </div>
     );
   }
 
-  if (success) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
-        className="text-center bg-white rounded-3xl p-14 border border-green-200 shadow-lg max-w-sm"
-      >
-        <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-5">
-          <FiCheckCircle size={40} className="text-green-500" />
-        </div>
-        <h2 className="text-2xl font-black text-slate-900 mb-2">Registration Successful!</h2>
-        <p className="text-slate-500 text-sm">Your farm is now listed. Redirecting to your dashboard…</p>
-      </motion.div>
-    </div>
-  );
-
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
       <Navbar minimal />
-      <div className="pt-24 pb-16 px-6 max-w-3xl mx-auto">
 
-        {/* Header */}
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} className="text-center mb-10">
-          <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-3xl flex items-center justify-center mx-auto mb-4">
-            <FiSun size={30} />
+      <div className="flex flex-col lg:flex-row flex-1 pt-16">
+
+        {/* ── Left Hero ── */}
+        <Motion.aside
+          initial={{ opacity: 0, x: -40 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="lg:w-[38%] bg-gradient-to-b from-amber-500 via-amber-600 to-orange-600 text-white p-12 lg:p-16 flex flex-col justify-between relative overflow-hidden"
+        >
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute -top-32 -right-32 w-80 h-80 bg-white/10 rounded-full blur-3xl" />
+            <div className="absolute -bottom-32 -left-32 w-80 h-80 bg-orange-800/20 rounded-full blur-3xl" />
           </div>
-          <span className="inline-block bg-amber-100 text-amber-700 text-xs font-bold px-4 py-1.5 rounded-full mb-3">
-            🌾 Farmer Registration
-          </span>
-          <h1 className="text-3xl font-black text-slate-900 mb-2">Register Your Farm</h1>
-          <p className="text-slate-500 text-sm">List your farm and start hosting tourists on NammaGig</p>
-        </motion.div>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* Section 1: Personal Information */}
-          <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-6">
-            <h2 className="text-xl font-black text-slate-900 flex items-center gap-2 mb-2">
-              <FiUser className="text-amber-500" /> Personal Information
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Field
-                label="Full Name *"
-                name="name"
-                value={form.name}
-                onChange={upd("name")}
-                placeholder="Raju Krishna"
-                icon={<FiUser size={15} />}
-                required
-              />
-              <Field
-                label="Mobile Number *"
-                name="mobile"
-                value={form.mobile}
-                onChange={upd("mobile")}
-                placeholder="+91 9876543210"
-                icon={<FiPhone size={15} />}
-                required
-                type="tel"
-                inputMode="numeric"
-                maxLength={10}
-                pattern="\d{10}"
-              />
+          <div className="relative z-10">
+            <div className="w-16 h-16 bg-white/20 rounded-3xl flex items-center justify-center mb-8 backdrop-blur-sm border border-white/30">
+              <FiSun size={32} />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Field label="Age" name="age" value={form.age} onChange={upd("age")} type="number" placeholder="35" />
-              <div className="md:col-span-2">
-                <Field label="Email Address" name="email" value={form.email} onChange={upd("email")} type="email" placeholder="you@example.com" icon={<FiMail size={15} />} />
+            <h1 className="text-4xl lg:text-5xl font-black leading-tight mb-4">Join as a<br />Farmer 🌾</h1>
+            <p className="text-amber-100 text-base leading-relaxed mb-10">
+              Connect with creators, tourists, and agri-enthusiasts. Share your farm story and earn from your land.
+            </p>
+
+            {[
+              { icon: <FiStar size={16} />, text: "List your farm stay for free" },
+              { icon: <FiShield size={16} />, text: "Verified farmer badge" },
+              { icon: <FiHome size={16} />, text: "Set your own prices & rules" },
+              { icon: <FiCalendar size={16} />, text: "Manage bookings easily" },
+            ].map(({ icon, text }, i) => (
+              <Motion.div key={i} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.2 + i * 0.08 }}
+                className="flex items-center gap-3 mb-4"
+              >
+                <div className="w-8 h-8 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0 border border-white/30">{icon}</div>
+                <span className="text-sm font-medium text-amber-50">{text}</span>
+              </Motion.div>
+            ))}
+          </div>
+
+          <div className="relative z-10">
+            {sessionName && (
+              <div className="bg-white/15 backdrop-blur-sm border border-white/20 rounded-2xl p-4 flex items-center gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center font-black text-lg">
+                  {sessionName[0]?.toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-xs text-amber-200 font-bold uppercase tracking-widest">Logged in as</p>
+                  <p className="font-black">{sessionName}</p>
+                </div>
               </div>
-            </div>
-          </div>
-
-          {/* Section 2: Farm Details */}
-          <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-6">
-            <h2 className="text-xl font-black text-slate-900 flex items-center gap-2 mb-2">
-              <FiMapPin className="text-emerald-600" /> Farm & Location
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Field label="Area / Village *" name="area" value={form.area} onChange={upd("area")} placeholder="Kushalnagar" icon={<FiMapPin size={15} />} required />
-              <Field label="State *" name="state" value={form.state} onChange={upd("state")} placeholder="Karnataka" required />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Field label="Farm GPS / Full Address *" name="farm_location" value={form.farm_location} onChange={upd("farm_location")} placeholder="12.4567, 75.6789 or full address" icon={<FiMapPin size={15} />} required />
-              <Field label="Main Crops *" name="crop_types" value={form.crop_types} onChange={upd("crop_types")} placeholder="Coffee, Cardamom, Pepper" icon={<FiList size={15} />} required />
-            </div>
-            <Field label="Farm Photo URL (Optional)" name="farm_photo" value={form.farm_photo} onChange={upd("farm_photo")} placeholder="https://..." icon={<FiCamera size={15} />} />
-            <Field label="Farm Description *" name="farm_description" value={form.farm_description} onChange={upd("farm_description")} textarea required
-              placeholder="Describe your farm — crops grown, best season to visit..." />
-          </div>
-
-          {/* Section 3: Amenities & Activities */}
-          <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-6">
-            <h2 className="text-xl font-black text-slate-900 flex items-center gap-2 mb-2">
-              <FiActivity className="text-emerald-600" /> Amenities & Activities
-            </h2>
-            <Field label="Stay Details (Optional)" name="stay_available" value={form.stay_available} onChange={upd("stay_available")} placeholder="e.g. 2 Guest rooms with attached bath" icon={<FiHome size={15} />} />
-            <Field label="Transport (Optional)" name="transport_available" value={form.transport_available} onChange={upd("transport_available")} placeholder="e.g. Pickup from nearby station" icon={<FiTruck size={15} />} />
-            <Field label="Activities Offered *" name="activities" value={form.activities} onChange={upd("activities")} textarea required
-              placeholder="e.g. Harvest walk, Bee keeping, Tractor ride, Bird watching..." />
-          </div>
-
-          {/* Section 4: Verification */}
-          <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm space-y-6">
-            <h2 className="text-xl font-black text-slate-900 flex items-center gap-2 mb-2">
-              <FiFileText className="text-emerald-600" /> Identity Verification
-            </h2>
-            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-sm text-emerald-700 flex items-start gap-2 mb-4">
-              <FiAlertCircle className="flex-shrink-0 mt-0.5" size={15} />
-              <span>Your Aadhaar number is encrypted and used only for identity verification.</span>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Field
-                label="Aadhaar Number *"
-                name="aadhaar_no"
-                value={form.aadhaar_no}
-                onChange={upd("aadhaar_no")}
-                placeholder="XXXX XXXX XXXX"
-                icon={<FiFileText size={15} />}
-                required
-                type="tel"
-                inputMode="numeric"
-                maxLength={12}
-                pattern="\d{12}"
-              />
-              <Field label="Identity Proof URL / Link (Optional)" name="identity_proof" value={form.identity_proof} onChange={upd("identity_proof")} placeholder="Aadhaar photo or certificate drive link" icon={<FiLink size={15} />} />
-            </div>
-          </div>
-
-          {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-2xl text-red-600 text-sm">
-              {error}
-            </div>
-          )}
-
-          <button type="submit" disabled={loading}
-            className="w-full bg-amber-500 hover:bg-amber-400 disabled:bg-amber-300 text-white font-bold px-8 py-4 rounded-3xl transition-all flex items-center justify-center gap-3 text-lg shadow-xl"
-          >
-            {loading ? (
-              <span className="w-6 h-6 border-4 border-white/40 border-t-white rounded-full animate-spin" />
-            ) : (
-              <>Complete Registration <FiArrowRight /></>
             )}
-          </button>
-        </form>
+          </div>
+        </Motion.aside>
+
+        {/* ── Right Form ── */}
+        <Motion.main
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.15 }}
+          className="flex-1 overflow-y-auto py-12 px-6 lg:px-14 max-w-2xl mx-auto w-full"
+        >
+          <h2 className="text-2xl font-black text-slate-900 mb-1">Personal Details</h2>
+          <p className="text-slate-400 text-xs uppercase tracking-widest font-bold mb-8">Complete your profile to get started</p>
+
+          <form onSubmit={handleSubmit} className="space-y-5">
+
+            <Motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+              <Field label="Full Name *" value={form.name} onChange={upd("name")} required icon={<FiUser size={14} />} placeholder="Your full name" />
+            </Motion.div>
+
+            <Motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="grid grid-cols-2 gap-4">
+              <Field label="Email *" type="email" value={form.email} onChange={upd("email")} required icon={<FiMail size={14} />} />
+              <Field label="Mobile *" value={form.mobile} onChange={upd("mobile")} required maxLength={10} inputMode="numeric" icon={<FiPhone size={14} />} />
+            </Motion.div>
+
+            <Motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="grid grid-cols-2 gap-4">
+              <Field label="Age" type="number" value={form.age} onChange={upd("age")} placeholder="Years" icon={<FiCalendar size={14} />} />
+              <Field label="Country" value={form.country} onChange={upd("country")} icon={<FiMapPin size={14} />} />
+            </Motion.div>
+
+            <Motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.23 }}>
+              <Field label="Street Address" value={form.address} onChange={upd("address")} icon={<FiHome size={14} />} placeholder="Street / village" />
+            </Motion.div>
+
+            <Motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.26 }} className="grid grid-cols-3 gap-4">
+              <Field label="City" value={form.city} onChange={upd("city")} placeholder="City" />
+              <Field label="State" value={form.state} onChange={upd("state")} as="select" />
+              <Field label="Pincode" value={form.postal_code} onChange={upd("postal_code")} maxLength={6} inputMode="numeric" placeholder="6 digits" />
+            </Motion.div>
+
+            <Motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="pt-2 border-t border-slate-100">
+              <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Identity Verification</p>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Aadhaar Number *" value={form.aadhaar_no} onChange={upd("aadhaar_no")} required maxLength={12} inputMode="numeric" icon={<FiShield size={14} />} placeholder="12-digit" />
+                <Field label="Identity Proof URL" value={form.identity_proof} onChange={upd("identity_proof")} icon={<FiFileText size={14} />} placeholder="https://..." />
+              </div>
+            </Motion.div>
+
+            {error && (
+              <Motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                className="bg-red-50 border border-red-200 text-red-600 text-sm rounded-2xl px-4 py-3 flex items-center gap-2"
+              >
+                <FiAlertTriangle size={14} /> {error}
+              </Motion.div>
+            )}
+
+            <Motion.button
+              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+              type="submit" disabled={loading}
+              className="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white font-black py-4 rounded-2xl text-base shadow-xl shadow-amber-200 transition-all disabled:opacity-60 flex items-center justify-center gap-3 mt-2"
+            >
+              {loading
+                ? <><span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Processing…</>
+                : <>Complete Farmer Registration <FiArrowRight size={18} /></>
+              }
+            </Motion.button>
+          </form>
+        </Motion.main>
       </div>
+
+      {showToast && (
+        <Toast
+          message="🌾 Farmer registration successful! Welcome to NammaGig."
+          type="success"
+          onClose={() => setShowToast(false)}
+        />
+      )}
     </div>
   );
 }

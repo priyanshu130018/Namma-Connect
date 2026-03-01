@@ -7,17 +7,17 @@ export default function CreatorSetting() {
     <div className="min-h-screen bg-slate-50">
       <Navbar minimal />
       <div className="pt-20 flex flex-col items-center min-h-[calc(100vh-80px)]">
-        <div className="w-full">
+        <div className="w-full py-8 px-4">
           <SettingPanel
             title="Creator Settings"
-            subtitle="Manage your account preferences"
+            subtitle="Manage your creator account preferences"
             accentColor="purple"
             notifLabels={[
               { label: "Email Alerts",     key: "email"  },
               { label: "Collab Invites",   key: "collab" },
               { label: "Marketing Offers", key: "offers" },
             ]}
-            dangerText="Permanently delete your Creator account. All portfolio data will be removed."
+            dangerText="Permanently delete your Creator account. All portfolio data and bookings will be removed."
           />
         </div>
       </div>

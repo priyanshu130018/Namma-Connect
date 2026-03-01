@@ -1,134 +1,312 @@
-import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { FiCalendar, FiUsers, FiCheck, FiClock, FiX, FiInfo } from "react-icons/fi";
-import Navbar from "@/components/layout/navbar";
-import Footer from "@/components/layout/footer";
-import { farmAPI } from "@/services/api";
+// ─────────────────────────────────────────────
+// Farmer Bookings Page (Fully Synced With DB)
+// Toast & notification inlined — no external toast import
+// ─────────────────────────────────────────────
 
+import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  FiCalendar,
+  FiUsers,
+  FiCheck,
+  FiClock,
+  FiX,
+  FiInfo,
+  FiCheckCircle,
+  FiAlertTriangle,
+  FiInbox,
+  FiMap,
+} from "react-icons/fi";
+
+import Navbar from "@/components/layout/navbar"; 
+import Footer from "@/components/layout/footer";
+import { farmAPI, bookingAPI } from "@/services/api";
+import { BookingCard as SharedBookingCard, BookingDetailModal } from "@/components/ui/booking";
+
+// ── Inline Toast ──────────────────────────────────────────────────────────────
+function Toast({ message, type = "success", onClose, duration = 3000 }) {
+  useEffect(() => {
+    if (!onClose) return;
+    const t = setTimeout(onClose, duration);
+    return () => clearTimeout(t);
+  }, [onClose, duration]);
+
+  const icon =
+    type === "error" ? (
+      <FiAlertTriangle size={16} className="flex-shrink-0" />
+    ) : (
+      <FiCheckCircle size={16} className="text-green-400 flex-shrink-0" />
+    );
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, y: 24, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 16, scale: 0.95 }}
+        transition={{ type: "spring", damping: 22, stiffness: 320 }}
+        className={`fixed bottom-6 right-6 z-[9999] flex items-center gap-3 px-5 py-4 rounded-2xl shadow-2xl text-white text-sm font-bold max-w-sm ${
+          type === "error" ? "bg-red-600" : "bg-slate-900"
+        }`}
+      >
+        {icon}
+        <span className="flex-1">{message}</span>
+        {onClose && (
+          <button onClick={onClose} className="text-white/60 hover:text-white ml-1">
+            <FiX size={14} />
+          </button>
+        )}
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+// ── Status Styling ────────────────────────────────────────────────────────────
 const statusStyle = {
-  Confirmed: { class: "bg-green-100 text-green-700", icon: <FiCheck size={11} /> },
-  Pending: { class: "bg-amber-100 text-amber-700", icon: <FiClock size={11} /> },
-  Cancelled: { class: "bg-red-100 text-red-600", icon: <FiX size={11} /> },
+  confirmed: { class: "bg-green-100 text-green-700",  icon: <FiCheck size={11} /> },
+  pending:   { class: "bg-amber-100 text-amber-700",  icon: <FiClock size={11} /> },
+  cancelled: { class: "bg-red-100 text-red-600",      icon: <FiX size={11} /> },
+  completed: { class: "bg-blue-100 text-blue-700",    icon: <FiCheck size={11} /> },
 };
 
 function getUser() {
-  try { return JSON.parse(localStorage.getItem("ng_user")); } catch { return null; }
+  try { return JSON.parse(localStorage.getItem("ng_user") || "null"); }
+  catch { return null; }
 }
 
+// ── Main Component ────────────────────────────────────────────────────────────
 export default function FarmerBookings() {
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [receivedBookings, setReceivedBookings] = useState([]);
+  const [madeBookings,     setMadeBookings]     = useState([]);
+  const [loading,          setLoading]          = useState(true);
+  const [toast,            setToast]            = useState(null);
+  
+  const [receivedLimit,    setReceivedLimit]    = useState(4);
+  const [madeLimit,        setMadeLimit]        = useState(4);
+  const [selectedBooking,  setSelectedBooking]  = useState(null);
+  
   const user = getUser();
 
+  const showToast = (message, type = "success") => {
+    setToast({ message, type });
+  };
+
   useEffect(() => {
-    if (user?.loginId) {
-      farmAPI.getBookings(user.loginId)
-        .then(res => {
-          setBookings(res.data);
-          setLoading(false);
-        })
-        .catch(err => {
-          console.error("Failed to fetch bookings:", err);
-          setLoading(false);
-        });
-    }
-  }, [user?.loginId]);
+    if (!user?.userId) { setLoading(false); return; }
+    farmAPI.getBookings(user.userId)
+      .then(res => {
+        setReceivedBookings(res.data?.received || []);
+        setMadeBookings(res.data?.made || []);
+      })
+      .catch(err => console.error("Failed to fetch bookings:", err))
+      .finally(() => setLoading(false));
+  }, [user?.userId]);
 
   const handleStatusUpdate = async (id, newStatus) => {
     try {
-      await bookingAPI.updateStatus(id, newStatus);
-      setBookings(prev => prev.map(b => b.id === id ? { ...b, status: newStatus } : b));
+      await bookingAPI.updateFarmerStatus(id, user.userId, { status: newStatus });
+      setReceivedBookings(prev => prev.map(b => b.id === id ? { ...b, status: newStatus } : b));
+      showToast(`Booking ${newStatus} successfully!`, "success");
     } catch (err) {
       console.error("Failed to update status:", err);
-      alert("Failed to update status. Please try again.");
+      showToast("Failed to update status. Please try again.", "error");
     }
   };
+
+  const BookingCard = ({ b, isReceived, i }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: i * 0.05 }}
+      onClick={() => setSelectedBooking(b)}
+      className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm hover:shadow-md transition-shadow flex flex-col md:flex-row md:items-center justify-between gap-6 cursor-pointer group"
+    >
+      <div className="flex items-center gap-5">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 flex items-center justify-center text-2xl shadow-inner border border-green-100">
+          {b.item_emoji || (isReceived ? "👤" : "🏠")}
+        </div>
+
+        <div>
+          <p className="font-black text-slate-900 text-lg">
+            {isReceived ? (b.tourist_name || "Guest") : b.item_name}
+          </p>
+          <div className="flex flex-wrap items-center gap-4 text-slate-500 text-xs mt-2 font-medium">
+            <span className="flex items-center gap-1.5 bg-slate-100 px-2.5 py-1 rounded-full">
+              <FiCalendar size={13} className="text-slate-400" />
+              {new Date(b.check_in).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} —{" "}
+              {new Date(b.check_out).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+            </span>
+            <span className="flex items-center gap-1.5 bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full">
+              <FiUsers size={13} />
+              {b.adults || 1} { (b.adults || 1) > 1 ? 'Adults' : 'Adult' }
+              {b.children > 0 && `, ${b.children} ${b.children > 1 ? 'Children' : 'Child'}`}
+            </span>
+            {b.region && (
+              <span className="text-slate-400">• {b.region}</span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between md:justify-end gap-6 pt-4 md:pt-0 border-t md:border-t-0 border-slate-100">
+        <div className="text-right">
+          <p className="font-black text-slate-900 text-xl tracking-tight">
+            ₹{Number(b.total_price || 0).toLocaleString()}
+          </p>
+          <div className="flex items-center justify-end gap-2 mt-1.5">
+            <span className={`inline-flex items-center gap-1.5 text-[10px] font-black px-3 py-1.5 rounded-xl uppercase tracking-wider ${
+              statusStyle[b.status]?.class || statusStyle.pending.class
+            }`}>
+              {statusStyle[b.status]?.icon || statusStyle.pending.icon}
+              {b.status}
+            </span>
+          </div>
+        </div>
+
+        {isReceived && b.status === "pending" && (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleStatusUpdate(b.id, "confirmed")}
+              className="w-10 h-10 rounded-2xl bg-slate-900 text-white flex items-center justify-center hover:bg-green-600 transition-all shadow-lg shadow-slate-200"
+              title="Accept"
+            >
+              <FiCheck size={18} />
+            </button>
+            <button
+              onClick={() => handleStatusUpdate(b.id, "cancelled")}
+              className="w-10 h-10 rounded-2xl bg-white text-slate-400 border border-slate-200 flex items-center justify-center hover:text-red-600 hover:border-red-200 transition-all"
+              title="Reject"
+            >
+              <FiX size={18} />
+            </button>
+          </div>
+        )}
+      </div>
+    </motion.div>
+  );
 
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar minimal />
-      <div className="pt-24 pb-16 px-6 flex flex-col items-center min-h-[calc(100vh-80px)]">
-        <div className="w-full max-w-4xl">
-          <motion.div initial={{ opacity: 0, y: -15 }} animate={{ opacity: 1, y: 0 }} className="mb-8 text-center">
-            <h1 className="text-3xl font-black text-slate-900">Farm Bookings</h1>
-            <p className="text-slate-500 text-sm mt-1">Manage guest stays and experiences on your farm</p>
-          </motion.div>
+
+      <div className="pt-24 pb-20 px-6 flex flex-col items-center">
+        <div className="w-full max-w-5xl">
+          <header className="mb-12 text-center">
+            <h1 className="text-4xl font-black text-slate-900 tracking-tight">Dashboard</h1>
+            <p className="text-slate-500 font-medium mt-2">Manage your farm stays and your personal travels</p>
+          </header>
 
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 text-slate-400">
-              <div className="w-8 h-8 border-2 border-slate-200 border-t-green-600 rounded-full animate-spin mb-4" />
-              <p className="text-sm font-medium">Loading your bookings...</p>
-            </div>
-          ) : bookings.length === 0 ? (
-            <div className="bg-white rounded-3xl p-12 border border-slate-200 shadow-sm text-center">
-              <div className="text-5xl mb-4">🌾</div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">No bookings yet</h3>
-              <p className="text-slate-500 text-sm max-w-xs mx-auto">
-                Once tourists start booking stays on your farm, they will appear here.
-              </p>
+            <div className="flex flex-col items-center justify-center py-20">
+              <div className="w-12 h-12 border-4 border-slate-200 border-t-green-600 rounded-full animate-spin mb-4" />
+              <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Syncing with DB...</p>
             </div>
           ) : (
-            <div className="grid gap-4">
-              {bookings.map((b, i) => (
-                <motion.div key={b.id} initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}
-                  className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center text-green-700 font-bold text-lg">
-                      {b.item_emoji || "🏠"}
+            <div className="space-y-16">
+              {/* Section: Received */}
+              <section>
+                <div className="flex items-center justify-between mb-6 px-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-green-600 text-white flex items-center justify-center shadow-lg shadow-green-100">
+                      <FiInbox size={20} />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                         <p className="font-bold text-slate-900 text-sm">{b.tourist_name || "Guest"}</p>
-                         <span className="text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">#{b.id}</span>
-                         <span className="text-xs text-slate-400 font-medium">• {b.item_name}</span>
-                      </div>
-                      <div className="flex items-center gap-3 text-slate-400 text-xs mt-1">
-                        <span className="flex items-center gap-1"><FiCalendar size={12}/>{new Date(b.check_in).toLocaleDateString()} - {new Date(b.check_out).toLocaleDateString()}</span>
-                        <span className="flex items-center gap-1"><FiUsers size={12}/>{b.guests} guests</span>
-                      </div>
-                      {b.collab_note && (
-                        <div className="flex items-start gap-1.5 mt-2 bg-slate-50 p-2 rounded-lg border border-slate-100">
-                          <FiInfo size={11} className="text-slate-400 mt-0.5" />
-                          <p className="text-[11px] text-slate-500 italic">"{b.collab_note}"</p>
-                        </div>
-                      )}
+                      <h2 className="text-xl font-black text-slate-900">Bookings Received</h2>
+                      <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-0.5">Guests visiting your farm</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <div className="flex flex-col items-end gap-1 text-right">
-                      <span className="font-black text-slate-900 text-sm">₹{b.total_price?.toLocaleString() || 0}</span>
-                      <span className={`flex items-center gap-1 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-tight ${statusStyle[b.status]?.class || statusStyle.Pending.class}`}>
-                        {statusStyle[b.status]?.icon || statusStyle.Pending.icon}{b.status}
-                      </span>
-                    </div>
-                    
-                    {b.status === "Pending" && (
-                      <div className="flex items-center gap-2 border-l border-slate-100 pl-6 ml-2">
-                        <button 
-                          onClick={() => handleStatusUpdate(b.id, "Confirmed")}
-                          className="w-8 h-8 rounded-full bg-green-600 hover:bg-green-500 text-white flex items-center justify-center transition-colors shadow-sm"
-                          title="Confirm Booking"
-                        >
-                          <FiCheck size={16} />
-                        </button>
-                        <button 
-                          onClick={() => handleStatusUpdate(b.id, "Cancelled")}
-                          className="w-8 h-8 rounded-full bg-white hover:bg-red-50 text-red-500 border border-slate-200 flex items-center justify-center transition-colors shadow-sm"
-                          title="Reject Booking"
-                        >
-                          <FiX size={16} />
-                        </button>
-                      </div>
+                  <span className="text-xs font-black bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full">
+                    {receivedBookings.length} TOTAL
+                  </span>
+                </div>
+
+                {receivedBookings.length === 0 ? (
+                  <div className="bg-white rounded-[32px] p-12 border-2 border-dashed border-slate-200 text-center opacity-70">
+                    <p className="text-slate-400 font-bold">No guest bookings yet. They'll appear here once tourists book!</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {receivedBookings.slice(0, receivedLimit).map((b, i) => (
+                      <BookingCard key={b.id} b={b} isReceived={true} i={i} />
+                    ))}
+                    {receivedBookings.length > receivedLimit && (
+                      <button 
+                        onClick={() => setReceivedLimit(prev => prev + 4)}
+                        className="mt-4 w-full py-4 rounded-2xl border-2 border-slate-200 text-slate-500 font-black text-sm hover:bg-white hover:border-slate-300 transition-all uppercase tracking-widest"
+                      >
+                        Load More Received Bookings
+                      </button>
                     )}
                   </div>
-                </motion.div>
-              ))}
+                )}
+              </section>
+
+              {/* Section: Made */}
+              <section>
+                <div className="flex items-center justify-between mb-6 px-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-100">
+                      <FiMap size={20} />
+                    </div>
+                    <div>
+                      <h2 className="text-xl font-black text-slate-900">My Stays & Travels</h2>
+                      <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-0.5">Bookings you've made as a guest</p>
+                    </div>
+                  </div>
+                  <span className="text-xs font-black bg-slate-200 text-slate-600 px-3 py-1.5 rounded-full">
+                    {madeBookings.length} TOTAL
+                  </span>
+                </div>
+
+                {madeBookings.length === 0 ? (
+                  <div className="bg-white rounded-[32px] p-12 border-2 border-dashed border-slate-200 text-center opacity-70">
+                    <p className="text-slate-400 font-bold">You haven't made any bookings yet.</p>
+                  </div>
+                ) : (
+                  <div className="grid gap-4">
+                    {madeBookings.slice(0, madeLimit).map((b, i) => (
+                      <SharedBookingCard 
+                        key={b.id} 
+                        booking={b} 
+                        index={i} 
+                        onOpenDetail={(b) => setSelectedBooking(b)}
+                      />
+                    ))}
+                    {madeBookings.length > madeLimit && (
+                      <button 
+                        onClick={() => setMadeLimit(prev => prev + 4)}
+                        className="mt-4 w-full py-4 rounded-2xl border-2 border-slate-200 text-slate-500 font-black text-sm hover:bg-white hover:border-slate-300 transition-all uppercase tracking-widest"
+                      >
+                        Load More Travels
+                      </button>
+                    )}
+                  </div>
+                )}
+              </section>
             </div>
           )}
         </div>
       </div>
+
       <Footer />
+      
+      <AnimatePresence>
+        {selectedBooking && (
+          <BookingDetailModal 
+            booking={selectedBooking} 
+            onClose={() => setSelectedBooking(null)} 
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Inline Toast — no external import needed */}
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }

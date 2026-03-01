@@ -12,17 +12,17 @@ const footerLinks = {
     { label: "Agri-Tourism", path: "/services" },
     { label: "Register as Farmer", path: "/services/farmer/register" },
     { label: "Register as Creator", path: "/services/creator/register" },
-    { label: "AI Trip Planner", path: "/tourist/ai-planner" },
   ],
   Support: [
     { label: "Contact Us", path: "/contact" },
     { label: "Help Center", path: "/contact" },
-    { label: "Privacy Policy", path: "/contact" },
-    { label: "Terms of Service", path: "/contact" },
+    { label: "Privacy Policy", path: "#" },
+    { label: "Terms of Service", path: "#" },
   ],
 };
 
 const socials = [
+  { icon: <FiMail size={18} />, href: "nammagig@gmail.com", label: "Mail" },
   { icon: <FiInstagram size={18} />, href: "https://instagram.com", label: "Instagram" },
   { icon: <FiTwitter size={18} />, href: "https://twitter.com", label: "Twitter" },
   { icon: <FiFacebook size={18} />, href: "https://facebook.com", label: "Facebook" },
@@ -80,8 +80,8 @@ export default function Footer() {
         {/* Contact strip */}
         <div className="mt-12 pt-8 border-t border-slate-200 grid md:grid-cols-3 gap-4">
           {[
-            { icon: <FiMail />, text: "support@nammagig.in" },
-            { icon: <FiPhone />, text: "+91 98765 43210" },
+            { icon: <FiMail />, text: "nammagig@gmail.com" },
+            { icon: <FiPhone />, text: "+91 9708315049" },
             { icon: <FiMapPin />, text: "Bengaluru, Karnataka, India" },
           ].map(({ icon, text }) => (
             <div key={text} className="flex items-center gap-2 text-slate-500 text-sm">

@@ -15,20 +15,26 @@ const values = [
 ];
 
 const timeline = [
-  { year: "2025", title: "The Idea", desc: "Founded after a chance weekend at a coffee estate in Coorg. We saw the gap." },
-  { year: "2025", title: "First 100 Farms", desc: "Launched in Karnataka with 100 verified farm listings and 2,000 tourists." },
-  { year: "2025", title: "Creators Join", desc: "Opened the Creator program — 300+ creators joined in the first month." },
-  { year: "2025", title: "All India", desc: "Now live in 18 states with 1,200+ farms and 45,000+ happy tourists." },
+  { year: "2026", title: "The Idea", desc: "Founded after a chance weekend at a coffee estate in Coorg. We saw the gap." },
+  { year: "2026", title: "First 100 Farms", desc: "Launched in Karnataka with 100 verified farm listings and 2,000 tourists." },
+  { year: "2026", title: "Creators Join", desc: "Opened the Creator program — 300+ creators joined in the first month." },
+  { year: "2026", title: "All India", desc: "Now live in 18 states with 1,200+ farms and 45,000+ happy tourists." },
 ];
 
 const team = [
   { name: "Priyanshu Verma", role: "Co-Founder & CEO", emoji: "🧑‍🌾" },
   { name: "Saket Kumar", role: "Co-Founder & CTO", emoji: "👩‍💻" },
-  { name: "Sahana G Bhat", role: "Head of Operations", emoji: "🧑‍💼" },
-  { name: "Vishal Malik", role: "Head of Creator Relations", emoji: "🎬" },
 ];
 
+const getUser = () => {
+  try { return JSON.parse(localStorage.getItem("ng_user") || "null"); }
+  catch { return null; }
+};
+
 export default function About() {
+  const user = getUser();
+  const getStartedPath = user ? "/home" : "/login";
+
   return (
     <div className="bg-white min-h-screen">
       <Navbar />
@@ -132,7 +138,7 @@ export default function About() {
       <section className="section-pad bg-white">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="section-heading mb-12">Meet the Team</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-4 md:grid-cols-2 gap-6">
             {team.map((m, i) => (
               <motion.div key={m.name} initial={{ opacity: 0, scale: 0.9 }} whileInView={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.1 }} viewport={{ once: true }}
                 className="bg-slate-50 rounded-2xl p-6 border border-slate-200"
@@ -151,7 +157,7 @@ export default function About() {
         <motion.div initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} className="max-w-2xl mx-auto text-center">
           <h2 className="text-3xl font-black text-white mb-4">Be Part of the Story</h2>
           <p className="text-green-100 mb-8">Join 45,000+ travellers exploring India one farm at a time.</p>
-          <Link to="/login" className="inline-flex items-center gap-2 bg-white text-green-700 font-bold px-8 py-4 rounded-xl hover:bg-green-50 transition-all hover:-translate-y-1 shadow-lg">
+          <Link to={getStartedPath} className="inline-flex items-center gap-2 bg-white text-green-700 font-bold px-8 py-4 rounded-xl hover:bg-green-50 transition-all hover:-translate-y-1 shadow-lg">
             Get Started <FiArrowRight />
           </Link>
         </motion.div>

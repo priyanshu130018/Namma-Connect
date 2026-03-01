@@ -54,6 +54,13 @@ export default function Landing() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const user = JSON.parse(localStorage.getItem("ng_user") || "null");
+    if (user) {
+      navigate("/home");
+      // Don't return here so we still fetch recs if needed by the background, 
+      // or we just let it fetch recs anyway as the component unmounts.
+    }
+
     async function fetchRecs() {
       try {
         const data = await searchAPI.getRecommendations();
@@ -65,7 +72,7 @@ export default function Landing() {
       }
     }
     fetchRecs();
-  }, []);
+  }, [navigate]);
 
   const handleSearch = () => {
     navigate(`/home?q=${query}&start=${startDate}&end=${endDate}`);
@@ -246,7 +253,7 @@ export default function Landing() {
                   </div>
                 </div>
               ))}
-              <Link to="/ai-planner" className="btn-primary w-full flex items-center justify-center gap-2 mt-2">
+              <Link to="/AI-trip-planner" className="btn-primary w-full flex items-center justify-center gap-2 mt-2">
                 Try AI Planner <FiArrowRight />
               </Link>
             </div>
@@ -389,7 +396,7 @@ export default function Landing() {
           <h2 className="text-4xl md:text-5xl font-black text-white mb-4">Ready to Find Your Farm?</h2>
           <p className="text-green-100 text-lg mb-10">Create an account and start exploring India's most beautiful farming regions.</p>
           <div className="flex flex-wrap gap-4 justify-center">
-            <Link to="/login" className="bg-white text-green-700 font-bold px-8 py-4 rounded-xl hover:bg-green-50 transition-all hover:shadow-xl hover:-translate-y-1 flex items-center gap-2">
+            <Link to={localStorage.getItem("ng_user") ? "/home" : "/login"} className="bg-white text-green-700 font-bold px-8 py-4 rounded-xl hover:bg-green-50 transition-all hover:shadow-xl hover:-translate-y-1 flex items-center gap-2">
               Get Started <FiArrowRight />
             </Link>
           </div>

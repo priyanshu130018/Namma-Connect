@@ -16,6 +16,7 @@ const blogPosts = [
     content: "Coffee is not just a crop in Coorg; it is a way of life...\n\n**The Golden Rule**\nOnly pick the bright red ones! Each cherry is hand-selected to ensure the highest quality...",
     tag: "Coffee",
     author: "Somanna K.",
+    date: "Oct 24, 2025",
     readTime: "5 min",
     img: "☕",
     relatedFarmId: 1
@@ -27,13 +28,54 @@ const blogPosts = [
     content: "The first thing you notice is the silence. Then the birds. Then the back pain...\n\n**Morning Routine**\nWe start at 5:00 AM. The dew is still on the ground...",
     tag: "Organic",
     author: "Anita R.",
+    date: "Nov 12, 2025",
     readTime: "8 min",
     img: "🌿"
+  },
+  {
+    id: 3,
+    title: "Discovering the Hidden Waterfalls of Malnad",
+    excerpt: "A guide to the secret spots that locals don't want you to find.",
+    tag: "Travel Tips",
+    author: "Rohan D.",
+    date: "Dec 05, 2025",
+    readTime: "12 min",
+    img: "🌊"
+  },
+  {
+    id: 4,
+    title: "Tea Tasting: Varieties of the Western Ghats",
+    excerpt: "From Oolong to Green, understand the flavor profiles of our mountain tea.",
+    tag: "Tea",
+    author: "Prasad M.",
+    date: "Dec 18, 2025",
+    readTime: "6 min",
+    img: "🍵"
+  },
+  {
+    id: 5,
+    title: "The Rice Cycle: Seed to Harvest",
+    excerpt: "Why traditional paddy cultivation is still the heart of Indian agriculture.",
+    tag: "Rice",
+    author: "Lakshmi H.",
+    date: "Jan 10, 2026",
+    readTime: "15 min",
+    img: "🌾"
+  },
+  {
+    id: 6,
+    title: "Mango Season: A Celebration of Flavor",
+    excerpt: "Preparing for the summer harvest of the king of fruits.",
+    tag: "Mango",
+    author: "Suresh P.",
+    date: "Feb 02, 2026",
+    readTime: "7 min",
+    img: "🥭"
   }
 ];
 
 const TAGS = ["All", "Coffee", "Tea", "Rice", "Organic", "Mango", "Travel Tips"];
-const INITIAL_VISIBLE = 6;
+const INITIAL_VISIBLE = 9;
 
 function Markdown({ content }) {
   const lines = content.split("\n");
@@ -149,53 +191,61 @@ export default function Blog() {
     <div className="min-h-screen bg-white">
       <Navbar />
 
-      <div className="sticky top-16 z-30 bg-white border-b border-slate-100 shadow-sm pt-20 pb-4 px-6">
+      <div className="sticky top-16 z-30 bg-white/80 backdrop-blur-md border-b border-slate-100 py-3 px-6 select-none">
         <div className="max-w-5xl mx-auto flex gap-2 overflow-x-auto scrollbar-hide">
           {TAGS.map(t => (
             <button key={t} onClick={() => resetAndFilter(t)}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
-                activeTag === t ? "bg-green-600 text-white shadow-md" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              className={`flex-shrink-0 px-5 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all ${
+                activeTag === t ? "bg-slate-900 text-white shadow-xl" : "bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               }`}
             >{t}</button>
           ))}
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-6 pt-8 pb-16">
+      <div className="max-w-5xl mx-auto px-6 pt-10 pb-16">
         {shown.length === 0 ? (
           <div className="text-center py-20">
             <div className="text-5xl mb-3">📭</div>
             <p className="text-slate-500">No posts in this category yet.</p>
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {shown.map((post, i) => (
               <motion.article
                 key={post.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.07 }}
-                whileHover={{ y: -6, boxShadow: "0 16px 40px rgba(0,0,0,0.1)" }}
+                transition={{ delay: i * 0.05 }}
+                whileHover={{ y: -8 }}
                 onClick={() => navigate(`/blog/${post.id}`)}
-                className="bg-white rounded-3xl border border-slate-200 overflow-hidden cursor-pointer transition-all duration-300 group"
+                className="bg-white rounded-[32px] border border-slate-200 overflow-hidden cursor-pointer transition-all duration-500 group relative hover:shadow-2xl hover:shadow-green-900/5 hover:border-green-100"
               >
-                <div className="h-44 bg-green-50 flex items-center justify-center text-7xl relative overflow-hidden">
-                  <div className="group-hover:scale-110 transition-transform duration-500">{post.img}</div>
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="h-48 bg-slate-50 flex items-center justify-center text-8xl relative overflow-hidden">
+                  <div className="group-hover:scale-125 transition-transform duration-700 ease-out z-10">{post.img}</div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent opacity-60" />
                 </div>
 
-                <div className="p-5">
-                  <span className="text-xs bg-green-100 text-green-700 px-2.5 py-1 rounded-full font-bold">{post.tag}</span>
-                  <h3 className="font-black text-slate-900 mt-2.5 mb-2 leading-snug group-hover:text-green-700 transition-colors">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="text-[10px] bg-green-50 text-green-600 px-3 py-1 rounded-full font-black uppercase tracking-widest border border-green-100/50">{post.tag}</span>
+                    <span className="text-[10px] font-bold text-slate-300 uppercase tracking-tighter">{post.date}</span>
+                  </div>
+                  
+                  <h3 className="font-black text-slate-900 text-xl mb-3 leading-tight group-hover:text-green-600 transition-colors">
                     {post.title}
                   </h3>
-                  <p className="text-slate-500 text-sm leading-relaxed line-clamp-2">{post.excerpt}</p>
+                  <p className="text-slate-400 text-sm leading-relaxed line-clamp-2 font-medium">{post.excerpt}</p>
 
-                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-100">
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                      <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center text-white text-xs font-bold">{post.author[0]}</div>
-                      {post.author}
-                      <span className="flex items-center gap-0.5"><FiClock size={9} />{post.readTime}</span>
+                  <div className="flex items-center justify-between mt-6 pt-6 border-t border-slate-50">
+                    <div className="flex items-center gap-2">
+                       <div className="w-8 h-8 rounded-xl bg-slate-900 flex items-center justify-center text-white text-[10px] font-black group-hover:bg-green-600 transition-colors">
+                         {post.author[0]}
+                       </div>
+                       <div>
+                         <p className="text-[10px] font-black text-slate-900">{post.author}</p>
+                         <p className="text-[9px] font-bold text-slate-400 flex items-center gap-1 uppercase tracking-tighter"><FiClock size={8} /> {post.readTime} read</p>
+                       </div>
                     </div>
                   </div>
                 </div>

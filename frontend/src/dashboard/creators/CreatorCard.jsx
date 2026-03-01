@@ -1,80 +1,124 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { FiMapPin, FiPhone, FiMail, FiInstagram, FiYoutube, FiArrowLeft, FiCheckCircle, FiUser, FiBriefcase, FiLink } from "react-icons/fi";
+import {
+  FiMapPin, FiPhone, FiMail, FiInstagram, FiYoutube,
+  FiCheckCircle, FiUser, FiBriefcase, FiLink, FiHeart, FiCalendar, FiAlertCircle
+} from "react-icons/fi";
+
 import Navbar from "@/components/layout/navbar";
 import Footer from "@/components/layout/footer";
 import { creatorAPI, bookingAPI } from "@/services/api";
+import { isInWishlist, toggleWishlist } from "@/components/ui/wishlist";
+import { parseIdFromSlug, DetailLayout } from "@/components/ui/card";
 
 export default function CreatorCard() {
-  const { id } = useParams();
+  const { slug } = useParams();
+  const id = parseIdFromSlug(slug);
   const navigate = useNavigate();
+
   const [creator, setCreator] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  // Booking
   const [checkIn, setCheckIn] = useState("");
   const [checkOut, setCheckOut] = useState("");
-  const [guests, setGuests] = useState(1);
+  const [adults, setAdults] = useState(1);
+  const [children, setChildren] = useState(0);
   const [bookingNote, setBookingNote] = useState("");
   const [bookingLoading, setBookingLoading] = useState(false);
   const [bookingError, setBookingError] = useState("");
   const [bookingSuccess, setBookingSuccess] = useState("");
 
+  // Availability
+  const [checkingAvail, setCheckingAvail] = useState(false);
+  const [availResult, setAvailResult] = useState(null);
+  const [suggestedDates, setSuggestedDates] = useState([]);
+
+  // States
+  const [selfOwnedCard, setSelfOwnedCard] = useState(false);
+  const [wishlisted, setWishlisted] = useState(false);
+
+  const user = (() => { try { return JSON.parse(localStorage.getItem("ng_user") || "null"); } catch { return null; } })();
+
   useEffect(() => {
-    if (id) {
-      creatorAPI.getCreator(id)
-        .then(res => {
-          setCreator(res.data);
-          setLoading(false);
-        })
-        .catch(err => {
-          setError("Creator not found or failed to load data.");
-          setLoading(false);
-        });
-    }
+    if (!id) return;
+    setLoading(true);
+    creatorAPI.getCreator(id)
+      .then(res => {
+        const data = res.data;
+        setCreator(data);
+        if (user?.userId && data.user_id === user.userId) setSelfOwnedCard(true);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError("Creator not found or failed to load data.");
+        setLoading(false);
+      });
   }, [id]);
 
+  useEffect(() => {
+    if (!creator) return;
+    setWishlisted(isInWishlist(creator.id, "creator"));
+    const handler = () => setWishlisted(isInWishlist(creator.id, "creator"));
+    window.addEventListener("wishlist-change", handler);
+    return () => window.removeEventListener("wishlist-change", handler);
+  }, [creator]);
+
+  const handleWishlist = () => {
+    if (!creator) return;
+    toggleWishlist({ ...creator, name: creator.name, photo: creator.photo }, "creator");
+    setWishlisted(isInWishlist(creator.id, "creator"));
+  };
+
+  const handleCheckAvailability = async () => {
+    if (!checkIn || !checkOut) { setBookingError("Select dates first"); return; }
+    setCheckingAvail(true); setAvailResult(null); setSuggestedDates([]);
+    try {
+      const res = await creatorAPI.checkAvailability(id, checkIn, checkOut);
+      if (res.data.available) {
+        setAvailResult("available");
+      } else {
+        setAvailResult("unavailable");
+        setSuggestedDates(res.data.suggested_dates || []);
+      }
+    } catch {
+      setAvailResult("unavailable");
+    } finally {
+      setCheckingAvail(false);
+    }
+  };
+
   const handleBookCreator = async () => {
-    setBookingError("");
-    setBookingSuccess("");
-    const user = JSON.parse(localStorage.getItem("ng_user") || "null");
-    if (!user || !user.loginId) {
-      navigate("/login");
-      return;
-    }
-    if (!checkIn || !checkOut) {
-      setBookingError("Please select both start and end dates.");
-      return;
-    }
-    if (new Date(checkOut) < new Date(checkIn)) {
-      setBookingError("End date must be after start date.");
-      return;
-    }
+    setBookingError(""); setBookingSuccess(""); setSuggestedDates([]);
+    if (selfOwnedCard) { setBookingError("You cannot book your own profile."); return; }
+    if (!user || !user.userId) { navigate("/login"); return; }
+    if (!checkIn || !checkOut) { setBookingError("Please select dates."); return; }
+    if (new Date(checkOut) < new Date(checkIn)) { setBookingError("End date must be after start date."); return; }
 
     try {
       setBookingLoading(true);
-      await bookingAPI.create(user.loginId, {
-        booking_type: "creator",
-        item_id: creator.id,
-        item_name: creator.name,
-        item_emoji: "🎬",
-        region: creator.state,
-        check_in: checkIn,
-        check_out: checkOut,
-        guests,
-        total_price: 0,
-        collab_note: bookingNote || null,
+
+      const availRes = await creatorAPI.checkAvailability(id, checkIn, checkOut);
+      if (!availRes.data.available) {
+        setAvailResult("unavailable");
+        setSuggestedDates(availRes.data.suggested_dates || []);
+        setBookingError("Not available for these dates. See suggestions below.");
+        setBookingLoading(false);
+        return;
+      }
+
+      const nights = Math.max(1, Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24)));
+      await bookingAPI.create(user.userId, {
+        booking_type: "creator", creator_id: creator.id, check_in: checkIn, check_out: checkOut,
+        adults, children, total_price: (creator.rate || 0) * nights, collab_note: bookingNote || null,
       });
-      setBookingSuccess("Collaboration request sent. We will confirm availability soon.");
-      setTimeout(() => navigate("/tourist/bookings"), 800);
+      setBookingSuccess("Collaboration request sent! Awaiting confirmation.");
+      setTimeout(() => navigate("/tourist/bookings"), 1200);
     } catch (err) {
-      setBookingError(
-        err.response?.data?.detail ||
-          "Could not create booking. Please try different dates.",
-      );
-    } finally {
-      setBookingLoading(false);
-    }
+      setBookingError(err.response?.data?.detail || "Could not create booking.");
+    } finally { setBookingLoading(false); }
   };
 
   if (loading) return (
@@ -88,185 +132,174 @@ export default function CreatorCard() {
       <Navbar minimal />
       <div className="text-6xl mb-4">🎬</div>
       <h2 className="text-2xl font-black text-slate-900 mb-2">Oops! Creator not found</h2>
-      <p className="text-slate-500 mb-6 max-w-xs">{error || "The creator you're looking for doesn't exist or was removed."}</p>
-      <button onClick={() => navigate("/home")} className="btn-primary-purple px-8">Back to Home</button>
+      <button onClick={() => navigate("/home")} className="btn-primary px-8 mt-4">Back to Home</button>
     </div>
   );
 
-  return (
-    <div className="min-h-screen bg-slate-50">
-      <Navbar />
-      
-      {/* Hero Section */}
-      <div className="pt-24 pb-12 px-6">
-        <div className="max-w-5xl mx-auto">
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-500 hover:text-slate-900 font-semibold text-sm mb-8 transition-colors">
-            <FiArrowLeft size={16} /> Explore More Creators
-          </button>
+  const regDate = creator.created_at ? new Date(creator.created_at).toLocaleDateString('en-IN', {
+    month: 'short', year: 'numeric'
+  }) : null;
 
-          <div className="flex flex-col md:flex-row gap-8 items-start mb-12">
-            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-              className="w-32 h-32 md:w-48 md:h-48 rounded-[40px] bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white text-6xl font-black shadow-2xl shadow-purple-200 border-4 border-white"
-            >
-              {creator.name[0]}
-            </motion.div>
-            
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex-1 pt-4">
-              <div className="flex flex-wrap items-center gap-3 mb-2">
-                <h1 className="text-4xl font-black text-slate-900 tracking-tight">{creator.name}</h1>
-                {creator.is_verified && <FiCheckCircle className="text-blue-500" size={24} />}
-                <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-bold uppercase tracking-wider">{creator.niche || "Top Creator"}</span>
-              </div>
-              
-              <div className="flex flex-wrap items-center gap-4 text-slate-500 mb-6 font-medium">
-                <span className="flex items-center gap-1.5"><FiMapPin className="text-purple-500" /> {creator.state}, {creator.country}</span>
-                <span className="flex items-center gap-1.5"><FiBriefcase className="text-purple-500" /> Professional Creator</span>
-              </div>
+  const subtitle = (
+    <div className="flex flex-wrap items-center gap-6">
+      {(creator.city || creator.state) && (
+        <div className="flex items-center gap-2">
+          <FiMapPin className="text-purple-500 text-lg" />
+          {[creator.city, creator.state].filter(Boolean).join(", ")}
+        </div>
+      )}
+      <div className="flex items-center gap-2">
+        <FiBriefcase className="text-purple-500 text-lg" /> Professional Creator
+      </div>
+      <div className="flex gap-2 ml-auto">
+        {creator.instagram && (
+          <a href={creator.instagram} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-pink-600 hover:border-pink-200 transition-all shadow-sm"><FiInstagram size={18} /></a>
+        )}
+        {creator.youtube && (
+          <a href={creator.youtube} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 hover:text-red-600 hover:border-red-200 transition-all shadow-sm"><FiYoutube size={18} /></a>
+        )}
+      </div>
+    </div>
+  );
 
-              <div className="flex gap-3">
-                {creator.instagram && (
-                  <a href={creator.instagram} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-pink-600 hover:border-pink-200 hover:bg-pink-50 transition-all shadow-sm">
-                    <FiInstagram size={20} />
-                  </a>
-                )}
-                {creator.youtube && (
-                  <a href={creator.youtube} target="_blank" rel="noreferrer" className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-600 hover:text-red-600 hover:border-red-200 hover:bg-red-50 transition-all shadow-sm">
-                    <FiYoutube size={20} />
-                  </a>
-                )}
-                <a href={`tel:${creator.mobile}`} className="flex items-center gap-2 bg-white border border-slate-200 text-slate-700 font-bold px-5 py-2 rounded-xl hover:bg-slate-50 transition-all shadow-sm text-sm">
-                  <FiPhone size={16} /> Contact
-                </a>
-              </div>
-            </motion.div>
-          </div>
+  const sidebar = (
+    <>
+      {selfOwnedCard && (
+        <div className="bg-purple-50 border border-purple-200 rounded-2xl p-4 flex items-start gap-3 mb-4">
+          <FiAlertCircle className="text-purple-500 mt-0.5" size={18} />
+          <p className="text-sm font-bold text-purple-800">This is your own profile.</p>
+        </div>
+      )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-6">
-              {/* Bio Section */}
-              <div className="bg-white rounded-[32px] p-8 md:p-10 border border-slate-200 shadow-sm">
-                <h2 className="text-2xl font-black text-slate-900 mb-4 flex items-center gap-3">
-                  <FiUser className="text-purple-500" size={24} /> About {creator.name}
-                </h2>
-                <div className="prose prose-slate max-w-none">
-                  <p className="text-slate-600 leading-relaxed whitespace-pre-wrap">{creator.bio || "No biography provided."}</p>
+      <div className="bg-white rounded-[40px] p-8 border border-slate-200 shadow-2xl shadow-slate-200/50 text-center relative overflow-hidden">
+        <FiBriefcase className="w-16 h-16 text-purple-100 mx-auto mb-4" />
+        <h3 className="text-2xl font-black text-slate-900 mb-2 tracking-tight">Hire {creator.name}</h3>
+        <p className="text-[10px] font-black text-purple-500 uppercase tracking-widest mb-6">₹{Number(creator.rate || 0).toLocaleString()} / Day</p>
+        <p className="text-slate-500 text-sm mb-8 leading-relaxed font-medium">Collaborate on visual storytelling and high-quality content production.</p>
+
+        {!selfOwnedCard ? (
+          <>
+            <div className="space-y-4 mb-6 text-left">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Start Date</span>
+                  <input type="date" value={checkIn} onChange={e => setCheckIn(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-[18px] px-4 py-3 text-sm focus:ring-2 focus:ring-purple-200 outline-none transition-all" />
+                </div>
+                <div className="space-y-1.5">
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">End Date</span>
+                  <input type="date" value={checkOut} onChange={e => setCheckOut(e.target.value)} className="w-full bg-slate-50 border border-slate-200 rounded-[18px] px-4 py-3 text-sm focus:ring-2 focus:ring-purple-200 outline-none transition-all" />
                 </div>
               </div>
-
-              {/* Stats / Portfolio Highlight */}
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                <div className="bg-indigo-600 text-white p-6 rounded-[28px] shadow-lg shadow-indigo-200">
-                  <p className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Total Visits</p>
-                  <p className="text-2xl font-black">500+</p>
-                </div>
-                <div className="bg-white p-6 rounded-[28px] border border-slate-200">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Projects</p>
-                  <p className="text-2xl font-black text-slate-900">24</p>
-                </div>
-                <div className="bg-white p-6 rounded-[28px] border border-slate-200 hidden md:block">
-                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Region</p>
-                  <p className="text-2xl font-black text-slate-900 truncate">{creator.state}</p>
-                </div>
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Collab Note</span>
+                <textarea rows={3} value={bookingNote} onChange={e => setBookingNote(e.target.value)} placeholder="Project details..." className="w-full bg-slate-50 border border-slate-200 rounded-[18px] px-4 py-3 text-sm focus:ring-2 focus:ring-purple-200 outline-none resize-none transition-all" />
               </div>
             </div>
 
-            {/* Portfolio Sidebar */}
-            <div className="space-y-6">
-              <div className="bg-white rounded-[32px] p-8 border border-slate-200 shadow-xl shadow-slate-200/50 sticky top-28 text-center">
-                <FiBriefcase className="w-16 h-16 text-purple-100 mx-auto mb-4" />
-                <h3 className="text-xl font-black text-slate-900 mb-2">Interested in a Collaboration?</h3>
-                <p className="text-slate-500 text-sm mb-6">Work with {creator.name} to create amazing stories about your farm stay or agri-experience.</p>
-                
-                {creator.portfolio && (
-                  <a href={creator.portfolio} target="_blank" rel="noreferrer" className="w-full bg-purple-600 text-white font-black py-4 rounded-2xl hover:bg-purple-700 transition-all shadow-lg shadow-purple-100 flex items-center justify-center gap-2 mb-4">
-                    <FiLink /> View Portfolio
-                  </a>
-                )}
-                
-                <div className="space-y-4 mb-4 text-left">
-                  <div className="text-xs font-semibold text-slate-500 uppercase tracking-widest">
-                    Select Dates
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">
-                        Start
-                      </label>
-                      <input
-                        type="date"
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
-                        value={checkIn}
-                        onChange={(e) => setCheckIn(e.target.value)}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">
-                        End
-                      </label>
-                      <input
-                        type="date"
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
-                        value={checkOut}
-                        onChange={(e) => setCheckOut(e.target.value)}
-                      />
-                    </div>
-                  </div>
+            <button onClick={handleCheckAvailability} disabled={checkingAvail} className="w-full border-2 border-purple-100 text-purple-600 font-black py-3 rounded-[20px] transition-all text-sm mb-4 hover:bg-purple-50">
+              {checkingAvail ? "Checking..." : "Check Availability"}
+            </button>
 
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">
-                      Guests
-                    </label>
-                    <input
-                      type="number"
-                      min={1}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200"
-                      value={guests}
-                      onChange={(e) => setGuests(Math.max(1, Number(e.target.value) || 1))}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-1">
-                    <label className="text-[11px] text-slate-400 font-bold uppercase tracking-widest">
-                      Note for creator (optional)
-                    </label>
-                    <textarea
-                      rows={3}
-                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 resize-none"
-                      placeholder="Share brief about your project or expectations."
-                      value={bookingNote}
-                      onChange={(e) => setBookingNote(e.target.value)}
-                    />
-                  </div>
+            {availResult === "available" && (
+              <div className="bg-emerald-50 text-emerald-700 p-3 rounded-2xl text-[11px] font-bold mb-4 flex items-center justify-center gap-2">✅ Available for Booking!</div>
+            )}
+            {availResult === "unavailable" && <div className="bg-red-50 text-red-700 p-3 rounded-2xl text-[11px] font-bold mb-4 flex items-center justify-center gap-2">❌ Not Available</div>}
+            
+            <button onClick={handleBookCreator} disabled={bookingLoading || !checkIn || !checkOut} className={`w-full font-black py-4 rounded-[22px] shadow-lg transition-all flex items-center justify-center gap-2 text-sm text-center mb-4 ${
+              (!checkIn || !checkOut) ? "bg-slate-200 text-slate-400 cursor-not-allowed shadow-none" : "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-500/30"
+            }`}>
+              {bookingLoading ? "Processing Booking..." : "Book Creator Now"}
+            </button>
+            
+            {suggestedDates.length > 0 && (
+              <div className="mb-4 text-left">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1 mb-2">Suggested Dates</p>
+                <div className="flex flex-col gap-2">
+                  {suggestedDates.map((d, i) => (
+                    <button key={i} onClick={() => { setCheckIn(d.check_in); setCheckOut(d.check_out); setAvailResult(null); setSuggestedDates([]); setBookingError(""); }} className="bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-[12px] p-2 text-[11px] font-bold flex justify-between items-center transition-all">
+                      <span>{new Date(d.check_in).toLocaleDateString("en-GB", {day: "numeric", month: "short"})} – {new Date(d.check_out).toLocaleDateString("en-GB", {day: "numeric", month: "short", year: "numeric"})}</span>
+                      <span className="text-purple-500 bg-white px-2 py-[2px] rounded-full shadow-sm text-[9px] uppercase tracking-wider">Select</span>
+                    </button>
+                  ))}
                 </div>
-
-                {bookingError && (
-                  <p className="text-xs text-red-500 font-medium mb-2">
-                    {bookingError}
-                  </p>
-                )}
-                {bookingSuccess && (
-                  <p className="text-xs text-emerald-600 font-medium mb-2">
-                    {bookingSuccess}
-                  </p>
-                )}
-
-                <button
-                  onClick={handleBookCreator}
-                  disabled={bookingLoading}
-                  className="w-full bg-slate-900 text-white font-black py-3 rounded-2xl hover:bg-slate-800 transition-all shadow-lg active:scale-95 mb-3 disabled:opacity-70 disabled:cursor-not-allowed"
-                >
-                  {bookingLoading ? "Booking..." : "Book Creator"}
-                </button>
-                <button className="w-full flex items-center justify-center gap-2 text-amber-500 font-bold text-sm py-2 hover:opacity-80 transition-all">
-                  Save Creator
-                </button>
               </div>
+            )}
+            
+            {bookingError && <p className="text-[11px] text-red-500 font-bold mb-2 text-center">{bookingError}</p>}
+            {bookingSuccess && <p className="text-[11px] text-emerald-600 font-bold mb-2 text-center">{bookingSuccess}</p>}
+          </>
+        ) : (
+          <button disabled className="w-full bg-slate-200 text-slate-500 font-black py-4 rounded-[22px] cursor-not-allowed shadow-none border border-slate-100 flex items-center justify-center gap-2">
+            <FiAlertCircle size={18} /> Owned Profile
+          </button>
+        )}
+
+        <button onClick={handleWishlist} className={`w-full mt-3 flex items-center justify-center gap-2 py-3 rounded-[20px] font-bold text-sm transition-all border-2 ${wishlisted ? "bg-red-50 border-red-100 text-red-500" : "bg-white border-slate-100 text-slate-500 hover:border-red-100 hover:text-red-400"}`}>
+          <FiHeart size={14} className={wishlisted ? "fill-red-500" : ""} /> {wishlisted ? "Saved" : "Save Creator"}
+        </button>
+      </div>
+
+      <div className="bg-slate-900 text-white rounded-[40px] p-8 relative overflow-hidden group">
+        <div className="relative z-10">
+          <p className="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-4">Contractor</p>
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-purple-500 text-white flex items-center justify-center font-black text-xl shadow-lg border border-white/20">{creator.name?.[0]}</div>
+            <div>
+               <p className="font-bold text-lg text-white">Creator {creator.name}</p>
+               <p className={`text-[11px] font-bold uppercase tracking-wider flex items-center gap-1 ${creator.is_verified ? "text-emerald-600" : "text-slate-400"}`}>
+                 {creator.is_verified ? <><FiCheckCircle /> Verified Creator</> : "Not Verified"}
+               </p>
+               <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1"><FiCheckCircle className="text-purple-500" /> Joined {regDate || "Recently"}</p>
             </div>
           </div>
         </div>
+        <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-purple-500/10 blur-3xl rounded-full" />
       </div>
+    </>
+  );
 
+  return (
+    <>
+      <DetailLayout 
+        title={creator.name} 
+        subtitle={subtitle} 
+        heroEmoji="🎬" 
+        heroPhoto={null} 
+        sidebar={sidebar} 
+        accentColor="purple"
+      >
+        <div className="space-y-6 pb-12">
+          <div className="bg-white rounded-[40px] p-10 border border-slate-200 shadow-sm transition-all hover:shadow-md">
+            <h2 className="text-3xl font-black text-slate-900 mb-6 tracking-tight flex items-center gap-3">
+              <FiUser className="text-purple-500" /> Bio & Portfolio
+            </h2>
+            <p className="text-slate-600 leading-[1.8] text-lg lg:text-xl whitespace-pre-wrap font-medium">
+              {creator.bio || "No biography provided."}
+            </p>
+
+            {creator.portfolio && (
+              <div className="mt-8 pt-8 border-t border-slate-100 flex items-center gap-3">
+                <FiLink className="text-purple-500" />
+                <a href={creator.portfolio} target="_blank" rel="noreferrer" className="text-purple-600 font-bold hover:underline">View Portfolio Website</a>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-slate-900 text-white p-8 rounded-[40px] border border-slate-800">
+               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Social Reach</p>
+               <p className="text-4xl font-black tracking-tight">50,000+</p>
+               <p className="text-xs font-bold text-slate-500 mt-2 uppercase tracking-widest">Active Audience</p>
+            </div>
+            <div className="bg-white p-8 rounded-[40px] border border-slate-200">
+               <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">Review Score</p>
+               <p className="text-4xl font-black tracking-tight text-slate-900 flex items-center gap-2">4.9 <FiCheckCircle className="text-amber-400" size={24} /></p>
+               <p className="text-xs font-bold text-slate-400 mt-2 uppercase tracking-widest">Highly Rated</p>
+            </div>
+          </div>
+        </div>
+      </DetailLayout>
       <Footer />
-    </div>
+    </>
   );
 }
