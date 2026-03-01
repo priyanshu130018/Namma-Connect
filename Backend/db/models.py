@@ -15,10 +15,10 @@ class Login(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(TIMESTAMP, server_default=func.now())
 
-    # Relationships to profile tables
-    tourist = relationship("Tourist", back_populates="user", uselist=False)
-    creator = relationship("Creator", back_populates="user", uselist=False)
-    farmer  = relationship("Farmer",  back_populates="user", uselist=False)
+    # Relationships to profile tables with cascade delete
+    tourist = relationship("Tourist", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    creator = relationship("Creator", back_populates="user", uselist=False, cascade="all, delete-orphan")
+    farmer  = relationship("Farmer",  back_populates="user", uselist=False, cascade="all, delete-orphan")
 
 # 2. Tourist Table (Tourist Profile)
 class Tourist(Base):
@@ -43,6 +43,7 @@ class Tourist(Base):
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
 
     user = relationship("Login", back_populates="tourist")
+    bookings_made = relationship("Booking", back_populates="tourist", cascade="all, delete-orphan")
 
 # 3. Creator Table (Creator Profile)
 class Creator(Base):
@@ -72,6 +73,7 @@ class Creator(Base):
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
 
     user = relationship("Login", back_populates="creator")
+    bookings_received = relationship("Booking", back_populates="creator", cascade="all, delete-orphan")
 
 # 4. Farmer Table (Farmer Profile)
 class Farmer(Base):
@@ -120,6 +122,7 @@ class FarmListing(Base):
     created_at = Column(TIMESTAMP, server_default=func.now())
 
     owner = relationship("Farmer", back_populates="listings")
+    bookings = relationship("Booking", back_populates="farm", cascade="all, delete-orphan")
 
     @property
     def user_id(self):
@@ -154,9 +157,9 @@ class Booking(Base):
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
 
     # Relationships
-    tourist = relationship("Tourist")
-    farm = relationship("FarmListing")
-    creator = relationship("Creator")
+    tourist = relationship("Tourist", back_populates="bookings_made")
+    farm = relationship("FarmListing", back_populates="bookings")
+    creator = relationship("Creator", back_populates="bookings_received")
 
 # 7. Contact Us Table
 class ContactUs(Base):

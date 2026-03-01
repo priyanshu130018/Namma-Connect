@@ -61,13 +61,13 @@ To promote sustainable agriculture, rural tourism, and create economic opportuni
 
 ### Key Features
 
-- 🤖 **AI Trip Planner**: Personalized trip recommendations using AI agents
+- 🤖 **Unified AI Chatbot**: Personalized trip recommendations and project assistance using advanced AI agents
 - 📱 **Responsive Design**: Works seamlessly on desktop and mobile
-- 🔐 **Secure Authentication**: User registration and login with password management
-- 💬 **Contact System**: Direct communication between users
-- 📊 **Booking Management**: Complete booking lifecycle management
-- 👤 **User Profiles**: Customized dashboards for each user type
-- 📸 **Image Support**: Showcase farms and experiences with photos
+- 🔐 **Secure Authentication**: User registration and login with JWT and role-based access
+- 💬 **Contact System**: Direct communication between users and support
+- 📊 **Advanced Booking Management**: Role-specific dashboards for managing both received bookings and personal travels
+- 👤 **Customized Profiles**: Tailored dashboards for Farmers, Tourists, and Content Creators
+- 📸 **Rich Media Support**: Showcase farms and creator portfolios with image uploads
 
 ---
 
@@ -176,7 +176,7 @@ The database tables will be created automatically on first run.
 #### Step 5: Run Backend Server
 
 ```bash
-uvicorn api.api:app --reload --port 8000
+uvicorn main:app --reload --port 8000
 ```
 
 Backend will be available at: `http://localhost:8000`
@@ -267,22 +267,28 @@ Namma_Gig/
     │   ├── index.css
     │   ├── auth/            # Authentication pages
     │   │   ├── login.jsx
+    │   │   ├── register.jsx
     │   │   └── changePassword.jsx
     │   ├── pages/           # Main pages
     │   │   ├── home.jsx
     │   │   ├── landing.jsx
     │   │   ├── about.jsx
-    │   │   ├── services.jsx
     │   │   ├── contact.jsx
-    │   │   ├── blog.jsx
-    │   │   └── AiTripPlanner.jsx
+    │   │   └── AIChatbot.jsx
     │   ├── dashboard/       # User-specific dashboards
     │   │   ├── farmers/
+    │   │   │   ├── FarmerHome.jsx
+    │   │   │   ├── FarmerBookings.jsx
+    │   │   │   └── FarmerListings.jsx
     │   │   ├── tourists/
+    │   │   │   ├── TouristHome.jsx
+    │   │   │   └── TouristBookings.jsx
     │   │   └── creators/
+    │   │       ├── CreatorHome.jsx
+    │   │       └── CreatorBookings.jsx
     │   ├── components/      # Reusable components
     │   │   ├── layout/      # Header, footer, navbar
-    │   │   └── ui/          # Cards, forms, etc.
+    │   │   └── ui/          # Cards, profile, modals, etc.
     │   ├── routes/          # Route configuration
     │   │   └── AppRoutes.jsx
     │   ├── services/        # API service layer
@@ -299,31 +305,39 @@ Namma_Gig/
 
 - `POST /api/auth/register` - Register new user
 - `POST /api/auth/login` - User login
-- `POST /api/auth/change-password` - Change password
+- `POST /api/auth/change-password` - Change password (reset)
+- `POST /api/auth/change-password/{userId}` - Update password (authenticated)
+- `DELETE /api/auth/delete-account/{userId}` - Delete account
 - `POST /api/auth/logout` - User logout
 
 ### Farmer Endpoints
 
-- `GET /api/farmers` - List all farmers
-- `GET /api/farmers/{id}` - Get farmer details
-- `POST /api/farmers/register` - Register as farmer
-- `PUT /api/farmers/{id}` - Update farmer profile
-- `POST /api/farmers/{id}/listings` - Create farm listing
-- `GET /api/farmers/{id}/bookings` - Farmer's bookings
+- `GET /api/farmer/farm-listing` - List all farms
+- `GET /api/farmer/listing/{id}` - Get farm details
+- `POST /api/services/farmer/register/{id}` - Register as farmer
+- `PUT /api/farmer/profile/{id}` - Update farmer profile
+- `POST /api/farmer/list/{id}` - Create farm listing
+- `GET /api/farmer/bookings/{id}` - Farmer's received and made bookings
+- `PUT /api/farmer/booking/{id}/status/{user_id}` - Update booking status
 
 ### Tourist Endpoints
 
-- `GET /api/tourists` - List all tourists
-- `POST /api/tourists/register` - Register as tourist
-- `PUT /api/tourists/{id}` - Update tourist profile
-- `GET /api/tourists/{id}/bookings` - Tourist's bookings
-- `POST /api/tourists/{id}/bookings` - Create booking
+- `GET /api/tourists/profile/{id}` - Get tourist details
+- `POST /api/services/tourist/register/{id}` - Register as tourist
+- `PUT /api/tourists/profile/{id}` - Update tourist profile
+- `GET /api/tourists/bookings/{id}` - Tourist's booking history
+- `POST /api/tourist/booking/{id}` - Create new booking
+- `DELETE /api/tourist/booking/{booking_id}/{user_id}` - Cancel booking
 
 ### Content Creator Endpoints
 
-- `GET /api/creators` - List all creators
-- `POST /api/creators/register` - Register as creator
-- `PUT /api/creators/{id}` - Update creator profile
+- `GET /api/creator/listing` - List all creators
+- `GET /api/creator/{id}` - Get creator details
+- `POST /api/services/creator/register/{user_id}` - Register as creator
+- `GET /api/creator/profile/{user_id}` - Get creator profile
+- `PUT /api/creator/profile/{user_id}` - Update creator profile
+- `GET /api/creator/bookings/{user_id}` - Creator's collaborations and bookings
+- `PUT /api/creator/booking/{booking_id}/status/{user_id}` - Update collaboration status
 
 ### Contact & Support
 
@@ -332,8 +346,9 @@ Namma_Gig/
 
 ### AI Trip Planner
 
-- `POST /api/ai/trip-plan` - Get AI-powered trip recommendations
-- `GET /api/ai/recommendations` - Get personalized recommendations
+- `POST /api/ai/chat` - Unified AI Chatbot (Farms & Creators)
+- `GET /api/farmer/search/{userId}` - Search farms with AI recommendations
+- `GET /api/creator/search/{userId}` - Search creators with AI recommendations
 
 ---
 
@@ -392,7 +407,6 @@ VITE_API_TIMEOUT=30000
 This project is licensed under the MIT License - see the LICENSE file for details.
 
 ---
-
 
 ## ✉️ Contact & Support
 

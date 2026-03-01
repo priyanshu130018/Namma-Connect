@@ -87,6 +87,87 @@ function ConfirmDialog({ user, onConfirm, onCancel, loading }) {
   );
 }
 
+// ── Booking Detail Modal ─────────────────────────────────────────────────────
+function BookingModal({ booking, onClose }) {
+  if (!booking) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose} />
+      <Motion.div
+        initial={{ scale: 0.95, opacity: 0, y: 10 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 10 }}
+        className="relative w-full max-w-lg bg-white rounded-[32px] overflow-hidden shadow-2xl flex flex-col"
+      >
+        {/* Header */}
+        <div className="bg-white border-b border-slate-100 flex items-center justify-between p-6 z-10">
+          <h2 className="font-black text-slate-900 text-xl tracking-tight">Booking Details</h2>
+          <button onClick={onClose} className="w-10 h-10 rounded-2xl bg-slate-50 hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 transition-all border border-slate-100">
+            <FiX size={18} />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-8 space-y-6">
+          <div className="flex flex-col items-center text-center">
+            <div className="w-16 h-16 rounded-2xl bg-slate-900 text-white flex items-center justify-center text-3xl mb-4 shadow-lg">
+              {booking.booking_type === "farm" ? "🏠" : "📸"}
+            </div>
+            <h3 className="text-2xl font-black text-slate-900 leading-tight">
+              {booking.farm_name || booking.creator_name}
+            </h3>
+            <p className="text-slate-500 font-medium text-sm mt-1 flex items-center gap-1">
+              <FiHome size={14} /> {booking.address}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Check In</p>
+              <p className="font-bold text-slate-900">{fmt(booking.check_in)}</p>
+            </div>
+            <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Check Out</p>
+              <p className="font-bold text-slate-900">{fmt(booking.check_out)}</p>
+            </div>
+          </div>
+
+          <div className="bg-slate-50 rounded-2xl p-5 border border-slate-100 space-y-4">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-200/50">
+              <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">Tourist</span>
+              <span className="font-black text-slate-900">{booking.tourist_name}</span>
+            </div>
+            <div className="flex justify-between items-center pb-3 border-b border-slate-200/50">
+              <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">Guests</span>
+              <span className="font-black text-slate-900">
+                {booking.adults} Adults, {booking.children} Children
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-slate-500 font-bold text-xs uppercase tracking-wider">Total Price</span>
+              <span className="font-black text-slate-900 text-lg">
+                ₹{Number(booking.total_price || 0).toLocaleString()}
+              </span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-center">
+            <span className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest ${STATUS_COLORS[booking.status] || "bg-slate-100 text-slate-500"}`}>
+              {booking.status}
+            </span>
+          </div>
+        </div>
+
+        <div className="p-6 pt-0">
+          <button onClick={onClose} className="w-full py-4 bg-slate-900 text-white font-black rounded-2xl hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/20">
+            Close Detail
+          </button>
+        </div>
+      </Motion.div>
+    </div>
+  );
+}
+
 // ── User Detail Modal ────────────────────────────────────────────────────────
 function UserModal({ user, onClose, onDelete, onVerify, verifyLoading }) {
   if (!user) return null;
@@ -228,6 +309,7 @@ export default function AdminHome() {
   const [bLoading, setBLoading]   = useState(false);
 
   const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedBooking, setSelectedBooking] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [verifyLoading, setVerifyLoading] = useState(false);
@@ -647,7 +729,8 @@ export default function AdminHome() {
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: i * 0.03 }}
-                            className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors"
+                            className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors cursor-pointer group"
+                            onClick={() => setSelectedBooking(b)}
                           >
                             <td className="px-5 py-4 text-slate-400 font-mono text-xs">#{b.id}</td>
                             <td className="px-5 py-4 font-bold text-slate-900 whitespace-nowrap">{b.tourist_name}</td>
@@ -707,6 +790,16 @@ export default function AdminHome() {
 
         </div>
       </main>
+
+      {/* ── Booking Detail Modal ─────────────────────────────────────── */}
+      <AnimatePresence>
+        {selectedBooking && (
+          <BookingModal
+            booking={selectedBooking}
+            onClose={() => setSelectedBooking(null)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* ── User Detail Drawer ───────────────────────────────────────── */}
       <AnimatePresence>
