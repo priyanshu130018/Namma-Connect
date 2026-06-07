@@ -78,7 +78,7 @@ To promote sustainable agriculture, rural tourism, and create economic opportuni
 - **Python 3.8+**
 - **FastAPI** - Modern web framework
 - **SQLAlchemy** - ORM for database
-- **PostgreSQL/SQLite** - Database
+- **MySQL** - Database
 - **Pydantic** - Data validation
 - **Python-jose** - JWT authentication
 - **AI Agent Framework** - For trip recommendations
