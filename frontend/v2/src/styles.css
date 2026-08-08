@@ -1,0 +1,489 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+@import "leaflet/dist/leaflet.css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Namma Connect design system
+ * -----------------------------------------------------------------------------
+ * Minimal, Airbnb/Stripe-like: one neutral surface scale, one brand accent and
+ * four role accents (tourist / farmer / creator / admin). Every color is a
+ * semantic token — never hardcode colors in components.
+ * Spacing follows an 8px rhythm, radii and shadows are shared tokens.
+ */
+
+@theme inline {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  --radius-xs: calc(var(--radius) - 8px);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 12px);
+  --radius-3xl: calc(var(--radius) + 20px);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Role accents */
+  --color-tourist: var(--tourist);
+  --color-tourist-soft: var(--tourist-soft);
+  --color-farmer: var(--farmer);
+  --color-farmer-soft: var(--farmer-soft);
+  --color-creator: var(--creator);
+  --color-creator-soft: var(--creator-soft);
+  --color-admin: var(--admin);
+  --color-admin-soft: var(--admin-soft);
+
+  /* Role accent applied through the `role-*` wrapper classes */
+  --color-role: var(--role);
+  --color-role-soft: var(--role-soft);
+  --color-role-foreground: var(--role-foreground);
+
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --shadow-xs: 0 1px 2px oklch(0.2 0.02 250 / 0.05);
+  --shadow-sm: 0 1px 2px oklch(0.2 0.02 250 / 0.06), 0 1px 3px oklch(0.2 0.02 250 / 0.05);
+  --shadow-md: 0 2px 6px oklch(0.2 0.02 250 / 0.06), 0 6px 16px oklch(0.2 0.02 250 / 0.06);
+  --shadow-lg: 0 8px 28px oklch(0.2 0.02 250 / 0.10);
+}
+
+:root {
+  --radius: 0.875rem;
+
+  --background: oklch(0.995 0.002 250);
+  --foreground: oklch(0.21 0.02 258);
+  --surface: oklch(0.975 0.004 250);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.21 0.02 258);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.21 0.02 258);
+
+  --primary: oklch(0.58 0.15 152);
+  --primary-foreground: oklch(0.99 0 0);
+  --primary-soft: oklch(0.955 0.03 152);
+
+  --secondary: oklch(0.965 0.005 250);
+  --secondary-foreground: oklch(0.29 0.02 258);
+  --muted: oklch(0.965 0.005 250);
+  --muted-foreground: oklch(0.55 0.015 258);
+  --accent: oklch(0.965 0.005 250);
+  --accent-foreground: oklch(0.29 0.02 258);
+
+  --destructive: oklch(0.585 0.21 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --success: oklch(0.58 0.15 152);
+  --success-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.72 0.16 70);
+  --warning-foreground: oklch(0.22 0.03 70);
+
+  --border: oklch(0.92 0.005 250);
+  --input: oklch(0.92 0.005 250);
+  --ring: oklch(0.58 0.15 152);
+
+  --tourist: oklch(0.58 0.16 250);
+  --tourist-soft: oklch(0.955 0.03 250);
+  --farmer: oklch(0.56 0.15 150);
+  --farmer-soft: oklch(0.955 0.03 150);
+  --creator: oklch(0.55 0.19 300);
+  --creator-soft: oklch(0.955 0.03 300);
+  --admin: oklch(0.66 0.16 55);
+  --admin-soft: oklch(0.96 0.035 70);
+
+  --role: var(--primary);
+  --role-soft: var(--primary-soft);
+  --role-foreground: oklch(0.99 0 0);
+
+  --chart-1: var(--tourist);
+  --chart-2: var(--farmer);
+  --chart-3: var(--creator);
+  --chart-4: var(--admin);
+  --chart-5: oklch(0.62 0.1 220);
+
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.21 0.02 258);
+  --sidebar-primary: var(--role);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.965 0.005 250);
+  --sidebar-accent-foreground: oklch(0.29 0.02 258);
+  --sidebar-border: oklch(0.92 0.005 250);
+  --sidebar-ring: var(--role);
+}
+
+.dark {
+  --background: oklch(0.17 0.015 258);
+  --foreground: oklch(0.97 0.003 250);
+  --surface: oklch(0.21 0.018 258);
+  --card: oklch(0.22 0.018 258);
+  --card-foreground: oklch(0.97 0.003 250);
+  --popover: oklch(0.22 0.018 258);
+  --popover-foreground: oklch(0.97 0.003 250);
+  --primary: oklch(0.68 0.15 152);
+  --primary-foreground: oklch(0.17 0.015 258);
+  --primary-soft: oklch(0.3 0.05 152);
+  --secondary: oklch(0.27 0.018 258);
+  --secondary-foreground: oklch(0.97 0.003 250);
+  --muted: oklch(0.27 0.018 258);
+  --muted-foreground: oklch(0.7 0.015 258);
+  --accent: oklch(0.27 0.018 258);
+  --accent-foreground: oklch(0.97 0.003 250);
+  --border: oklch(1 0 0 / 12%);
+  --input: oklch(1 0 0 / 16%);
+  --sidebar: oklch(0.22 0.018 258);
+  --sidebar-accent: oklch(0.27 0.018 258);
+  --sidebar-border: oklch(1 0 0 / 12%);
+}
+
+/* Role theming: wrap a dashboard subtree in `role-farmer` etc. and every
+   `bg-role`, `text-role`, `bg-role-soft` utility resolves to that accent. */
+.role-tourist {
+  --role: var(--tourist);
+  --role-soft: var(--tourist-soft);
+}
+.role-farmer {
+  --role: var(--farmer);
+  --role-soft: var(--farmer-soft);
+}
+.role-creator {
+  --role: var(--creator);
+  --role-soft: var(--creator-soft);
+}
+.role-admin {
+  --role: var(--admin);
+  --role-soft: var(--admin-soft);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display);
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-border);
+    border-radius: 9999px;
+  }
+}
+
+/* ── Shared primitives (legacy class names kept so ported pages stay intact) ── */
+
+@utility surface-card {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+@utility glass {
+  background-color: color-mix(in oklab, var(--color-card) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
+}
+
+@utility glass-green {
+  background-color: var(--color-primary-soft);
+  border: 1px solid color-mix(in oklab, var(--color-primary) 22%, transparent);
+}
+
+@utility btn-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius-md);
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+  outline: none;
+  &:focus-visible {
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-ring) 30%, transparent);
+  }
+  &:disabled {
+    opacity: 0.55;
+    pointer-events: none;
+  }
+}
+
+@utility btn-primary {
+  @apply btn-base;
+  background-color: var(--color-role);
+  color: var(--color-role-foreground);
+  box-shadow: var(--shadow-xs);
+  &:hover {
+    background-color: color-mix(in oklab, var(--color-role) 88%, black);
+  }
+}
+
+@utility btn-outline {
+  @apply btn-base;
+  background-color: var(--color-card);
+  color: var(--color-foreground);
+  border: 1px solid var(--color-border);
+  &:hover {
+    background-color: var(--color-muted);
+  }
+}
+
+@utility btn-ghost {
+  @apply btn-base;
+  background-color: transparent;
+  color: var(--color-muted-foreground);
+  &:hover {
+    background-color: var(--color-muted);
+    color: var(--color-foreground);
+  }
+}
+
+@utility btn-amber {
+  @apply btn-base;
+  background-color: var(--color-foreground);
+  color: var(--color-background);
+  &:hover {
+    background-color: color-mix(in oklab, var(--color-foreground) 88%, transparent);
+  }
+}
+
+@utility input-field {
+  width: 100%;
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  color: var(--color-foreground);
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  outline: none;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+  &::placeholder {
+    color: var(--color-muted-foreground);
+  }
+  &:focus {
+    border-color: var(--color-role);
+    box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-role) 18%, transparent);
+  }
+}
+
+@utility card-hover {
+  transition:
+    box-shadow 0.2s ease,
+    border-color 0.2s ease;
+  &:hover {
+    box-shadow: var(--shadow-md);
+    border-color: color-mix(in oklab, var(--color-foreground) 14%, transparent);
+  }
+}
+
+@utility section-heading {
+  font-size: 1.75rem;
+  line-height: 2.125rem;
+  font-weight: 700;
+  color: var(--color-foreground);
+  @media (min-width: 768px) {
+    font-size: 2.125rem;
+    line-height: 2.5rem;
+  }
+}
+
+@utility section-sub {
+  color: var(--color-muted-foreground);
+  font-size: 1rem;
+  margin-top: 0.5rem;
+  max-width: 42rem;
+}
+
+@utility section-pad {
+  padding: 4rem 1.5rem;
+  @media (min-width: 768px) {
+    padding: 5rem 2rem;
+  }
+}
+
+@utility gradient-text {
+  color: var(--color-role);
+}
+
+@utility gradient-text-amber {
+  color: var(--color-warning);
+}
+
+@utility text-shadow-glow {
+  text-shadow: none;
+}
+
+@utility scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Decorative hero orbs are removed from the minimal design */
+.orb {
+  display: none;
+}
+
+/* ── Leaflet maps (OpenStreetMap) — themed pins, popups & container ───────── */
+.leaflet-container {
+  font: inherit;
+  background: var(--color-muted);
+  border-radius: var(--radius-2xl);
+  z-index: 0;
+}
+
+.nc-pin {
+  background: none;
+  border: none;
+}
+
+.nc-pin-dot {
+  display: block;
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  background: var(--color-primary, #16a34a);
+  border: 3px solid var(--color-card, #fff);
+  box-shadow: 0 2px 10px rgb(0 0 0 / 0.35);
+  cursor: pointer;
+}
+
+.nc-pin-dot--accent {
+  background: var(--color-role, var(--color-primary, #2563eb));
+}
+
+.nc-pin-dot--user {
+  background: var(--color-info, var(--color-role, #0ea5e9));
+}
+
+.leaflet-popup-content-wrapper {
+  background: var(--color-card);
+  color: var(--color-foreground);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+
+.leaflet-popup-tip {
+  background: var(--color-card);
+}
+
+.leaflet-popup-content {
+  margin: 10px 14px;
+  font: inherit;
+  line-height: 1.4;
+}
+
+.nc-map-popup {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+}
+
+.nc-map-popup strong {
+  font-weight: 600;
+  color: var(--color-foreground);
+}
+
+.nc-map-popup span {
+  color: var(--color-muted-foreground);
+  font-size: 12px;
+}
+
+.nc-map-popup .nc-map-distance {
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+.dark .leaflet-bar a {
+  background: var(--color-card);
+  color: var(--color-foreground);
+  border-color: var(--color-border);
+}
+
+.dark .leaflet-control-attribution {
+  background: rgb(0 0 0 / 0.55);
+  color: var(--color-muted-foreground);
+}
+
+.dark .leaflet-control-attribution a {
+  color: var(--color-muted-foreground);
+}
