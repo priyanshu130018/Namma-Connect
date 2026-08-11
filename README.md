@@ -1,4 +1,4 @@
-# Namma Gig
+# Namma Connect
 
 A comprehensive platform connecting **Farmers**, **Tourists**, and **Content Creators** for agricultural tourism experiences.
 
