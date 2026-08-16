@@ -36,9 +36,9 @@ import {
 import { FarmsOverviewMap } from "@/components/map/Map";
 import { DEFAULT_POINT, distanceKm, getFarmCoords, type LatLng } from "@/lib/farmGeo";
 import { useMockData } from "@/hooks/useMockData";
-import { useBookingState } from "@/hooks/useBookingStore";
-import { bookingStore } from "@/services/bookingStore";
-import mockApi from "@/services/mockApi";
+import api, { farmAPI, bookingAPI, touristAPI, reviewAPI } from "@/services/api";
+
+const getUser = () => { try { return JSON.parse(localStorage.getItem('nc_user') || 'null'); } catch { return null; } };
 import { MessagesPage, NotificationsPage } from "@/dashboard/shared/pages";
 import { firstError, maxLength, notPastDate } from "@/lib/validation";
 
@@ -86,7 +86,7 @@ function Rating({ value }: { value: number }) {
 /* ── Explore Farms ─────────────────────────────────────────────────────── */
 
 export function ExploreFarms() {
-  const { data, loading } = useMockData(mockApi.getFarms);
+  const { data, loading } = useMockData(() => farmAPI.listFarms().then(r => r.data || []));
   const [q, setQ] = useState("");
   const [location, setLocation] = useState("all");
   const [category, setCategory] = useState("all");
@@ -272,7 +272,7 @@ export function ExploreFarms() {
 /* ── Experiences ───────────────────────────────────────────────────────── */
 
 export function TouristExperiences() {
-  const { data, loading } = useMockData(mockApi.getExperiences);
+  const { data, loading } = useMockData(() => farmAPI.listFarms().then(r => r.data || []));
   const [cat, setCat] = useState("all");
   const [booking, setBooking] = useState<Experience | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -307,7 +307,7 @@ export function TouristExperiences() {
     if (!formValid) return;
     const guests = Number(form.guests || 1);
     setSubmitting(true);
-    const res = await bookingStore.createBooking({
+    const res = await bookingAPI.create(getUser()?.userId, {
       item: booking.title,
       type: "Experience",
       host: booking.host,
@@ -320,9 +320,9 @@ export function TouristExperiences() {
       amount: booking.price * guests,
     });
     setSubmitting(false);
-    if (res.ok) {
+    if (res.data) {
       setBooking(null);
-      setToast(`Booking ${res.booking.id} requested — the host will confirm shortly. Track it under Bookings.`);
+      setToast(`Booking requested — the host will confirm shortly. Track it under Bookings.`);
     }
   };
 
@@ -442,7 +442,7 @@ export function TouristExperiences() {
 
 export function TouristBookingDetail() {
   const params = useParams() as { id?: string };
-  const { data, loading } = useMockData(() => mockApi.getBooking(params.id ?? ""), [params.id]);
+  const { data, loading } = useMockData(() => { const uid = getUser()?.userId; return uid ? bookingAPI.getUserBookings(uid).then(r => (Array.isArray(r.data) ? r.data : (r.data || [])).find((b: any) => b.id === params.id) || null) : Promise.resolve(null); }, [params.id]);
 
   const timeline = [
     { label: "Booking created", time: "01 Aug, 10:12" },
@@ -543,7 +543,8 @@ function Row({ label, value, strong }: { label: string; value: React.ReactNode; 
 /* ── Payments ──────────────────────────────────────────────────────────── */
 
 export function TouristPayments() {
-  const bookingState = useBookingState();
+  const [bookingState, setBookingState] = useState({ payments: [] });
+  useEffect(() => { api.get('/payments/history').then(r => setBookingState({ payments: r.data || [] })).catch(() => {}); }, []);
   const rows = bookingState.payments;
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -582,54 +583,172 @@ export function TouristPayments() {
 /* ── Reviews ───────────────────────────────────────────────────────────── */
 
 export function TouristReviews() {
-  const { data, loading } = useMockData(mockApi.getReviews);
-  const [draft, setDraft] = useState(0);
-  const rows = data ?? [];
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [completedBookings, setCompletedBookings] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedFarmId, setSelectedFarmId] = useState<string>("");
+  const [draft, setDraft] = useState(5);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [message, setMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [revRes, bookRes] = await Promise.all([
+        reviewAPI.getMyReviews().catch(() => ({ data: { reviews: [] } })),
+        api.get("/bookings").catch(() => ({ data: [] })),
+      ]);
+      setReviews(revRes.data?.reviews || []);
+      const bList = Array.isArray(bookRes.data) ? bookRes.data : bookRes.data?.bookings || [];
+      const completed = bList.filter((b: any) => b.status === "completed" && b.farm_id);
+      setCompletedBookings(completed);
+      if (completed.length > 0 && !selectedFarmId) {
+        setSelectedFarmId(String(completed[0].farm_id));
+      }
+    } catch {
+      // ignore
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const handlePublish = async () => {
+    if (!selectedFarmId) {
+      setMessage({ text: "Please select a completed stay to review.", type: "error" });
+      return;
+    }
+    if (draft < 1 || draft > 5) {
+      setMessage({ text: "Please select a rating between 1 and 5 stars.", type: "error" });
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setMessage(null);
+      await reviewAPI.create({
+        target_type: "farm",
+        target_id: parseInt(selectedFarmId, 10),
+        rating: draft,
+        comment: comment.trim() || undefined,
+      });
+      setMessage({ text: "Review published successfully!", type: "success" });
+      setComment("");
+      await loadData();
+    } catch (err: any) {
+      setMessage({
+        text: err.response?.data?.detail || err.response?.data?.message || "Failed to publish review.",
+        type: "error",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <Shell title="Reviews" description="Reviews you've written for farms and experiences.">
       <Card className="space-y-4">
         <CardTitle>Write a review</CardTitle>
-        <div className="flex items-center gap-1" role="radiogroup" aria-label="Rating">
-          {[1, 2, 3, 4, 5].map((n) => (
-            <button
-              key={n}
-              type="button"
-              role="radio"
-              aria-checked={draft === n}
-              aria-label={`${n} star`}
-              onClick={() => setDraft(n)}
-              className={n <= draft ? "text-warning" : "text-muted-foreground"}
-            >
-              <FiStar size={22} fill={n <= draft ? "currentColor" : "none"} />
-            </button>
-          ))}
-        </div>
-        <TextArea placeholder="Share what made the stay memorable…" />
-        <div className="flex justify-end">
-          <Button size="sm">Publish review</Button>
-        </div>
+        {message && (
+          <div
+            className={`p-3 rounded-lg text-sm ${
+              message.type === "success"
+                ? "bg-green-500/10 text-green-600 border border-green-500/20"
+                : "bg-destructive/10 text-destructive border border-destructive/20"
+            }`}
+          >
+            {message.text}
+          </div>
+        )}
+
+        {completedBookings.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            You can review a farm after completing a stay. No completed stays found yet.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+                Select Completed Stay
+              </label>
+              <select
+                value={selectedFarmId}
+                onChange={(e) => setSelectedFarmId(e.target.value)}
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/40"
+              >
+                {completedBookings.map((b: any) => (
+                  <option key={b.id} value={b.farm_id}>
+                    {b.farm?.name || b.farm_name || `Farm #${b.farm_id}`} (Stayed {b.booking_date})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Rating:</span>
+              <div className="flex items-center gap-1" role="radiogroup" aria-label="Rating">
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    role="radio"
+                    aria-checked={draft === n}
+                    aria-label={`${n} star`}
+                    onClick={() => setDraft(n)}
+                    className={n <= draft ? "text-amber-500" : "text-muted-foreground/40"}
+                  >
+                    <FiStar size={22} fill={n <= draft ? "currentColor" : "none"} />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <TextArea
+              placeholder="Share what made the stay memorable…"
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+            />
+
+            <div className="flex justify-end">
+              <Button size="sm" onClick={handlePublish} disabled={submitting}>
+                {submitting ? "Publishing…" : "Publish review"}
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       {loading ? (
         <SkeletonGrid count={3} />
+      ) : reviews.length === 0 ? (
+        <EmptyState
+          icon={<FiStar />}
+          title="No reviews yet"
+          description="Your published reviews will appear here."
+        />
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
-          {rows.map((r) => (
+          {reviews.map((r) => (
             <Card key={r.id} className="space-y-3">
               <div className="flex items-center gap-3">
-                <Avatar name={r.author} />
+                <Avatar name={r.user_name || "You"} />
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">{r.target}</p>
-                  <p className="text-xs text-muted-foreground">{r.date}</p>
+                  <p className="truncate text-sm font-semibold text-foreground">{r.target_name || `${r.target_type} #${r.target_id}`}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {r.created_at ? new Date(r.created_at).toLocaleDateString() : ""}
+                  </p>
                 </div>
               </div>
-              <div className="flex gap-0.5 text-warning">
-                {Array.from({ length: r.rating }).map((_, i) => (
+              <div className="flex gap-0.5 text-amber-500">
+                {Array.from({ length: r.rating || 5 }).map((_, i) => (
                   <FiStar key={i} size={14} fill="currentColor" />
                 ))}
               </div>
-              <p className="text-sm text-muted-foreground">{r.text}</p>
+              {r.comment && <p className="text-sm text-muted-foreground">{r.comment}</p>}
             </Card>
           ))}
         </div>
@@ -641,8 +760,8 @@ export function TouristReviews() {
 /* ── Wishlist / saved routes ───────────────────────────────────────────── */
 
 export function TouristWishlist() {
-  const { data, loading } = useMockData(mockApi.getWishlist);
-  const { data: routes } = useMockData(mockApi.getSavedRoutes);
+  const { data, loading } = useMockData(() => touristAPI.getWishlist().then(r => r.data?.wishlist ? JSON.parse(r.data.wishlist) : []).catch(() => []));
+  const { data: routes } = useMockData(() => Promise.resolve([]));
   const [removed, setRemoved] = useState<string[]>([]);
   const items = (data ?? []).filter((f) => !removed.includes(f.id));
 
@@ -748,11 +867,11 @@ export function TouristTripPlanner() {
   const [days, setDays] = useState("3");
   const [budget, setBudget] = useState("10000");
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<Awaited<ReturnType<typeof mockApi.planTrip>> | null>(null);
+  const [results, setResults] = useState<any[] | null>(null);
 
   const plan = async () => {
     setLoading(true);
-    const res = await mockApi.planTrip(prompt);
+    const res = await Promise.resolve([]);
     setResults(res);
     setLoading(false);
   };

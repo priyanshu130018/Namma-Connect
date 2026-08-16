@@ -244,47 +244,36 @@ function UserModal({ user, onClose, onDelete, onVerify, verifyLoading }) {
             </div>
 
             {/* Profile Info */}
-            {p && (
+            {p ? (
               <div className="bg-surface rounded-[24px] p-6 border border-border space-y-4">
                 <h4 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest text-center border-b border-border/60 pb-3 mb-2">Profile Information</h4>
                 {[
-                  ["Contact Email", p.email],
-                  ["Contact Mobile", p.mobile],
                   ["Location", [p.city, p.state].filter(Boolean).join(", ")],
                   ["Aadhaar No.", p.aadhaar_no || "—"],
                   p.niche ? ["Niche", p.niche] : null,
                   p.portfolio ? ["Portfolio", p.portfolio] : null,
-                  p.identity_proof ? ["Identity Proof", <a href={p.identity_proof} target="_blank" rel="noreferrer" className="text-primary hover:text-primary hover:underline flex items-center gap-1">View Document</a>] : null,
                 ].filter(Boolean).map(([k, v]) => (
                   <div key={k} className="flex flex-col text-sm border-b border-border/40 pb-3 last:border-0 last:pb-0">
                     <span className="text-muted-foreground font-bold text-[10px] uppercase tracking-wider mb-1">{k}</span>
-                    <span className="font-bold text-foreground truncate">{v || "—"}</span>
+                    <span className="font-bold text-foreground truncate">{String(v || "—")}</span>
                   </div>
                 ))}
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-muted/50 border border-dashed border-border text-center text-xs text-muted-foreground">
+                No extra profile details on file.
               </div>
             )}
           </div>
         </div>
 
-        {/* Footer Actions */}
-        <div className="bg-card border-t border-border p-6 flex items-center justify-between gap-3 shrink-0">
+        {/* Action footer */}
+        <div className="bg-card border-t border-border p-6 flex items-center justify-end gap-3 shrink-0">
           <button
             onClick={() => onDelete(user)}
             className="px-6 py-4 rounded-2xl font-bold text-sm hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all flex items-center gap-2"
           >
             <FiTrash2 size={16} /> Delete Identity
-          </button>
-          
-          <button
-            onClick={() => onVerify(user.id)}
-            disabled={verifyLoading}
-            className={`px-8 py-4 rounded-2xl font-semibold text-sm transition-all disabled:opacity-50 flex items-center gap-3 shadow-sm hover:scale-[1.02] ${
-              p?.is_verified
-                ? "bg-primary/10 text-primary hover:bg-primary"
-                : "bg-foreground text-primary-foreground hover:bg-foreground"
-            }`}
-          >
-            {p?.is_verified ? <><FiShieldOff size={16} /> Revoke Verification</> : <><FiShield size={16} /> Approve & Verify</>}
           </button>
         </div>
 
@@ -327,7 +316,6 @@ export default function AdminHome() {
   const [selectedBooking, setSelectedBooking] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
-  const [verifyLoading, setVerifyLoading] = useState(false);
   const [toast, setToast]         = useState(null);
 
   const PAGE_SIZE = 15;
@@ -397,21 +385,6 @@ export default function AdminHome() {
       fetchStats();
     } catch { showToast("Delete failed.", "error"); }
     finally { setDeleteLoading(false); }
-  };
-
-  const handleVerify = async (userId) => {
-    setVerifyLoading(true);
-    try {
-      const r = await adminAPI.verifyUser(userId);
-      showToast(r.data.message);
-      // Update drawer
-      setSelectedUser(prev => prev ? {
-        ...prev,
-        profile: prev.profile ? { ...prev.profile, is_verified: r.data.is_verified } : prev.profile
-      } : null);
-      fetchUsers();
-    } catch { showToast("Verification failed.", "error"); }
-    finally { setVerifyLoading(false); }
   };
 
   // ── CSV Export ─────────────────────────────────────────────────────────────
@@ -848,8 +821,6 @@ export default function AdminHome() {
             user={selectedUser}
             onClose={() => setSelectedUser(null)}
             onDelete={u => setDeleteTarget(u)}
-            onVerify={handleVerify}
-            verifyLoading={verifyLoading}
           />
         )}
       </AnimatePresence>

@@ -43,8 +43,7 @@ import {
   StatusBadge,
   Tabs,
 } from "@/components/kit/UI";
-import { useBookingState } from "@/hooks/useBookingStore";
-import { bookingStore } from "@/services/bookingStore";
+
 import { Switch } from "@/components/ui/switch";
 import {
   Conversation,
@@ -60,7 +59,9 @@ import {
   PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input";
 import { useMockData } from "@/hooks/useMockData";
-import mockApi from "@/services/mockApi";
+import api from "@/services/api";
+
+const getUser = () => { try { return JSON.parse(localStorage.getItem('nc_user') || 'null'); } catch { return null; } };
 import { useTheme } from "@/lib/theme";
 import type { Role } from "@/lib/roles";
 
@@ -69,7 +70,7 @@ const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 /* ── Activities ────────────────────────────────────────────────────────── */
 
 export function ActivitiesPage({ role }: { role: Role }) {
-  const { data, loading } = useMockData(mockApi.getActivities);
+  const { data, loading } = useMockData(() => api.get('/activities').then(r => r.data || []));
   const [tab, setTab] = useState("all");
   const [q, setQ] = useState("");
 
@@ -169,7 +170,7 @@ export function ActivitiesPage({ role }: { role: Role }) {
 /* ── History ───────────────────────────────────────────────────────────── */
 
 export function HistoryPage({ role }: { role: Role }) {
-  const { data, loading } = useMockData(mockApi.getHistory);
+  const { data, loading } = useMockData(() => Promise.resolve([]));
   const rows = data ?? [];
   const total = rows.filter((r) => r.status === "completed").reduce((s, r) => s + r.amount, 0);
 
@@ -242,7 +243,7 @@ const autoReplyFor = (name: string) =>
     : "Perfect, noted! I'll confirm the details shortly.";
 
 export function MessagesPage({ role }: { role: Role }) {
-  const { data, loading } = useMockData(mockApi.getConversations);
+  const { data, loading } = useMockData(() => api.get('/messages').then(r => r.data || []));
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -457,7 +458,12 @@ const NOTIF_META: Record<string, { icon: ReactNode; label: string }> = {
 };
 
 export function NotificationsPage({ role }: { role: Role }) {
-  const bookingState = useBookingState();
+  const [state, setState] = useState({ bookings: [], payments: [], notifications: [] });
+  useEffect(() => {
+    api.get('/notifications').then(r => {
+      setState(prev => ({ ...prev, notifications: r.data || [] }));
+    }).catch(() => {});
+  }, []);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("all");
 
@@ -468,7 +474,7 @@ export function NotificationsPage({ role }: { role: Role }) {
 
   // Live feed from the shared store: base announcements plus booking/payment
   // events targeted at this role — updates instantly as actions happen.
-  const items = bookingState.notifications.filter(
+  const items = state.notifications.filter(
     (n) => n.audience === "all" || n.audience === role,
   );
 
@@ -477,8 +483,12 @@ export function NotificationsPage({ role }: { role: Role }) {
     tab === "all" ? true : tab === "unread" ? !n.read : n.read,
   );
 
-  const markRead = (id: string) => bookingStore.markNotificationRead(id);
-  const markAll = () => bookingStore.markAllNotificationsRead(role);
+  const markRead = (id: string) => api.post('/notifications/' + id + '/read').then(() => {
+    setState(prev => ({ ...prev, notifications: prev.notifications.map(n => n.id === id ? { ...n, read: true } : n) }));
+  });
+  const markAll = () => api.post('/notifications/read-all').then(() => {
+    setState(prev => ({ ...prev, notifications: prev.notifications.map(n => ({ ...n, read: true })) }));
+  });
 
   return (
     <DashboardLayout
@@ -563,8 +573,8 @@ export function NotificationsPage({ role }: { role: Role }) {
 /* ── Help centre ───────────────────────────────────────────────────────── */
 
 export function HelpCentrePage({ role }: { role: Role }) {
-  const { data: articles } = useMockData(mockApi.getHelpArticles);
-  const { data: topics } = useMockData(mockApi.getHelpTopics);
+  const { data: articles } = useMockData(() => Promise.resolve([]));
+  const { data: topics } = useMockData(() => Promise.resolve([]));
   const [q, setQ] = useState("");
   const [open, setOpen] = useState<string | null>(null);
   const faqs = (articles ?? []).filter((a) => a.q.toLowerCase().includes(q.toLowerCase()));
@@ -653,8 +663,8 @@ export function HelpCentrePage({ role }: { role: Role }) {
 /* ── Reports ───────────────────────────────────────────────────────────── */
 
 export function ReportsPage({ role }: { role: Role }) {
-  const { data, loading } = useMockData(mockApi.getReports);
-  const { data: revenue } = useMockData(mockApi.getRevenue);
+  const { data, loading } = useMockData(() => Promise.resolve([]));
+  const { data: revenue } = useMockData(() => api.get('/analytics', {params:{role}}).then(r => r.data?.revenue || []));
   const rows = data ?? [];
 
   return (
@@ -710,7 +720,9 @@ export function ReportsPage({ role }: { role: Role }) {
 /* ── Payments (generic) ────────────────────────────────────────────────── */
 
 export function PaymentsPage({ role }: { role: Role }) {
-  const { data, loading } = useMockData(mockApi.getPayments);
+  const { data, loading } = useMockData(() => {
+    return api.get('/payments/history').then(r => r.data || []).catch(() => []);
+  });
   const rows = data ?? [];
   const paid = rows.filter((p) => p.status === "paid").reduce((s, p) => s + p.amount, 0);
 
@@ -745,7 +757,7 @@ export function PaymentsPage({ role }: { role: Role }) {
 /* ── Calendar ──────────────────────────────────────────────────────────── */
 
 export function CalendarPage({ role }: { role: Role }) {
-  const { data } = useMockData(mockApi.getCalendar);
+  const { data } = useMockData(() => Promise.resolve([]));
   const events = data ?? [];
   const today = new Date();
   const days = Array.from({ length: 35 }, (_, i) => i - today.getDay() + 1);

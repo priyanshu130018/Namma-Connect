@@ -31,76 +31,70 @@ export default api;
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 export const authAPI = {
-  register: (data) => api.post("/register", data),
-  login: (data) => api.post("/login", data),
-  googleLogin: (credential) => api.post(`/google?credential=${credential}`),
-  me: (token) => api.get(`/me?token=${token}`),
-  changePassword: (data) => api.post("/change-password", data),
-  // Authenticated change password — sends current password for verification
-  changePasswordAuth: (userId, data) => api.post(`/change-password/${userId}`, data),
-  deleteAccount: (userId) => api.delete(`/delete-account/${userId}`),
+  register: (data) => api.post("/auth/register", data),
+  login: (data) => api.post("/auth/login", data),
+  googleLogin: (credential) => api.post(`/auth/google?credential=${credential}`),
+  me: () => api.get("/auth/me"),
+  changePassword: (data) => api.post("/auth/change-password", data),
+  changePasswordAuth: (userId, data) => api.post("/auth/change-password/authenticated", data),
+  deleteAccount: (userId) => api.delete("/auth/account"),
 };
 
 // ─── Tourist ─────────────────────────────────────────────────────────────────
 export const touristAPI = {
-  register: (userId, data) => api.post(`/services/tourist/register/${userId}`, data),
-  getProfile: (userId) => api.get(`/tourist/profile/${userId}`),
-  updateProfile: (userId, data) => api.put(`/tourist/profile/${userId}`, data),
-  getWishlist: (userId) => api.get(`/tourist/wishlist/${userId}`),
-  updateWishlist: (userId, wishlist) => api.put(`/tourist/wishlist/${userId}?wishlist=${encodeURIComponent(wishlist)}`),
-  getSettings: (userId) => api.get(`/tourist/settings/${userId}`),
+  register: (userId, data) => api.post("/applications", { type: 'tourist', ...data }),
+  getProfile: (userId) => api.get("/profile"),
+  updateProfile: (userId, data) => api.patch("/profile", data),
+  getWishlist: () => api.get("/wishlist"),
+  updateWishlist: (userId, wishlist) => api.post("/wishlist"),
+  getSettings: (userId) => api.get("/profile"),
 };
 
 // ─── Creator ─────────────────────────────────────────────────────────────────
 export const creatorAPI = {
-  register: (userId, data) => api.post(`/services/creator/register/${userId}`, data),
-  getProfile: (userId) => api.get(`/creator/profile/${userId}`),
-  getCreator: (creatorId) => api.get(`/creator/${creatorId}`),
-  updateProfile: (userId, data) => api.put(`/creator/profile/${userId}`, data),
-  getBookings: (userId) => api.get(`/creator/bookings/${userId}`),
-  listCreators: () => api.get("/creator/listing"),
-  getSettings: (userId) => api.get(`/creator/settings/${userId}`),
-  checkAvailability: (creatorId, start, end) => api.get(`/creator/check-availability/${creatorId}?date_start=${start}&date_end=${end}`),
+  register: (userId, data) => api.post("/applications", { type: 'creator', creator_details: data }),
+  getProfile: (userId) => api.get("/profile"),
+  getCreator: (creatorId) => api.get(`/creators/${creatorId}`),
+  updateProfile: (userId, data) => api.patch("/profile", data),
+  getBookings: (userId) => api.get("/collaborations"),
+  listCreators: () => api.get("/creators"),
+  getSettings: (userId) => api.get("/profile"),
+  checkAvailability: (creatorId, start, end) => api.get(`/creators/${creatorId}/availability?date_start=${start}&date_end=${end}`),
 };
 
-// ─── Farm (Backend uses /farmer) ─────────────────────────────────────────────
+// ─── Farm ────────────────────────────────────────────────────────────────────
 export const farmAPI = {
-  // register: creates/updates farmer profile only
-  register: (userId, data) => api.post(`/services/farmer/register/${userId}`, data),
-  getProfile: (userId) => api.get(`/farmer/profile/${userId}`),
-  // Fetch farmer profile by farmer table primary key (farmer.id = farm_listing.farmer_id)
-  getFarmerProfile: (farmerId) => api.get(`/farmer/by-profile/${farmerId}`),
-  updateProfile: (userId, data) => api.put(`/farmer/profile/${userId}`, data),
-  getListings: (userId) => api.get(`/farmer/list/${userId}`),
-  createListing: (userId, data) => api.post(`/farmer/list/${userId}`, data),
-  getListing: (listingId) => api.get(`/farmer/listing/${listingId}`),
-  updateListing: (listingId, data) => api.put(`/farmer/listing/${listingId}`, data),
-  deleteListing: (listingId, userId) => api.delete(`/farmer/listing/${listingId}/${userId}`),
-  listFarms: () => api.get("/farmer/farm-listing"),
-  getBookings: (userId) => api.get(`/farmer/bookings/${userId}`),
-  getSettings: (userId) => api.get(`/farmer/settings/${userId}`),
+  register: (userId, data) => api.post("/applications", { type: 'farmer', farmer_details: data }),
+  getProfile: (userId) => api.get("/profile"),
+  getFarmerProfile: (farmerId) => api.get(`/farmers/${farmerId}`),
+  updateProfile: (userId, data) => api.patch("/profile", data),
+  getListings: (userId) => api.get(`/farms?owner_id=${userId}`),
+  createListing: (userId, data) => api.post("/farms", data),
+  getListing: (listingId) => api.get(`/farms/${listingId}`),
+  updateListing: (listingId, data) => api.patch(`/farms/${listingId}`, data),
+  deleteListing: (listingId, userId) => api.delete(`/farms/${listingId}`),
+  listFarms: () => api.get("/farms"),
+  getBookings: (userId) => api.get("/bookings"),
+  getSettings: (userId) => api.get("/profile"),
 };
 
 // ─── Bookings ─────────────────────────────────────────────────────────────────
 export const bookingAPI = {
-  // tourist_id is derived from user_id server-side, do not include it in body
-  create: (userId, data) => api.post(`/tourist/booking/${userId}`, data),
-  getUserBookings: (userId) => api.get(`/tourist/bookings/${userId}`),
-  delete: (bookingId, userId) => api.delete(`/tourist/booking/${bookingId}/${userId}`),
-  updateStatus: (bookingId, status) => api.put(`/tourist/booking/${bookingId}/status`, { status }),
-  // Farmer approves/rejects a booking
+  create: (userId, data) => api.post("/bookings", data),
+  getUserBookings: (userId) => api.get("/bookings"),
+  delete: (bookingId, userId) => api.post(`/bookings/${bookingId}/cancel`),
+  updateStatus: (bookingId, status) => api.patch(`/bookings/${bookingId}`, { status }),
   updateFarmerStatus: (bookingId, userId, data) =>
-    api.put(`/farmer/booking/${bookingId}/status/${userId}`, data),
-  // Creator approves/rejects a booking
+    api.patch(`/bookings/${bookingId}`, data),
   updateCreatorStatus: (bookingId, userId, data) =>
-    api.put(`/creator/booking/${bookingId}/status/${userId}`, data),
+    api.patch(`/collaborations/${bookingId}`, data),
 };
 
 // ─── Search & AI ──────────────────────────────────────────────────────────────
 export const searchAPI = {
-  farmers: (userId, q, start, end) => api.get(`/farmer/search/${userId}?query=${q || ""}&date_start=${start || ""}&date_end=${end || ""}`),
-  creators: (userId, q, start, end) => api.get(`/creator/search/${userId}?query=${q || ""}&date_start=${start || ""}&date_end=${end || ""}`),
-  tourist: (userId, q, start, end) => api.get(`/tourist/search/${userId}?query=${q || ""}&date_start=${start || ""}&date_end=${end || ""}`),
+  farmers: (userId, q, start, end) => api.get(`/search?type=farm&query=${q || ""}&date_start=${start || ""}&date_end=${end || ""}`),
+  creators: (userId, q, start, end) => api.get(`/search?type=creator&query=${q || ""}&date_start=${start || ""}&date_end=${end || ""}`),
+  tourist: (userId, q, start, end) => api.get(`/search?type=all&query=${q || ""}&date_start=${start || ""}&date_end=${end || ""}`),
   getRecommendations: async () => {
     try {
       const [f, c] = await Promise.all([
@@ -119,37 +113,33 @@ export const searchAPI = {
 
 export const aiAPI = {
   recommendFarms: (userId, query, startDate, endDate, timeSlot) => {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ type: "farm" });
     if (query) params.append("query", query);
     if (startDate) params.append("date_start", startDate);
     if (endDate) params.append("date_end", endDate);
     if (timeSlot) params.append("time_slot", timeSlot);
-    const qs = params.toString();
-    return api.get(`/farmer/search/${userId}${qs ? `?${qs}` : ""}`);
+    return api.get(`/search?${params.toString()}`);
   },
   recommendCreators: (userId, query, startDate, endDate) => {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ type: "creator" });
     if (query) params.append("query", query);
     if (startDate) params.append("date_start", startDate);
     if (endDate) params.append("date_end", endDate);
-    const qs = params.toString();
-    return api.get(`/creator/search/${userId}${qs ? `?${qs}` : ""}`);
+    return api.get(`/search?${params.toString()}`);
   },
   chat: (prompt, sessionState) => api.post("/ai/chat", { prompt, session_state: sessionState }),
 };
 
 // ─── Contact ──────────────────────────────────────────────────────────────────
 export const contactAPI = {
-  submit: (data) => api.post("/contact/submit", data),
+  submit: (data) => api.post("/contact", data),
 };
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
 export const adminAPI = {
   getStats: () => api.get("/admin/stats"),
   getUsers: (params) => api.get("/admin/users", { params }),
-  getUser: (userId) => api.get(`/admin/user/${userId}`),
-  deleteUser: (userId) => api.delete(`/admin/user/${userId}`),
-  verifyUser: (userId) => api.put(`/admin/user/${userId}/verify`),
+  deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
   getBookings: (params) => api.get("/admin/bookings", { params }),
 };
 

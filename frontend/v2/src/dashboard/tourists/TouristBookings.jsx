@@ -9,8 +9,10 @@ import Navbar from "@/components/layout/navbar";
 import Footer from "@/components/layout/footer";
 import { Link } from "@/lib/router-compat";
 import { StatusBadge, Badge, Modal, EmptyState } from "@/components/kit/UI";
-import { bookingService } from "@/services/bookingService";
-import { useBookingState } from "@/hooks/useBookingStore";
+import { bookingAPI } from "@/services/api";
+import api from "@/services/api";
+
+const getUser = () => { try { return JSON.parse(localStorage.getItem('nc_user') || 'null'); } catch { return null; } };
 
 const PAGE_SIZE = 4;
 
@@ -86,7 +88,7 @@ function StatCard({ label, value, icon: Icon, tone }) {
 }
 
 export default function TouristBookings() {
-  const bookingState = useBookingState();
+  const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -100,19 +102,23 @@ export default function TouristBookings() {
 
   const showToast = (message, type = "success") => setToast({ message, type });
 
-  useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 350);
-    return () => clearTimeout(t);
-  }, []);
-
-  // Live view of the shared booking store — reflects farmer decisions and
-  // payments across dashboards without a reload.
-  const bookings = useMemo(() => bookingState.bookings.filter((b) => b.mine), [bookingState]);
-
-  const fetchBookings = () => {
+  const fetchBookings = async () => {
     setLoading(true);
-    setTimeout(() => setLoading(false), 400);
+    try {
+      const uid = getUser()?.userId;
+      if (uid) {
+        const res = await bookingAPI.getUserBookings(uid);
+        setBookings(Array.isArray(res.data) ? res.data : (res.data || []));
+      }
+    } catch {
+      // ignore error
+    }
+    setLoading(false);
   };
+
+  useEffect(() => {
+    fetchBookings();
+  }, []);
 
   /* ── Filter + search ─────────────────────────────────────────────── */
   const filtered = useMemo(() => {
@@ -144,10 +150,11 @@ export default function TouristBookings() {
   const handleCancel = async (booking) => {
     setCancelling(booking.id);
     try {
-      const res = await bookingService.cancelBooking(booking.id); // POST /bookings/:id/cancel
-      if (res?.ok) {
+      const res = await bookingAPI.updateStatus(booking.id, 'cancelled'); // POST /bookings/:id/cancel
+      if (res?.data) {
         setSelected((prev) => (prev?.id === booking.id ? { ...prev, status: "cancelled" } : prev));
         showToast(`${booking.id} cancelled.`);
+        await fetchBookings();
       } else {
         showToast("Cancellation failed.", "error");
       }
@@ -170,13 +177,27 @@ export default function TouristBookings() {
     if (!paying) return;
     setProcessing(true);
     try {
-      const res = await bookingService.payBooking(paying.id, payMethod); // POST /payments
-      if (res?.ok) {
-        setSelected((prev) => (prev?.id === paying.id ? { ...prev, payment: "paid" } : prev));
-        showToast(`Payment successful for ${paying.id} via ${payMethod}.`);
-        setPaying(null);
+      const orderRes = await api.post('/payments/create-order', { booking_id: paying.id, type: "booking" });
+      if (orderRes?.data) {
+        const orderId = orderRes.data.order_id || `order_mock_${paying.id}`;
+        const verifyRes = await api.post('/payments/verify', {
+          booking_id: paying.id,
+          type: "booking",
+          razorpay_order_id: orderId,
+          razorpay_payment_id: `pay_mock_${Date.now()}`,
+          razorpay_signature: `sig_mock_${Date.now()}`
+        });
+
+        if (verifyRes?.data?.success) {
+          setSelected((prev) => (prev?.id === paying.id ? { ...prev, payment: "paid" } : prev));
+          showToast(`Payment successful for ${paying.id} via ${payMethod}.`);
+          setPaying(null);
+          await fetchBookings();
+        } else {
+          showToast("Payment verification failed.", "error");
+        }
       } else {
-        showToast("Payment failed. Please try again.", "error");
+        showToast("Payment failed to initialize.", "error");
       }
     } catch {
       showToast("Payment failed. Please try again.", "error");

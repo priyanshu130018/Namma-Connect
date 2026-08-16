@@ -1,15 +1,5 @@
-/**
- * Farm service — mock implementation.
- *
- * Endpoint structure (future-ready; swap internals for real HTTP calls):
- *   GET    /farms              → list all farms / experiences
- *   GET    /farms/:id          → single farm detail
- *   GET    /farms/nearby       → farms near the user
- *   GET    /farms/listings     → farmer's own listings
- *   GET    /activities         → bookable activities
- *   POST   /activities         → add a new activity (farmer)
- */
-import { mockApi } from "./mockApi";
+import { farmAPI } from "./api";
+import api from "./api";
 
 export const farmEndpoints = {
   list: "/farms",
@@ -19,32 +9,30 @@ export const farmEndpoints = {
   activities: "/activities",
 };
 
+const getUser = () => { try { return JSON.parse(localStorage.getItem('nc_user') || 'null'); } catch { return null; } };
+
 export const farmService = {
-  /** GET /farms */
-  getFarms: () => mockApi.getFarms(),
+  getFarms: () => farmAPI.listFarms().then(r => r.data || []),
 
-  /** GET /farms/:id */
-  getFarm: (id) => mockApi.getFarm(id),
+  getFarm: (id) => farmAPI.getListing(id).then(r => r.data),
 
-  /** GET /farms (experiences view) */
-  getExperiences: () => mockApi.getExperiences(),
+  getExperiences: () => farmAPI.listFarms().then(r => r.data || []),
 
-  /** GET /farms/nearby */
-  getNearbyFarms: () => mockApi.getNearbyFarms(),
+  getNearbyFarms: () => farmAPI.listFarms().then(r => r.data || []),
 
-  /** GET /farms/listings (farmer) */
-  getListings: () => mockApi.getFarmerListings(),
+  getListings: () => {
+    const userId = getUser()?.userId;
+    return farmAPI.getListings(userId).then(r => r.data || []);
+  },
 
-  /** GET /activities */
-  getActivities: () => mockApi.getActivities(),
+  getActivities: () => api.get('/activities').then(r => r.data || []),
 
-  /** POST /activities — mock: echoes the payload back with an id */
-  addActivity: (payload) =>
-    Promise.resolve({ id: `act-${Date.now()}`, status: "pending", ...payload }),
+  addActivity: (payload) => api.post('/activities', payload).then(r => r.data),
 
-  /** POST /farms — mock create-farm */
-  createFarm: (payload) =>
-    Promise.resolve({ id: `farm-${Date.now()}`, status: "pending", ...payload }),
+  createFarm: (payload) => {
+    const userId = getUser()?.userId;
+    return farmAPI.createListing(userId, payload).then(r => r.data);
+  },
 };
 
 export default farmService;

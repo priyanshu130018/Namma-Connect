@@ -409,7 +409,7 @@ export default function AdminHome() {
     const blob = new Blob([csv], { type: "text/csv" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
-    a.href = url; a.download = "namma_gig_users.csv"; a.click();
+    a.href = url; a.download = "users_report.csv"; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -425,7 +425,7 @@ export default function AdminHome() {
     const blob = new Blob([csv], { type: "text/csv" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
-    a.href = url; a.download = "namma_gig_bookings.csv"; a.click();
+    a.href = url; a.download = "bookings_report.csv"; a.click();
     URL.revokeObjectURL(url);
   };
 

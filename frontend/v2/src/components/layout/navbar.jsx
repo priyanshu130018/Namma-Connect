@@ -90,7 +90,33 @@ export default function Navbar({ minimal = false }) {
     setDrawerOpen(false);
   };
 
+  const handleRoleSwitch = () => {
+    const raw = localStorage.getItem("nc_user");
+    if (raw) {
+      const userObj = JSON.parse(raw);
+      if (userObj.role === "tourist") {
+        if (userObj.has_farmer_profile) {
+          userObj.role = "farmer";
+          localStorage.setItem("nc_user", JSON.stringify(userObj));
+          window.dispatchEvent(new Event("nc-user-change"));
+          navigate("/farmer/home");
+        } else if (userObj.has_creator_profile) {
+          userObj.role = "creator";
+          localStorage.setItem("nc_user", JSON.stringify(userObj));
+          window.dispatchEvent(new Event("nc-user-change"));
+          navigate("/creator/home");
+        }
+      } else {
+        userObj.role = "tourist";
+        localStorage.setItem("nc_user", JSON.stringify(userObj));
+        window.dispatchEvent(new Event("nc-user-change"));
+        navigate("/tourist/home");
+      }
+    }
+  };
+
   const showAppNav = !!user && !minimal && user.role !== "admin";
+
   const secondaryNav = showAppNav
     ? (secondaryNavByRole[user.role] ?? secondaryNavByRole.tourist)
     : [];
@@ -199,6 +225,15 @@ export default function Navbar({ minimal = false }) {
               </button>
             )}
 
+            {user && (user.has_farmer_profile || user.has_creator_profile) && (
+              <button
+                onClick={handleRoleSwitch}
+                className="btn-outline hidden items-center gap-1.5 px-3 py-1.5 text-xs sm:inline-flex mr-1"
+              >
+                {user.role === "tourist" ? "Switch to Work" : "Switch to Home"}
+              </button>
+            )}
+
             {user ? (
               <Link
                 to={profilePath}
@@ -207,6 +242,7 @@ export default function Navbar({ minimal = false }) {
               >
                 {user.name?.[0]?.toUpperCase() ?? <FiUser size={16} />}
               </Link>
+
             ) : (
               <Link to="/login" className="btn-primary">
                 <FiLogIn size={15} /> Sign in
@@ -310,8 +346,21 @@ export default function Navbar({ minimal = false }) {
                 ))}
 
                 <div className="mt-4 border-t border-border pt-4">
+                  {user && (user.has_farmer_profile || user.has_creator_profile) && (
+                    <button
+                      onClick={() => {
+                        handleRoleSwitch();
+                        setDrawerOpen(false);
+                      }}
+                      className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-primary transition-colors hover:bg-muted mb-2"
+                    >
+                      <FiCompass size={16} />
+                      {user.role === "tourist" ? "Switch to Work view" : "Switch to Home view"}
+                    </button>
+                  )}
                   {user ? (
                     <button
+
                       onClick={handleLogout}
                       className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-destructive transition-colors hover:bg-muted"
                     >

@@ -3,18 +3,20 @@ import { AnimatePresence, motion } from "framer-motion";
 import { FiMessageCircle, FiX, FiMaximize2 } from "react-icons/fi";
 import { Link, useLocation } from "@/lib/router-compat";
 import TripPlannerChat from "@/components/chat/TripPlannerChat";
+import { getStoredUser } from "@/services/userService";
 
 /** Floating AI assistant launcher, bottom-right on every page. */
 export default function FloatingChat() {
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const onChatPage = location.pathname === "/AI-trip-planner";
+  const user = getStoredUser();
 
   useEffect(() => {
     setOpen(false);
   }, [location.pathname]);
 
-  if (onChatPage) return null;
+  if (onChatPage || !user) return null;
 
   return (
     <>

@@ -43,9 +43,9 @@ import {
 } from "@/components/kit/UI";
 import { LocationPickerMap } from "@/components/map/Map";
 import { useMockData } from "@/hooks/useMockData";
-import { useBookingState } from "@/hooks/useBookingStore";
-import { bookingStore } from "@/services/bookingStore";
-import mockApi from "@/services/mockApi";
+import api, { farmAPI, bookingAPI } from "@/services/api";
+
+const getUser = () => { try { return JSON.parse(localStorage.getItem('nc_user') || 'null'); } catch { return null; } };
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
@@ -131,7 +131,7 @@ export function FarmerCreateFarm() {
     setStep(step + 1);
   };
 
-  const publish = () => {
+  const publish = async () => {
     const firstInvalid = [0, 1, 2, 3].findIndex((s) => !stepValid(s));
     if (firstInvalid !== -1) {
       setStep(firstInvalid);
@@ -143,6 +143,10 @@ export function FarmerCreateFarm() {
         return next;
       });
       return;
+    }
+    const uid = getUser()?.userId;
+    if (uid) {
+      await farmAPI.createListing(uid, form);
     }
     setPublished(true);
     setTimeout(() => setPublished(false), 4000);
@@ -388,9 +392,16 @@ export function FarmerCreateFarm() {
 /* ── Booking requests ──────────────────────────────────────────────────── */
 
 export function FarmerRequests() {
-  const bookingState = useBookingState();
-  const rows = bookingState.bookings;
-  type Row = (typeof rows)[number];
+  const [rows, setRows] = useState<any[]>([]);
+  const fetchRequests = async () => {
+    const uid = getUser()?.userId;
+    if (uid) {
+      const res = await farmAPI.getBookings(uid);
+      setRows(res.data?.received || []);
+    }
+  };
+
+  type Row = any;
 
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("pending");
@@ -399,8 +410,7 @@ export function FarmerRequests() {
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 350);
-    return () => clearTimeout(t);
+    fetchRequests().then(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -439,10 +449,11 @@ export function FarmerRequests() {
 
   const decide = async (r: Row, status: "approved" | "rejected") => {
     setSelected(null);
-    if (status === "approved") {
-      await bookingStore.acceptBooking(r.id);
-    } else {
-      await bookingStore.rejectBooking(r.id);
+    const uid = getUser()?.userId;
+    const newStatus = status === "approved" ? "confirmed" : "cancelled";
+    if (uid) {
+      await bookingAPI.updateFarmerStatus(r.id, uid, {status: newStatus});
+      await fetchRequests();
     }
     setToast(
       status === "approved"
@@ -453,7 +464,11 @@ export function FarmerRequests() {
 
   const undo = async (r: Row) => {
     setSelected(null);
-    await bookingStore.reopenBooking(r.id);
+    const uid = getUser()?.userId;
+    if (uid) {
+      await bookingAPI.updateFarmerStatus(r.id, uid, {status: "pending"});
+      await fetchRequests();
+    }
     setToast(`${r.guest}'s request moved back to pending.`);
   };
 
@@ -649,7 +664,7 @@ export function FarmerRequests() {
 /* ── Collaborations ────────────────────────────────────────────────────── */
 
 export function FarmerCollaborations() {
-  const { data, loading } = useMockData(mockApi.getCollabRequests);
+  const { data, loading } = useMockData(() => Promise.resolve([]));
   const rows = data ?? [];
   type Row = (typeof rows)[number];
 
@@ -900,7 +915,7 @@ export function FarmerCollaborations() {
 /* ── Weather ───────────────────────────────────────────────────────────── */
 
 export function FarmerWeather() {
-  const { data, loading } = useMockData(mockApi.getWeather);
+  const { data, loading } = useMockData(() => Promise.resolve(null));
 
   if (loading || !data) {
     return (
@@ -971,7 +986,7 @@ function Metric({ icon, label, value }: { icon: React.ReactNode; label: string; 
 const MONTHS = ["J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"];
 
 export function FarmerCropCalendar() {
-  const { data, loading } = useMockData(mockApi.getCropCalendar);
+  const { data, loading } = useMockData(() => Promise.resolve([]));
   const rows = data ?? [];
 
   return (
@@ -1021,7 +1036,7 @@ export function FarmerCropCalendar() {
 /* ── Availability ──────────────────────────────────────────────────────── */
 
 export function FarmerAvailability() {
-  const { data, loading } = useMockData(mockApi.getAvailability);
+  const { data, loading } = useMockData(() => Promise.resolve([]));
   const [overrides, setOverrides] = useState<Record<string, boolean>>({});
   const rows = data ?? [];
 
@@ -1075,7 +1090,7 @@ export function FarmerAvailability() {
 /* ── Revenue ───────────────────────────────────────────────────────────── */
 
 export function FarmerRevenue() {
-  const { data } = useMockData(mockApi.getRevenue);
+  const { data } = useMockData(() => api.get('/analytics', {params:{role:'farmer'}}).then(r => r.data?.revenue || []));
   const rows = data ?? [];
   const total = rows.reduce((s, r) => s + r.value, 0);
   const last = rows[rows.length - 1]?.value ?? 0;
@@ -1113,9 +1128,9 @@ export function FarmerRevenue() {
 /* ── Analytics ─────────────────────────────────────────────────────────── */
 
 export function FarmerAnalytics() {
-  const { data: traffic } = useMockData(mockApi.getTraffic);
-  const { data: revenue } = useMockData(mockApi.getRevenue);
-  const { data: listings } = useMockData(mockApi.getFarmerListings);
+  const { data: traffic } = useMockData(() => Promise.resolve([]));
+  const { data: revenue } = useMockData(() => api.get('/analytics', {params:{role:'farmer'}}).then(r => r.data?.revenue || []));
+  const { data: listings } = useMockData(() => { const uid = getUser()?.userId; return uid ? farmAPI.getListings(uid).then(r => r.data || []) : Promise.resolve([]); });
 
   return (
     <Shell title="Analytics" description="How guests find and book your farm.">
@@ -1156,7 +1171,8 @@ export function FarmerAnalytics() {
 /* ── Payments ──────────────────────────────────────────────────────────── */
 
 export function FarmerPayments() {
-  const bookingState = useBookingState();
+  const [bookingState, setBookingState] = useState({ payments: [] });
+  useEffect(() => { api.get('/payments/history').then(r => setBookingState({ payments: r.data || [] })).catch(() => {}); }, []);
   const rows = bookingState.payments;
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -1195,7 +1211,7 @@ export function FarmerPayments() {
 /* ── Listings grid (rich view) ─────────────────────────────────────────── */
 
 export function FarmerListingsBoard() {
-  const { data, loading } = useMockData(mockApi.getFarmerListings);
+  const { data, loading } = useMockData(() => { const uid = getUser()?.userId; return uid ? farmAPI.getListings(uid).then(r => r.data || []) : Promise.resolve([]); });
   const rows = data ?? [];
 
   return (

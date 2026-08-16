@@ -1,19 +1,5 @@
-/**
- * User service — mock implementation.
- *
- * Endpoint structure (future-ready; swap internals for real HTTP calls):
- *   POST /auth/login            → authenticate (email/mobile + password)
- *   POST /auth/register         → create account
- *   POST /auth/change-password  → reset password after OTP verification
- *   GET  /users                 → admin user list
- *   GET  /users/me              → current session profile (localStorage)
- *   GET  /wishlist              → saved farms/experiences
- *   GET  /messages              → conversations
- *   GET  /notifications         → notifications feed
- *   GET  /analytics             → role analytics (revenue/traffic/engagement)
- */
-import { mockApi } from "./mockApi";
-import { authAPI } from "./api";
+import { authAPI, adminAPI, touristAPI } from "./api";
+import api from "./api";
 import { demoAuth, withDemoFallback } from "./demoAuth";
 
 export const userEndpoints = {
@@ -31,7 +17,8 @@ export const userEndpoints = {
 const STORAGE_USER = "nc_user";
 const STORAGE_TOKEN = "nc_token";
 
-/** GET /users/me — current session profile from localStorage */
+const getUser = () => { try { return JSON.parse(localStorage.getItem('nc_user') || 'null'); } catch { return null; } };
+
 export function getStoredUser() {
   try {
     const raw = localStorage.getItem(STORAGE_USER);
@@ -41,7 +28,6 @@ export function getStoredUser() {
   }
 }
 
-/** Role → that role's dashboard home. */
 export function dashboardPathFor(role) {
   switch (role) {
     case "farmer":
@@ -56,25 +42,20 @@ export function dashboardPathFor(role) {
 }
 
 export const userService = {
-  /** POST /auth/login — real API with demo fallback */
   login: ({ identifier, password }) =>
     withDemoFallback(
       () => authAPI.login({ identifier, password }),
       () => demoAuth.login({ identifier }),
     ),
 
-  /** POST /auth/register — real API with demo fallback */
   register: ({ full_name, email, mobile, password }) =>
     withDemoFallback(
       () => authAPI.register({ full_name, email, mobile, password }),
       () => demoAuth.register({ full_name, email, mobile }),
     ),
 
-  /** POST /auth/change-password — mock success */
-  changePassword: ({ identifier, password }) =>
-    Promise.resolve({ ok: true, identifier, password }),
+  changePassword: (data) => authAPI.changePassword(data),
 
-  /** GET /users/me — session profile from localStorage */
   getCurrentUser: () => {
     try {
       const raw = localStorage.getItem(STORAGE_USER);
@@ -84,51 +65,32 @@ export const userService = {
     }
   },
 
-  /** Persist session (token + user) */
   saveSession: (token, user) => {
     localStorage.setItem(STORAGE_TOKEN, token);
     localStorage.setItem(STORAGE_USER, JSON.stringify(user));
-    // Notify the global app context so navbar/dashboards react instantly.
     window.dispatchEvent(new Event("nc-user-change"));
   },
 
-  /** DELETE session */
   logout: () => {
     localStorage.removeItem(STORAGE_TOKEN);
     localStorage.removeItem(STORAGE_USER);
     window.dispatchEvent(new Event("nc-user-change"));
   },
 
-  /** GET /users (admin) */
-  getUsers: () => mockApi.getUsers(),
+  getUsers: () => adminAPI.getUsers().then(r => r.data?.users || r.data || []),
 
-  /** GET /users/verified (admin) */
-  getVerifiedUsers: () => mockApi.getVerifiedUsers(),
+  getVerifiedUsers: () => adminAPI.getUsers().then(r => (r.data?.users || r.data || []).filter(u => u.is_verified)),
 
-  /** GET /wishlist */
-  getWishlist: () => mockApi.getWishlist(),
-
-  /** GET /messages */
-  getConversations: () => mockApi.getConversations(),
-
-  /** GET /notifications */
-  getNotifications: () => mockApi.getNotifications(),
-
-  /** GET /analytics — per-role metric bundles */
-  getAnalytics: (role) => {
-    switch (role) {
-      case "farmer":
-        return Promise.all([mockApi.getRevenue(), mockApi.getTraffic()]).then(
-          ([revenue, traffic]) => ({ revenue, traffic }),
-        );
-      case "creator":
-        return mockApi.getEngagement().then((engagement) => ({ engagement }));
-      case "admin":
-        return mockApi.getPlatformStats().then((stats) => ({ stats }));
-      default:
-        return mockApi.getReports().then((reports) => ({ reports }));
-    }
+  getWishlist: () => {
+    const userId = getUser()?.userId;
+    return touristAPI.getWishlist(userId).then(r => r.data?.wishlist || []);
   },
+
+  getConversations: () => api.get('/messages').then(r => r.data || []),
+
+  getNotifications: () => api.get('/notifications').then(r => r.data || []),
+
+  getAnalytics: (role) => api.get('/analytics', {params: {role}}).then(r => r.data || {}),
 };
 
 export default userService;

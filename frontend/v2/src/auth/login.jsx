@@ -67,11 +67,17 @@ export default function Login() {
     });
   };
 
-  /**
-   * Save token & user → Redirect based on role
-   */
   const saveAndRedirect = (token, user) => {
     userService.saveSession(token, user);
+
+    const intent = new URLSearchParams(window.location.search).get("intent");
+    if (intent === "farmer") {
+      navigate("/services/farmer/register");
+      return;
+    } else if (intent === "creator") {
+      navigate("/services/creator/register");
+      return;
+    }
 
     if (user.role === "admin")   navigate("/admin/home");
     else if (user.role === "farmer")  navigate("/farmer/home");
@@ -111,23 +117,19 @@ export default function Login() {
           name: res.data.name,
           email: res.data.email,
           mobile: res.data.mobile,
+          has_farmer_profile: res.data.has_farmer_profile,
+          has_creator_profile: res.data.has_creator_profile,
         });
+
       } else {
-        await withDemoFallback(
-          () => authAPI.register({
-            full_name: form.name,
-            email: form.email,
-            mobile: form.mobile.replace(/\D/g, ""),
-            password: form.password
-          }),
-          () => demoAuth.register({
-            full_name: form.name,
-            email: form.email,
-            mobile: form.mobile.replace(/\D/g, "")
-          })
-        );
-        setRegistered({ name: form.name, email: form.email });
+        const intent = new URLSearchParams(window.location.search).get("intent");
+        if (intent === "farmer" || intent === "creator") {
+          chooseRole(intent);
+        } else {
+          setRegistered({ name: form.name, email: form.email });
+        }
       }
+
 
     } catch (err) {
       const detail = err.response?.data?.detail;
@@ -163,17 +165,49 @@ export default function Login() {
    * Role picked after register → save the role on the session and go
    * straight to that role's dashboard (stays on this page until selection).
    */
-  const chooseRole = (role) => {
-    const name = registered?.name || "New User";
-    const email = registered?.email || "";
-    saveAndRedirect(`demo-token-${Date.now()}`, {
-      userId: `demo-${Date.now()}`,
-      profileId: null,
-      role,
-      name,
-      email,
-      mobile: form.mobile,
-    });
+  const chooseRole = async (role) => {
+    try {
+      setLoading(true);
+      setError("");
+      await withDemoFallback(
+        () => authAPI.register({
+          full_name: form.name,
+          email: form.email,
+          mobile: form.mobile.replace(/\D/g, ""),
+          password: form.password,
+          role: role
+        }),
+        () => demoAuth.register({
+          full_name: form.name,
+          email: form.email,
+          mobile: form.mobile.replace(/\D/g, "")
+        })
+      );
+
+      const res = await withDemoFallback(
+        () => authAPI.login({
+          identifier: form.email,
+          password: form.password
+        }),
+        () => demoAuth.login({ identifier: form.email })
+      );
+
+      saveAndRedirect(res.data.access_token, {
+        userId: res.data.user_id,
+        profileId: res.data.profile_id,
+        role: res.data.role,
+        name: res.data.name,
+        email: res.data.email,
+        mobile: res.data.mobile,
+        has_farmer_profile: res.data.has_farmer_profile,
+        has_creator_profile: res.data.has_creator_profile,
+      });
+
+    } catch (err) {
+      setError(err.response?.data?.detail || "Registration failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

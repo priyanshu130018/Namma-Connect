@@ -13,5 +13,6 @@ export const Route = createFileRoute("/AI-trip-planner")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  component: clientPage(AIChatbot),
+  component: clientPage(AIChatbot, ["tourist", "farmer", "creator", "admin"]),
 });
+

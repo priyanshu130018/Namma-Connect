@@ -1,5 +1,5 @@
 import axios from "axios";
-import { mockFallbackData } from "@/services/mockFallback";
+
 
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || "http://localhost:8000/api",
@@ -28,12 +28,7 @@ api.interceptors.response.use(
       window.location.href = "/login";
       return Promise.reject(err);
     }
-    if (!err.response && err.config) {
-      const data = mockFallbackData(err.config);
-      if (data !== null && data !== undefined) {
-        return Promise.resolve({ data, status: 200, statusText: "OK", headers: {}, config: err.config });
-      }
-    }
+
     return Promise.reject(err);
   }
 );
@@ -45,29 +40,35 @@ export const authAPI = {
   register: (data) => api.post("/auth/register", data),
   login: (data) => api.post("/auth/login", data),
   googleLogin: (credential) => api.post(`/auth/google?credential=${credential}`),
-  me: (token) => api.get(`/auth/me?token=${token}`),
+  me: () => api.get("/auth/me"),
   // Reset flow — { identifier: email|mobile, new_password }
   changePassword: (data) => api.post("/auth/change-password", data),
   // Authenticated change — { identifier: currentPassword, new_password }
-  changePasswordAuth: (userId, data) => api.post(`/auth/change-password?user_id=${userId}`, data),
-  deleteAccount: (userId) => api.delete(`/users/${userId}`),
+  changePasswordAuth: (userId, data) => api.post("/auth/change-password/authenticated", data),
+  deleteAccount: (userId) => api.delete(`/auth/account`),
 };
 
 // ─── Tourist (/users/* + /wishlist/*) ────────────────────────────────────────
 export const touristAPI = {
-  getProfile: (userId) => api.get(`/users/me/${userId}`),
-  updateProfile: (userId, data) => api.put(`/users/update/${userId}`, data),
-  getWishlist: (userId) => api.get(`/wishlist/${userId}`),
-  updateWishlist: (userId, wishlist) => api.put(`/wishlist/${userId}?wishlist=${encodeURIComponent(wishlist)}`),
+  getProfile: (userId) => api.get(`/profile`),
+  updateProfile: (userId, data) => api.patch(`/profile`, data),
+  getWishlist: () => api.get("/wishlist"),
+  updateWishlist: (userId, wishlist) => api.post("/wishlist"),
 };
 
 // ─── Creator (/users/* + /creators/* + /collaborations/*) ────────────────────
 export const creatorAPI = {
-  register: (userId, data) => api.post(`/users/register-role/${userId}?role=creator`, data),
-  getProfile: (userId) => api.get(`/users/me/${userId}`),
+  register: (userId, data) => {
+    const details = data?.profile || data || {};
+    if (!details.display_name && details.name) {
+      details.display_name = details.name;
+    }
+    return api.post(`/applications`, { type: "creator", creator_details: details });
+  },
+  getProfile: (userId) => api.get(`/profile`),
   getCreator: (creatorId) => api.get(`/creators/${creatorId}`),
-  updateProfile: (userId, data) => api.put(`/users/update/${userId}`, data),
-  getBookings: (userId) => api.get(`/collaborations/${userId}`),
+  updateProfile: (userId, data) => api.patch(`/profile`, data),
+  getBookings: (userId) => api.get(`/collaborations`),
   listCreators: () => api.get("/creators"),
   checkAvailability: (creatorId, start, end) => api.get(`/creators/${creatorId}/availability?date_start=${start}&date_end=${end}`),
 };
@@ -75,33 +76,45 @@ export const creatorAPI = {
 // ─── Farms (/users/* + /farms/*) ──────────────────────────────────────────────
 export const farmAPI = {
   // register: creates/updates farmer profile only
-  register: (userId, data) => api.post(`/users/register-role/${userId}?role=farmer`, data),
-  getProfile: (userId) => api.get(`/users/me/${userId}`),
+  register: (userId, data) => {
+    const details = data?.profile || data || {};
+    return api.post(`/applications`, { type: "farmer", farmer_details: details });
+  },
+  getProfile: (userId) => api.get(`/profile`),
   // Fetch farmer profile by farmer table primary key (farmer.id = farm_listing.farmer_id)
   getFarmerProfile: (farmerId) => api.get(`/farmers/${farmerId}`),
-  updateProfile: (userId, data) => api.put(`/users/update/${userId}`, data),
+  updateProfile: (userId, data) => api.patch(`/profile`, data),
   getListings: (userId) => api.get(`/farms?owner_id=${userId}`),
-  createListing: (userId, data) => api.post(`/farms/create/${userId}`, data),
+  createListing: (userId, data) => api.post(`/farms`, data),
   getListing: (listingId) => api.get(`/farms/${listingId}`),
-  updateListing: (listingId, data) => api.put(`/farms/update/${listingId}`, data),
-  deleteListing: (listingId, userId) => api.delete(`/farms/delete/${listingId}/${userId}`),
+  updateListing: (listingId, data) => api.patch(`/farms/${listingId}`, data),
+  deleteListing: (listingId, userId) => api.delete(`/farms/${listingId}`),
   listFarms: () => api.get("/farms"),
-  getBookings: (userId) => api.get(`/bookings/${userId}`),
+  getBookings: (userId) => api.get(`/bookings`),
 };
 
 // ─── Bookings (/bookings/* + /collaborations/*) ───────────────────────────────
 export const bookingAPI = {
   // tourist_id is derived from user_id server-side, do not include it in body
-  create: (userId, data) => api.post(`/bookings/create/${userId}`, data),
-  getUserBookings: (userId) => api.get(`/bookings/${userId}`),
+  create: (userId, data) => api.post(`/bookings`, data),
+  getUserBookings: (userId) => api.get(`/bookings`),
+  cancel: (bookingId) => api.post(`/bookings/${bookingId}/cancel`),
+  requestDateChange: (bookingId, data) => api.post(`/bookings/${bookingId}/date-change`, data),
   // Tourist cancels / generic status update (no ownership check)
-  updateStatus: (bookingId, status) => api.put(`/bookings/status/${bookingId}`, { status }),
+  updateStatus: (bookingId, status) => api.patch(`/bookings/${bookingId}`, { status }),
   // Farmer approves/rejects a booking (ownership verified server-side)
   updateFarmerStatus: (bookingId, userId, data) =>
-    api.put(`/bookings/status/${bookingId}?user_id=${userId}`, data),
+    api.patch(`/bookings/${bookingId}`, data),
   // Creator approves/rejects a collaboration request
   updateCreatorStatus: (bookingId, userId, data) =>
-    api.put(`/collaborations/status/${bookingId}/${userId}`, data),
+    api.patch(`/collaborations/${bookingId}`, data),
+};
+
+// ─── Payments (/payments/*) ──────────────────────────────────────────────────
+export const paymentAPI = {
+  createOrder: (data) => api.post("/payments/create-order", data),
+  verify: (data) => api.post("/payments/verify", data),
+  getHistory: () => api.get("/payments/history"),
 };
 
 // ─── Search & AI (/search + /ai/*) ─────────────────────────────────────────────
@@ -149,12 +162,21 @@ export const contactAPI = {
   submit: (data) => api.post("/contact", data),
 };
 
+// ─── Reviews (/reviews) ────────────────────────────────────────────────────────
+export const reviewAPI = {
+  list: (params) => api.get("/reviews", { params }),
+  getMyReviews: () => api.get("/reviews/me"),
+  get: (id) => api.get(`/reviews/${id}`),
+  create: (data) => api.post("/reviews", data),
+  update: (id, data) => api.patch(`/reviews/${id}`, data),
+  delete: (id) => api.delete(`/reviews/${id}`),
+};
+
 // ─── Admin (/admin/*) ───────────────────────────────────────────────────────────
 export const adminAPI = {
-  getStats: () => api.get("/admin/reports"),
+  getStats: () => api.get("/admin/stats"),
   getUsers: (params) => api.get("/admin/users", { params }),
-  getUser: (userId) => api.get(`/admin/user/${userId}`),
-  deleteUser: (userId) => api.delete(`/admin/user/${userId}`),
-  verifyUser: (userId) => api.put(`/admin/verify/${userId}`),
+  deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
   getBookings: (params) => api.get("/admin/bookings", { params }),
 };
+

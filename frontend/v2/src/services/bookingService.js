@@ -1,23 +1,7 @@
-/**
- * Booking service — mock implementation with endpoint structure.
- *
- * Endpoint mapping (swap internals for real HTTP calls later):
- *   GET  /bookings                     → list tourist bookings
- *   POST /bookings                     → create a booking (status: pending)
- *   GET  /bookings/:id                 → single booking
- *   POST /bookings/:id/cancel          → tourist cancels
- *   GET  /bookings/requests            → farmer booking requests
- *   POST /bookings/requests/:id/accept → farmer accepts (status: confirmed)
- *   POST /bookings/requests/:id/reject → farmer rejects (status: cancelled)
- *   POST /payments                     → pay for a booking
- *   GET  /payments                     → payment history
- *   POST /notifications/:id/read       → mark a notification read
- *   POST /notifications/read-all       → mark all read
- *
- * All methods delegate to the shared booking store, so state changes
- * propagate across dashboards, payments and notifications.
- */
-import { bookingStore } from "./bookingStore";
+import { bookingAPI, farmAPI } from "./api";
+import api from "./api";
+
+const getUser = () => { try { return JSON.parse(localStorage.getItem('nc_user') || 'null'); } catch { return null; } };
 
 export const bookingEndpoints = {
   list: "/bookings",
@@ -31,41 +15,56 @@ export const bookingEndpoints = {
 };
 
 export const bookingService = {
-  /** GET /bookings — bookings belonging to the signed-in tourist */
-  getBookings: async () => bookingStore.touristBookings(),
+  getBookings: async () => {
+    const userId = getUser()?.userId;
+    return bookingAPI.getUserBookings(userId).then(r => Array.isArray(r.data) ? r.data : (r.data || []));
+  },
 
-  /** GET /bookings/:id */
-  getBooking: async (id) => bookingStore.findBooking(id) ?? null,
+  getBooking: async (id) => {
+    const userId = getUser()?.userId;
+    return bookingAPI.getUserBookings(userId).then(r => {
+      const all = Array.isArray(r.data) ? r.data : (r.data || []);
+      return all.find(b => b.id === id) || null;
+    });
+  },
 
-  /** POST /bookings — create a booking (status: pending, payment: unpaid) */
-  createBooking: (payload) => bookingStore.createBooking(payload),
+  createBooking: (payload) => {
+    const userId = getUser()?.userId;
+    return bookingAPI.create(userId, payload).then(r => r.data);
+  },
 
-  /** POST /bookings/:id/cancel */
-  cancelBooking: (id) => bookingStore.cancelBooking(id),
+  cancelBooking: (id) => bookingAPI.updateStatus(id, 'cancelled').then(r => ({ok: true, ...r.data})),
 
-  /** GET /bookings/requests — all booking requests for the farmer */
-  getRequests: async () => bookingStore.farmerRequests(),
+  getRequests: async () => {
+    const userId = getUser()?.userId;
+    return bookingAPI.getUserBookings(userId).then(r => r.data?.received || []);
+  },
 
-  /** POST /bookings/requests/:id/accept */
-  acceptRequest: (id) => bookingStore.acceptBooking(id),
+  acceptRequest: (id) => {
+    const userId = getUser()?.userId;
+    return bookingAPI.updateFarmerStatus(id, userId, {status: 'confirmed'}).then(r => ({ok: true, status: 'confirmed', ...r.data}));
+  },
 
-  /** POST /bookings/requests/:id/reject */
-  rejectRequest: (id) => bookingStore.rejectBooking(id),
+  rejectRequest: (id) => {
+    const userId = getUser()?.userId;
+    return bookingAPI.updateFarmerStatus(id, userId, {status: 'cancelled'}).then(r => ({ok: true, status: 'cancelled', ...r.data}));
+  },
 
-  /** POST /bookings/requests/:id/reopen — undo a decision */
-  reopenRequest: (id) => bookingStore.reopenBooking(id),
+  reopenRequest: (id) => {
+    const userId = getUser()?.userId;
+    return bookingAPI.updateFarmerStatus(id, userId, {status: 'pending'}).then(r => ({ok: true, status: 'pending'}));
+  },
 
-  /** POST /payments — simulate a successful payment for a booking */
-  payBooking: (id, method) => bookingStore.payBooking(id, method),
+  payBooking: (id, method) => api.post('/payments', {booking_id: id, method}).then(r => ({ok: true, payment: r.data})),
 
-  /** GET /payments — payment history */
-  getPayments: async () => bookingStore.allPayments(),
+  getPayments: async () => {
+    const userId = getUser()?.userId;
+    return api.get('/payments/' + userId).then(r => r.data || []);
+  },
 
-  /** POST /notifications/:id/read */
-  markNotificationRead: (id) => bookingStore.markNotificationRead(id),
+  markNotificationRead: (id) => api.post('/notifications/' + id + '/read').then(() => ({ok:true})),
 
-  /** POST /notifications/read-all */
-  markAllNotificationsRead: (role) => bookingStore.markAllNotificationsRead(role),
+  markAllNotificationsRead: (role) => api.post('/notifications/read-all').then(() => ({ok:true})),
 };
 
 export default bookingService;

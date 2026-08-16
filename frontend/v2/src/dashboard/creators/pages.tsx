@@ -33,7 +33,9 @@ import {
   Tabs,
 } from "@/components/kit/UI";
 import { useMockData } from "@/hooks/useMockData";
-import mockApi from "@/services/mockApi";
+import api, { creatorAPI } from "@/services/api";
+
+const getUser = () => { try { return JSON.parse(localStorage.getItem('nc_user') || 'null'); } catch { return null; } };
 
 const inr = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
@@ -58,7 +60,7 @@ function Shell({
 /* ── Portfolio ─────────────────────────────────────────────────────────── */
 
 export function CreatorPortfolio() {
-  const { data, loading } = useMockData(mockApi.getPortfolio);
+  const { data, loading } = useMockData(() => Promise.resolve([]));
   const [type, setType] = useState("all");
   const [preview, setPreview] = useState<{ title: string; image: string } | null>(null);
   const rows = data ?? [];
@@ -121,7 +123,7 @@ export function CreatorPortfolio() {
 /* ── Collaborations ────────────────────────────────────────────────────── */
 
 export function CreatorCollaborations() {
-  const { data, loading } = useMockData(mockApi.getCreatorCollabs);
+  const { data, loading } = useMockData(() => Promise.resolve([]));
   const rows = data ?? [];
 
   return (
@@ -158,7 +160,7 @@ export function CreatorCollaborations() {
 /* ── Bookings board ────────────────────────────────────────────────────── */
 
 export function CreatorBookingsBoard() {
-  const { data, loading } = useMockData(mockApi.getCreatorBookings);
+  const { data, loading } = useMockData(() => { const uid = getUser()?.userId; return uid ? creatorAPI.getBookings(uid).then(r => r.data?.received || []) : Promise.resolve([]); });
   const rows = data ?? [];
 
   return (
@@ -190,7 +192,7 @@ export function CreatorBookingsBoard() {
 /* ── Analytics ─────────────────────────────────────────────────────────── */
 
 export function CreatorAnalytics() {
-  const { data } = useMockData(mockApi.getEngagement);
+  const { data } = useMockData(() => api.get('/analytics', {params:{role:'creator'}}).then(r => r.data?.engagement || []));
 
   return (
     <Shell title="Analytics" description="Audience growth and engagement.">
@@ -234,7 +236,7 @@ export function CreatorAnalytics() {
 /* ── Revenue ───────────────────────────────────────────────────────────── */
 
 export function CreatorRevenue() {
-  const { data } = useMockData(mockApi.getRevenue);
+  const { data } = useMockData(() => api.get('/analytics', {params:{role:'creator'}}).then(r => r.data?.revenue || []));
   const rows = (data ?? []).map((r) => ({ ...r, value: Math.round(r.value * 0.6) }));
   const total = rows.reduce((s, r) => s + r.value, 0);
 
@@ -266,10 +268,10 @@ export function CreatorRevenue() {
 /* ── Reports (revenue + analytics) ─────────────────────────────────────── */
 
 export function CreatorReports() {
-  const { data: earnings } = useMockData(mockApi.getCreatorEarnings);
-  const { data: mix } = useMockData(mockApi.getCreatorBookingMix);
-  const { data: transactions, loading } = useMockData(mockApi.getCreatorTransactions);
-  const { data: reports } = useMockData(mockApi.getReports);
+  const { data: earnings } = useMockData(() => Promise.resolve([]));
+  const { data: mix } = useMockData(() => Promise.resolve([]));
+  const { data: transactions, loading } = useMockData(() => Promise.resolve([]));
+  const { data: reports } = useMockData(() => Promise.resolve([]));
 
   const series = earnings ?? [];
   const mixRows = mix ?? [];
@@ -403,7 +405,7 @@ export function CreatorReports() {
 /* ── Social integrations ───────────────────────────────────────────────── */
 
 export function CreatorSocial() {
-  const { data, loading } = useMockData(mockApi.getSocialAccounts);
+  const { data, loading } = useMockData(() => Promise.resolve([]));
   const rows = data ?? [];
 
   return (
@@ -447,7 +449,7 @@ export function CreatorSocial() {
 /* ── Followers ─────────────────────────────────────────────────────────── */
 
 export function CreatorFollowers() {
-  const { data, loading } = useMockData(mockApi.getFollowers);
+  const { data, loading } = useMockData(() => Promise.resolve([]));
   const rows = data ?? [];
 
   return (
@@ -483,7 +485,7 @@ export function CreatorFollowers() {
 /* ── Saved farms ───────────────────────────────────────────────────────── */
 
 export function CreatorSavedFarms() {
-  const { data, loading } = useMockData(mockApi.getFarms);
+  const { data, loading } = useMockData(() => Promise.resolve([]));
   const rows = (data ?? []).slice(0, 5);
 
   return (
