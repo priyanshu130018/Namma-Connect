@@ -1,32 +1,232 @@
-# Python
-__pycache__/
-*.pyc
+# =========================================================
+# Namma Connect - General Git Ignore
+# =========================================================
+
+# ---------------------------------------------------------
+# Environment variables / Secrets
+# ---------------------------------------------------------
 .env
+.env.*
+!.env.example
+!.env.example.*
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# ---------------------------------------------------------
+# Python
+# ---------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
 venv/
 env/
-test_*.db
+ENV/
+env.bak/
+venv.bak/
+
+# Python packaging
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Coverage / testing
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+.tox/
+.nox/
+.hypothesis/
+.mypy_cache/
+.pyre/
+.pytype/
+
+# Ruff / Black / tooling caches
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# ---------------------------------------------------------
+# Node / React / Next / Vite
+# ---------------------------------------------------------
+node_modules/
+.npm/
+.pnpm-store/
+.yarn/
+.yarn-cache/
+
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Build output
+dist/
+build/
+out/
+.next/
+.nuxt/
+.svelte-kit/
+
+# Vite
+.vite/
+
+# React Native / Expo if ever used
+.expo/
+.expo-shared/
+
+# ---------------------------------------------------------
+# Frontend environment files
+# ---------------------------------------------------------
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ---------------------------------------------------------
+# TypeScript
+# ---------------------------------------------------------
+*.tsbuildinfo
+
+# ---------------------------------------------------------
+# IDE / Editors
+# ---------------------------------------------------------
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Visual Studio
+.vs/
+
+# ---------------------------------------------------------
+# OS files
+# ---------------------------------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+
+Desktop.ini
+
+# ---------------------------------------------------------
+# Logs
+# ---------------------------------------------------------
+*.log
+logs/
+log/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# ---------------------------------------------------------
+# Temporary files
+# ---------------------------------------------------------
+*.tmp
+*.temp
+*.swp
+*.swo
+*.bak
+*.backup
+*~
+
+# ---------------------------------------------------------
+# Database local files
+# ---------------------------------------------------------
+*.sqlite
+*.sqlite3
 *.db
 
-# Node
-node_modules/
-dist/
-.output/
-.pytest_cache/
-.eslintcache
+# PostgreSQL local dumps
+*.dump
+*.sql.gz
 
-# Logs
-*.log
-app.log
+# ---------------------------------------------------------
+# Docker
+# ---------------------------------------------------------
+docker-compose.override.yml
 
-# OS
+# Docker local environment
+docker/.env
+docker-compose.local.yml
+
+# ---------------------------------------------------------
+# Celery
+# ---------------------------------------------------------
+celerybeat-schedule
+celerybeat.pid
+
+# ---------------------------------------------------------
+# Redis
+# ---------------------------------------------------------
+dump.rdb
+*.rdb
+
+# ---------------------------------------------------------
+# Test artifacts
+# ---------------------------------------------------------
+test-results/
+playwright-report/
+blob-report/
+coverage/
+
+# ---------------------------------------------------------
+# Temporary uploads / generated media
+# ---------------------------------------------------------
+uploads/
+tmp/
+temp/
+storage/
+media/
+
+# ---------------------------------------------------------
+# Cloud / deployment local files
+# ---------------------------------------------------------
+.aws/
+.terraform/
+terraform.tfstate
+terraform.tfstate.*
+.terraform.lock.hcl
+
+# ---------------------------------------------------------
+# Secrets / credentials
+# ---------------------------------------------------------
+credentials.json
+service-account.json
+google-credentials.json
+client_secret*.json
+
+# ---------------------------------------------------------
+# Generated files
+# ---------------------------------------------------------
+*.generated.*
+generated/
+
+# ---------------------------------------------------------
+# Backup files
+# ---------------------------------------------------------
+*.orig
+*.rej
+*.old
+
+# ---------------------------------------------------------
+# Misc
+# ---------------------------------------------------------
 .DS_Store
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?

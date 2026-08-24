@@ -1,0 +1,61 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --surface: 0 0% 100%;
+    --surface-hover: 210 40% 96%;
+    --surface-elevated: 0 0% 100%;
+    --text-primary: 222 47% 11%;
+    --text-secondary: 215 16% 35%;
+    --text-muted: 215.4 16.3% 46.9%;
+    --primary: 160 84% 39%;
+    --primary-foreground: 0 0% 100%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --border: 214.3 31.8% 91.4%;
+    --border-subtle: 210 20% 94%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 160 84% 39%;
+    --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  .dark {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 217 33% 17%;
+    --card-foreground: 210 40% 98%;
+    --surface: 217 33% 17%;
+    --surface-hover: 217 33% 22%;
+    --surface-elevated: 217 33% 20%;
+    --text-primary: 210 40% 98%;
+    --text-secondary: 215 20.2% 75%;
+    --text-muted: 215 20.2% 65.1%;
+    --primary: 160 84% 39%;
+    --primary-foreground: 0 0% 100%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --border: 217 33% 24%;
+    --border-subtle: 217 33% 20%;
+    --input: 217 33% 24%;
+    --ring: 160 84% 39%;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    transition: background-color 0.2s ease, color 0.2s ease;
+  }
+}
+
+@layer components {
+  .gradient-text {
+    @apply bg-gradient-to-r from-emerald-600 via-green-600 to-teal-700 bg-clip-text text-transparent;
+  }
+}

@@ -1,9 +1,6 @@
 # ==============================================================================
 # Namma Connect V2 — Unified Development Docker Compose Configuration
 # ==============================================================================
-# Architecture: Frontend (Vite/React) -> Backend (FastAPI) -> PostgreSQL + Redis
-# External integrations (Razorpay, Cloudinary, Resend, Gemini, Google) configured via .env
-# ==============================================================================
 
 services:
   # ── 1. Authoritative Relational Database (PostgreSQL 16) ──
