@@ -188,34 +188,34 @@ export function CustomerProfilePage() {
       )}
 
       {/* ── 1. Profile Header Card ── */}
-      <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 bg-white shadow-sm">
+      <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
           <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-600 to-teal-700 text-2xl font-black text-white shadow-md shadow-emerald-600/20">
             {displayName[0] ? displayName[0].toUpperCase() : "U"}
           </div>
           <div className="space-y-1 flex-1">
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-slate-100">
                 {displayName}
               </h2>
               {isVerified ? (
-                <Badge variant="default" dot className="bg-emerald-50 text-emerald-800 border-emerald-200">
+                <Badge variant="default" dot className="bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
                   Verified Customer
                 </Badge>
               ) : (
-                <Badge variant="secondary" className="bg-slate-100 text-slate-700 border-slate-200">
+                <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700">
                   Standard Member
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-slate-500">{displayEmail}</p>
-            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 pt-2 text-xs text-slate-600">
+            <p className="text-xs text-slate-500 dark:text-slate-400">{displayEmail}</p>
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 pt-2 text-xs text-slate-600 dark:text-slate-300">
               <div className="flex items-center gap-1">
-                <MapPin className="h-3.5 w-3.5 text-emerald-600" />
+                <MapPin className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>{displayLocation}</span>
               </div>
               <div className="flex items-center gap-1">
-                <Globe className="h-3.5 w-3.5 text-emerald-600" />
+                <Globe className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>{displayLanguage}</span>
               </div>
             </div>
@@ -224,11 +224,11 @@ export function CustomerProfilePage() {
       </Card>
 
       {/* ── 2. Personal Information (Editable) ── */}
-      <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 bg-white space-y-6 shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+      <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-6 shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
           <div>
-            <h3 className="text-base font-bold text-slate-900">Personal Information</h3>
-            <p className="text-xs text-slate-500 mt-0.5">Your general account and communication preferences</p>
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Personal Information</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Your general account and communication preferences</p>
           </div>
           <Button
             size="sm"
@@ -263,8 +263,8 @@ export function CustomerProfilePage() {
                 required
               />
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Email Address (Protected)</label>
-                <div className="h-10 rounded-xl bg-slate-100 px-3.5 flex items-center text-xs text-slate-500 font-semibold border border-slate-200">
+                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Email Address (Protected)</label>
+                <div className="h-10 rounded-xl bg-slate-100 dark:bg-slate-800 px-3.5 flex items-center text-xs text-slate-500 dark:text-slate-400 font-semibold border border-slate-200 dark:border-slate-700">
                   {displayEmail}
                 </div>
               </div>
@@ -280,39 +280,39 @@ export function CustomerProfilePage() {
           </form>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div className="rounded-2xl bg-slate-50/80 p-4 space-y-1">
+            <div className="rounded-2xl bg-slate-50/80 dark:bg-slate-800/80 p-4 space-y-1">
               <span className="text-[10px] uppercase font-bold text-slate-400">Full Name</span>
-              <p className="text-sm font-semibold text-slate-900">{displayName}</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{displayName}</p>
             </div>
 
-            <div className="rounded-2xl bg-slate-50/80 p-4 space-y-1">
+            <div className="rounded-2xl bg-slate-50/80 dark:bg-slate-800/80 p-4 space-y-1">
               <span className="text-[10px] uppercase font-bold text-slate-400">Email Address</span>
-              <p className="text-sm font-semibold text-slate-900">{displayEmail}</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{displayEmail}</p>
             </div>
 
-            <div className="rounded-2xl bg-slate-50/80 p-4 space-y-1">
+            <div className="rounded-2xl bg-slate-50/80 dark:bg-slate-800/80 p-4 space-y-1">
               <span className="text-[10px] uppercase font-bold text-slate-400">Location</span>
-              <p className="text-sm font-semibold text-slate-900">{displayLocation}</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{displayLocation}</p>
             </div>
 
-            <div className="rounded-2xl bg-slate-50/80 p-4 space-y-1">
+            <div className="rounded-2xl bg-slate-50/80 dark:bg-slate-800/80 p-4 space-y-1">
               <span className="text-[10px] uppercase font-bold text-slate-400">Language Preferences</span>
-              <p className="text-sm font-semibold text-slate-900">{displayLanguage}</p>
+              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{displayLanguage}</p>
             </div>
           </div>
         )}
       </Card>
 
       {/* ── 3. Verified Information (Strictly Protected) ── */}
-      <Card className="p-6 sm:p-8 rounded-3xl border-emerald-200/80 bg-emerald-50/40 space-y-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-200/60 pb-4">
+      <Card className="p-6 sm:p-8 rounded-3xl border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-200/60 dark:border-emerald-800/60 pb-4">
           <div className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
               <ShieldCheck className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-slate-900">Verified Information</h3>
-              <p className="text-xs text-slate-600">
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Verified Information</h3>
+              <p className="text-xs text-slate-600 dark:text-slate-400">
                 Protected government KYC credentials (Cannot be edited directly)
               </p>
             </div>
@@ -325,38 +325,38 @@ export function CustomerProfilePage() {
               setRequestSubmitted(false);
               setIsRequestModalOpen(true);
             }}
-            className="border-emerald-300 bg-white text-emerald-800 hover:bg-emerald-50 text-xs font-bold"
+            className="border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-xs font-bold"
           >
             Request Change
           </Button>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="rounded-2xl bg-white p-4 border border-emerald-200/80 space-y-1 shadow-sm">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 p-4 border border-emerald-200/80 dark:border-emerald-800/60 space-y-1 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-[10px] uppercase font-bold text-slate-400">Verified Name</span>
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <p className="text-xs font-bold text-slate-900">{displayName}</p>
-            <span className="text-[10px] text-emerald-700 font-medium">Matched via Aadhaar</span>
+            <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{displayName}</p>
+            <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">Matched via Aadhaar</span>
           </div>
 
-          <div className="rounded-2xl bg-white p-4 border border-emerald-200/80 space-y-1 shadow-sm">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 p-4 border border-emerald-200/80 dark:border-emerald-800/60 space-y-1 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-[10px] uppercase font-bold text-slate-400">Verified Phone</span>
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <p className="text-xs font-bold text-slate-900">{displayPhone}</p>
-            <span className="text-[10px] text-emerald-700 font-medium">Verified via OTP</span>
+            <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{displayPhone}</p>
+            <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">Verified via OTP</span>
           </div>
 
-          <div className="rounded-2xl bg-white p-4 border border-emerald-200/80 space-y-1 shadow-sm">
+          <div className="rounded-2xl bg-white dark:bg-slate-900 p-4 border border-emerald-200/80 dark:border-emerald-800/60 space-y-1 shadow-sm">
             <div className="flex items-center justify-between">
               <span className="text-[10px] uppercase font-bold text-slate-400">Verified Email</span>
-              <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             </div>
-            <p className="text-xs font-bold text-slate-900">{displayEmail}</p>
-            <span className="text-[10px] text-emerald-700 font-medium">Secure Primary Account</span>
+            <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{displayEmail}</p>
+            <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">Secure Primary Account</span>
           </div>
         </div>
 

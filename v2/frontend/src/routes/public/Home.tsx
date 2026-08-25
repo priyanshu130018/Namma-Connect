@@ -99,7 +99,7 @@ export function HomePage() {
   return (
     <div className="flex flex-col">
       {/* ── 1. Hero Section ── */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-harvest-50/60 via-white to-slate-50 pt-16 sm:pt-24 pb-24 sm:pb-32">
+      <section className="relative overflow-hidden bg-gradient-to-b from-harvest-50/60 via-white to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 pt-16 sm:pt-24 pb-24 sm:pb-32">
         <div className="pointer-events-none absolute -top-32 -right-32 h-[450px] w-[450px] rounded-full bg-harvest-200/30 blur-3xl" />
         <div className="pointer-events-none absolute top-1/2 -left-32 h-[350px] w-[350px] rounded-full bg-amber-100/40 blur-3xl" />
 
@@ -114,7 +114,7 @@ export function HomePage() {
             <span className="text-harvest-700 dark:text-harvest-500">Direct Community Prosperity.</span>
           </h1>
 
-          <p className="text-base sm:text-lg text-slate-600 dark:text-slate-300 leading-relaxed max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg text-slate-600 dark:text-slate-400 dark:text-slate-300 leading-relaxed max-w-2xl mx-auto">
             {t("home.heroSubtitle")}
           </p>
 
@@ -152,7 +152,7 @@ export function HomePage() {
               </Button>
             </Link>
             <Link to="/login?returnUrl=/app/become-partner" className="w-full sm:w-auto">
-              <Button variant="outline" size="lg" className="w-full rounded-2xl border-slate-300 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">
+              <Button variant="outline" size="lg" className="w-full rounded-2xl border-slate-300 dark:border-slate-700 font-bold text-slate-700 dark:text-slate-300 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800">
                 {t("nav.becomePartner")}
               </Button>
             </Link>
@@ -161,27 +161,27 @@ export function HomePage() {
       </section>
 
       {/* ── 2. How the Marketplace Works ── */}
-      <Section className="bg-white border-y border-slate-100">
+      <Section className="bg-white dark:bg-slate-900/60 border-y border-slate-100 dark:border-slate-800 dark:border-slate-800">
         <Container>
           <div className="text-center max-w-2xl mx-auto mb-14 space-y-2">
             <Badge variant="default">The Platform Flow</Badge>
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+            <h2 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
               How Namma Connect Works
             </h2>
-            <p className="text-xs sm:text-sm text-slate-600">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400">
               A transparent, end-to-end booking flow connecting travelers, farm hosts, and rural creators.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {howItWorks.map((step) => (
-              <div key={step.step} className="rounded-3xl border border-slate-200 bg-slate-50/70 p-6 flex flex-col justify-between space-y-3">
+              <div key={step.step} className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/50 p-6 flex flex-col justify-between space-y-3">
                 <span className="text-2xl font-black text-harvest-700 font-mono">
                   {step.step}
                 </span>
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 mb-1">{step.title}</h3>
-                  <p className="text-xs text-slate-600 leading-relaxed">{step.description}</p>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 dark:text-slate-100 mb-1">{step.title}</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{step.description}</p>
                 </div>
               </div>
             ))}
@@ -190,14 +190,14 @@ export function HomePage() {
       </Section>
 
       {/* ── 3. Service Categories ── */}
-      <Section id="categories" className="bg-slate-50">
+      <Section id="categories" className="bg-slate-50 dark:bg-slate-950/60">
         <Container>
           <div className="text-center max-w-2xl mx-auto mb-14 space-y-2">
             <Badge variant="warning">Curated Offerings</Badge>
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+            <h2 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
               Marketplace Service Categories
             </h2>
-            <p className="text-xs sm:text-sm text-slate-600">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400">
               Explore authentic rural categories available upon entering the authenticated customer portal.
             </p>
           </div>
@@ -207,7 +207,7 @@ export function HomePage() {
               const Icon = cat.icon;
               return (
                 <Link key={idx} to="/login" className="block group">
-                  <Card hover className="p-6 h-full flex flex-col justify-between space-y-4 rounded-3xl border-slate-200 bg-white">
+                  <Card hover className="p-6 h-full flex flex-col justify-between space-y-4 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="h-12 w-12 rounded-2xl bg-harvest-50 text-harvest-700 flex items-center justify-center group-hover:scale-105 transition-transform">
@@ -217,13 +217,13 @@ export function HomePage() {
                           {cat.badge}
                         </Badge>
                       </div>
-                      <h3 className="text-base font-bold text-slate-900 group-hover:text-harvest-700 transition-colors">
+                      <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 dark:text-slate-100 group-hover:text-harvest-700 dark:group-hover:text-harvest-400 transition-colors">
                         {cat.title}
                       </h3>
-                      <p className="text-xs text-slate-600 leading-relaxed">{cat.description}</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">{cat.description}</p>
                     </div>
 
-                    <div className="flex items-center gap-1 text-xs font-bold text-harvest-700 pt-2 border-t border-slate-100">
+                    <div className="flex items-center gap-1 text-xs font-bold text-harvest-700 pt-2 border-t border-slate-100 dark:border-slate-800">
                       <span>View in Application</span>
                       <ArrowRight className="h-3.5 w-3.5" />
                     </div>
@@ -304,45 +304,45 @@ export function HomePage() {
       </Section>
 
       {/* ── 5. Customer Experience ── */}
-      <Section className="bg-white">
+      <Section className="bg-white dark:bg-slate-900/60">
         <Container>
           <div className="text-center max-w-2xl mx-auto mb-12 space-y-2">
             <Badge variant="default">Traveler Lifecycle</Badge>
-            <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+            <h2 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
               The Customer Experience
             </h2>
-            <p className="text-xs sm:text-sm text-slate-600">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400">
               Simple steps from creating your account to checking into authentic plantations.
             </p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-            <div className="p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-1">
+            <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-1">
               <span className="font-mono font-bold text-harvest-700 text-sm">Step 1</span>
-              <h4 className="font-bold text-slate-900 text-sm">Create Account</h4>
-              <p className="text-slate-600">Sign up in seconds with basic personal information.</p>
+              <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Create Account</h4>
+              <p className="text-slate-600 dark:text-slate-400">Sign up in seconds with basic personal information.</p>
             </div>
-            <div className="p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-1">
+            <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-1">
               <span className="font-mono font-bold text-harvest-700 text-sm">Step 2</span>
-              <h4 className="font-bold text-slate-900 text-sm">Explore Stays & Trails</h4>
-              <p className="text-slate-600">Filter by harvest season, region, capacity, and amenities.</p>
+              <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Explore Stays & Trails</h4>
+              <p className="text-slate-600 dark:text-slate-400">Filter by harvest season, region, capacity, and amenities.</p>
             </div>
-            <div className="p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-1">
+            <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-1">
               <span className="font-mono font-bold text-harvest-700 text-sm">Step 3</span>
-              <h4 className="font-bold text-slate-900 text-sm">Book & Check In</h4>
-              <p className="text-slate-600">Receive instant reservation manifests with host contact details.</p>
+              <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Book & Check In</h4>
+              <p className="text-slate-600 dark:text-slate-400">Receive instant reservation manifests with host contact details.</p>
             </div>
-            <div className="p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-1">
+            <div className="p-5 rounded-3xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800 space-y-1">
               <span className="font-mono font-bold text-harvest-700 text-sm">Step 4</span>
-              <h4 className="font-bold text-slate-900 text-sm">Manage Your Trip</h4>
-              <p className="text-slate-600">Track itinerary itineraries, weather updates, and route guides.</p>
+              <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm">Manage Your Trip</h4>
+              <p className="text-slate-600 dark:text-slate-400">Track itinerary itineraries, weather updates, and route guides.</p>
             </div>
           </div>
         </Container>
       </Section>
 
       {/* ── 6. Become a Partner Section ── */}
-      <Section className="bg-gradient-to-br from-harvest-50 to-amber-100/60 border-y border-amber-200/60">
+      <Section className="bg-gradient-to-br from-harvest-50 to-amber-100/60 dark:from-slate-900 dark:to-amber-950/30 border-y border-amber-200/60 dark:border-amber-900/40">
         <Container>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             <div className="lg:col-span-7 space-y-4">
@@ -352,16 +352,16 @@ export function HomePage() {
               <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
                 Become a NammaConnect Partner
               </h2>
-              <p className="text-slate-700 text-xs sm:text-sm leading-relaxed">
+              <p className="text-slate-700 dark:text-slate-300 text-xs sm:text-sm leading-relaxed">
                 Are you a farm owner, local driver, nature guide, homestay host, or rural artisan? Join India's premier verified agricultural network.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-2">
                 {partnerTypes.map((p, i) => (
-                  <div key={i} className="flex items-start gap-2 text-xs text-slate-800">
+                  <div key={i} className="flex items-start gap-2 text-xs text-slate-800 dark:text-slate-200">
                     <CheckCircle2 className="h-4 w-4 text-harvest-700 shrink-0 mt-0.5" />
                     <div>
-                      <strong>{p.title}</strong>: <span className="text-slate-600">{p.desc}</span>
+                      <strong>{p.title}</strong>: <span className="text-slate-600 dark:text-slate-400">{p.desc}</span>
                     </div>
                   </div>
                 ))}
@@ -377,9 +377,9 @@ export function HomePage() {
               </div>
             </div>
 
-            <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-3xl border border-amber-200/80 shadow-sm space-y-4">
-              <h3 className="text-base font-bold text-slate-900">How Partner Onboarding Works</h3>
-              <div className="space-y-3 text-xs text-slate-600">
+            <div className="lg:col-span-5 bg-white dark:bg-slate-900 p-6 sm:p-8 rounded-3xl border border-amber-200/80 dark:border-slate-800 shadow-sm space-y-4">
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">How Partner Onboarding Works</h3>
+              <div className="space-y-3 text-xs text-slate-600 dark:text-slate-400">
                 <div className="flex gap-3">
                   <div className="h-6 w-6 rounded-full bg-harvest-100 text-harvest-800 font-bold flex items-center justify-center shrink-0">1</div>
                   <p>Create your personal account & click "Become a Partner" in the portal.</p>
@@ -403,7 +403,7 @@ export function HomePage() {
       </Section>
 
       {/* ── 7. Creator Collaboration Section ── */}
-      <Section className="bg-white">
+      <Section className="bg-white dark:bg-slate-900/60">
         <Container>
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             <div className="lg:col-span-6 space-y-4">
@@ -411,13 +411,13 @@ export function HomePage() {
                 <Camera className="h-3.5 w-3.5 text-purple-600" />
                 <span>Media Production & Storytelling</span>
               </div>
-              <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight">
+              <h2 className="text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
                 Creator Collaborations for Rural Tourism
               </h2>
-              <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
+              <p className="text-slate-600 dark:text-slate-400 text-xs sm:text-sm leading-relaxed">
                 Connect digital creators, drone videographers, and food writers directly with agricultural hosts. Create media kits, receive brand project deals, and produce viral countryside campaigns.
               </p>
-              <div className="space-y-2 text-xs text-slate-700">
+              <div className="space-y-2 text-xs text-slate-700 dark:text-slate-300">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="h-4 w-4 text-purple-600" />
                   <span>Showcase 4K cinematic portfolios and plantation photography</span>
@@ -442,15 +442,15 @@ export function HomePage() {
             </div>
 
             <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Card className="p-6 rounded-3xl border-purple-100 bg-purple-50/40 space-y-2">
+              <Card className="p-6 rounded-3xl border-purple-100 dark:border-purple-900/40 bg-purple-50/40 dark:bg-purple-950/20 space-y-2">
                 <Camera className="h-8 w-8 text-purple-600" />
-                <h4 className="text-sm font-bold text-slate-900">Media Portfolio</h4>
-                <p className="text-xs text-slate-600">Showcase high-resolution plantation and tribal harvesting shoots.</p>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Media Portfolio</h4>
+                <p className="text-xs text-slate-600 dark:text-slate-400">Showcase high-resolution plantation and tribal harvesting shoots.</p>
               </Card>
-              <Card className="p-6 rounded-3xl border-purple-100 bg-purple-50/40 space-y-2">
+              <Card className="p-6 rounded-3xl border-purple-100 dark:border-purple-900/40 bg-purple-50/40 dark:bg-purple-950/20 space-y-2">
                 <Sparkles className="h-8 w-8 text-purple-600" />
-                <h4 className="text-sm font-bold text-slate-900">Fixed Rate Packages</h4>
-                <p className="text-xs text-slate-600">Package reels and long-form features with transparent commercial usage.</p>
+                <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Fixed Rate Packages</h4>
+                <p className="text-xs text-slate-600 dark:text-slate-400">Package reels and long-form features with transparent commercial usage.</p>
               </Card>
             </div>
           </div>
@@ -458,9 +458,9 @@ export function HomePage() {
       </Section>
 
       {/* ── 8. Travel AI Capability Feature ── */}
-      <Section className="bg-slate-50 border-t border-slate-100">
+      <Section className="bg-slate-50 border-t border-slate-100 dark:border-slate-800">
         <Container>
-          <div className="rounded-3xl border border-slate-200 bg-white p-8 sm:p-12 space-y-6">
+          <div className="rounded-3xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-8 sm:p-12 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="h-12 w-12 rounded-2xl bg-harvest-50 text-harvest-700 flex items-center justify-center">
@@ -468,7 +468,7 @@ export function HomePage() {
                 </div>
                 <div>
                   <Badge variant="default" className="mb-1">Platform Intelligence</Badge>
-                  <h3 className="text-xl font-bold text-slate-900">Smart Trip Planning with Travel AI</h3>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Smart Trip Planning with Travel AI</h3>
                 </div>
               </div>
               <Link to="/register">
@@ -479,7 +479,7 @@ export function HomePage() {
               </Link>
             </div>
 
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-3xl">
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400 leading-relaxed max-w-3xl">
               Inside the authenticated customer portal, NammaConnect features a dedicated Travel AI assistant. Travel AI helps you plan personalized agricultural itineraries, check seasonal crop harvest cycles, compare homestay amenities, and prepare booking reservations in natural language.
             </p>
           </div>
@@ -487,12 +487,12 @@ export function HomePage() {
       </Section>
 
       {/* ── 9. Final CTA ── */}
-      <Section className="bg-gradient-to-b from-white to-harvest-50/80 text-center py-20">
+      <Section className="bg-gradient-to-b from-white to-harvest-50/80 dark:from-slate-900 dark:to-slate-950 text-center py-20">
         <Container size="sm" className="space-y-6">
           <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
             Ready to Experience Authentic Rural Tourism?
           </h2>
-          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed max-w-xl mx-auto">
+          <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400 dark:text-slate-400 leading-relaxed max-w-xl mx-auto">
             Create your account today to book verified coffee plantation stays, nature treks, and harvest experiences directly from local hosts.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
@@ -503,7 +503,7 @@ export function HomePage() {
               </Button>
             </Link>
             <Link to="/login?returnUrl=/app/become-partner" className="w-full sm:w-auto">
-              <Button variant="outline" size="lg" className="w-full rounded-2xl border-slate-300 text-slate-700 font-bold">
+              <Button variant="outline" size="lg" className="w-full rounded-2xl border-slate-300 text-slate-700 dark:text-slate-300 font-bold">
                 Become a Partner
               </Button>
             </Link>

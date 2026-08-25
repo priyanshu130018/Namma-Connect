@@ -23,6 +23,9 @@ export function LoginPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const determineRedirect = (role?: string): string => {
+    if (role === "admin") {
+      return (returnUrl && returnUrl.startsWith("/admin")) ? returnUrl : "/admin";
+    }
     if (returnUrl && returnUrl.startsWith("/")) {
       return returnUrl;
     }
@@ -32,8 +35,6 @@ export function LoginPage() {
         return "/partner";
       case "creator":
         return "/partner/creator";
-      case "admin":
-        return "/admin";
       case "customer":
       default:
         return "/app";

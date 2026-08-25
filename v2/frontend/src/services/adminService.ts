@@ -22,12 +22,18 @@ export async function getAdminOverview(): Promise<AdminOverviewData> {
 export async function getAdminUsers(params?: {
   role?: string;
   search?: string;
+  is_active?: boolean;
+  is_verified?: boolean;
+  sort_by?: string;
   limit?: number;
   offset?: number;
 }): Promise<AdminUserItem[]> {
   const searchParams = new URLSearchParams();
   if (params?.role) searchParams.append("role", params.role);
   if (params?.search) searchParams.append("search", params.search);
+  if (params?.is_active !== undefined) searchParams.append("is_active", String(params.is_active));
+  if (params?.is_verified !== undefined) searchParams.append("is_verified", String(params.is_verified));
+  if (params?.sort_by) searchParams.append("sort_by", params.sort_by);
   if (params?.limit) searchParams.append("limit", params.limit.toString());
   if (params?.offset) searchParams.append("offset", params.offset.toString());
 
@@ -37,8 +43,39 @@ export async function getAdminUsers(params?: {
   return response.data.data;
 }
 
-export async function getAdminPartners(): Promise<AdminUserItem[]> {
-  const response = await apiClient.get<{ success: boolean; data: AdminUserItem[] }>("/admin/partners");
+export async function getAdminUserDetail(userId: string): Promise<AdminUserItem & { auth_provider?: string; location?: string; language?: string; avatar_url?: string; updated_at?: string }> {
+  const response = await apiClient.get<{ success: boolean; data: AdminUserItem & { auth_provider?: string; location?: string; language?: string; avatar_url?: string; updated_at?: string } }>(
+    `/admin/users/${userId}`
+  );
+  return response.data.data;
+}
+
+export async function updateAdminUserStatus(userId: string, isActive: boolean): Promise<AdminUserItem> {
+  const response = await apiClient.post<{ success: boolean; data: AdminUserItem }>(
+    `/admin/users/${userId}/status`,
+    { is_active: isActive }
+  );
+  return response.data.data;
+}
+
+export async function updateAdminUserVerification(userId: string, isVerified: boolean): Promise<AdminUserItem> {
+  const response = await apiClient.post<{ success: boolean; data: AdminUserItem }>(
+    `/admin/users/${userId}/verify`,
+    { is_verified: isVerified }
+  );
+  return response.data.data;
+}
+
+export async function getAdminPartners(params?: {
+  limit?: number;
+  offset?: number;
+}): Promise<AdminUserItem[]> {
+  const searchParams = new URLSearchParams();
+  if (params?.limit) searchParams.append("limit", params.limit.toString());
+  if (params?.offset) searchParams.append("offset", params.offset.toString());
+  const queryStr = searchParams.toString();
+  const url = queryStr ? `/admin/partners?${queryStr}` : "/admin/partners";
+  const response = await apiClient.get<{ success: boolean; data: AdminUserItem[] }>(url);
   return response.data.data;
 }
 
@@ -149,6 +186,11 @@ export async function getAdminSupportTickets(): Promise<AdminSupportTicketItem[]
 
 export async function getAdminSettings(): Promise<AdminPlatformSettings> {
   const response = await apiClient.get<{ success: boolean; data: AdminPlatformSettings }>("/admin/settings");
+  return response.data.data;
+}
+
+export async function updateAdminSettings(payload: Partial<AdminPlatformSettings>): Promise<AdminPlatformSettings> {
+  const response = await apiClient.put<{ success: boolean; data: AdminPlatformSettings }>("/admin/settings", payload);
   return response.data.data;
 }
 

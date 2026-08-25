@@ -12,6 +12,9 @@ from app.schemas.common import APIResponse, MessageResponse
 from app.schemas.admin import (
     AdminOverviewResponse,
     AdminUserItemResponse,
+    AdminUserDetailResponse,
+    AdminUserStatusUpdateRequest,
+    AdminUserVerifyUpdateRequest,
     AdminPartnerVerificationRequest,
     AdminServiceStatusRequest,
     AdminServiceRejectRequest,
@@ -20,6 +23,7 @@ from app.schemas.admin import (
     AdminPayoutStatusRequest,
     AdminSupportTicketItem,
     AdminPlatformSettingsResponse,
+    AdminPlatformSettingsUpdateRequest,
 )
 from app.schemas.service import ServiceResponse
 from app.schemas.booking import ProviderBookingResponse
@@ -58,13 +62,25 @@ def get_admin_overview(
 def list_admin_users(
     role: Optional[str] = Query(None, description="Filter by user role"),
     search: Optional[str] = Query(None, description="Search by name or email"),
+    is_active: Optional[bool] = Query(None, description="Filter by active status"),
+    is_verified: Optional[bool] = Query(None, description="Filter by verified status"),
+    sort_by: Optional[str] = Query("newest", description="Sort order: newest, oldest, name_asc, name_desc"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     _admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """List platform users with optional role and search filters."""
-    users = AdminService.list_users(db, role=role, search=search, limit=limit, offset=offset)
+    """List platform users with role, search, status, and verification filters."""
+    users = AdminService.list_users(
+        db,
+        role=role,
+        search=search,
+        is_active=is_active,
+        is_verified=is_verified,
+        sort_by=sort_by,
+        limit=limit,
+        offset=offset,
+    )
     return APIResponse(
         success=True,
         message=f"Retrieved {len(users)} users",
@@ -72,13 +88,62 @@ def list_admin_users(
     )
 
 
+@router.get("/users/{user_id}", response_model=APIResponse[AdminUserDetailResponse])
+def get_admin_user_detail(
+    user_id: str,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Get sanitized details for a single user."""
+    user = AdminService.get_user_by_id(db, user_id)
+    return APIResponse(
+        success=True,
+        message="User details retrieved successfully",
+        data=user,
+    )
+
+
+@router.post("/users/{user_id}/status", response_model=APIResponse[AdminUserItemResponse])
+def update_admin_user_status(
+    user_id: str,
+    req: AdminUserStatusUpdateRequest,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Activate or deactivate a user account."""
+    user = AdminService.update_user_status(db, user_id, req.is_active, _admin)
+    return APIResponse(
+        success=True,
+        message=f"User status updated to {'active' if req.is_active else 'inactive'}",
+        data=user,
+    )
+
+
+@router.post("/users/{user_id}/verify", response_model=APIResponse[AdminUserItemResponse])
+def update_admin_user_verification(
+    user_id: str,
+    req: AdminUserVerifyUpdateRequest,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Verify or unverify a user account."""
+    user = AdminService.update_user_verification(db, user_id, req.is_verified, _admin)
+    return APIResponse(
+        success=True,
+        message=f"User verification status updated to {'verified' if req.is_verified else 'unverified'}",
+        data=user,
+    )
+
+
 @router.get("/partners", response_model=APIResponse[List[AdminUserItemResponse]])
 def list_admin_partners(
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
     _admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """List registered agricultural hosts and providers."""
-    partners = AdminService.list_partners(db)
+    partners = AdminService.list_partners(db, limit=limit, offset=offset)
     return APIResponse(
         success=True,
         message=f"Retrieved {len(partners)} partner hosts",
@@ -262,25 +327,35 @@ def list_admin_bookings(
 
 @router.get("/payments")
 def list_admin_payments(
+    status: Optional[str] = Query(None, description="Filter by status (PENDING, PAID, FAILED, CANCELLED)"),
+    search: Optional[str] = Query(None, description="Search by transaction ID, order ID, or customer"),
     limit: int = Query(50, ge=1, le=100),
     offset: int = Query(0, ge=0),
     _admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """List payment audit records (safe fields only)."""
-    payments = db.query(Payment).order_by(Payment.created_at.desc()).offset(offset).limit(limit).all()
+    query = db.query(Payment)
+    if status and status.upper() != "ALL":
+        query = query.filter(Payment.status == status.upper())
+    payments = query.order_by(Payment.created_at.desc()).offset(offset).limit(limit).all()
     safe_payments = [
         {
             "id": str(p.id),
-            "booking_id": str(p.booking_id),
-            "customer_id": str(p.customer_id),
+            "booking_id": str(p.booking_id) if p.booking_id else None,
+            "customer_id": str(p.customer_id) if p.customer_id else None,
+            "customer_name": p.customer.full_name if p.customer else "Platform Customer",
+            "customer_email": p.customer.email if p.customer else None,
+            "service_title": p.booking.service.title if (p.booking and p.booking.service) else "Agro-Tourism Experience",
+            "booking_code": p.booking.booking_code if p.booking else None,
             "razorpay_order_id": p.razorpay_order_id,
             "razorpay_payment_id": p.razorpay_payment_id,
-            "amount": p.amount,
-            "currency": p.currency,
+            "amount": float(p.amount),
+            "currency": p.currency or "INR",
             "status": p.status,
-            "method": p.method,
+            "method": getattr(p, "method", "Razorpay Online"),
             "created_at": p.created_at,
+            "updated_at": p.updated_at,
         }
         for p in payments
     ]
@@ -353,13 +428,31 @@ def list_admin_support_tickets(
 
 
 @router.get("/settings", response_model=APIResponse[AdminPlatformSettingsResponse])
-def get_admin_settings(_admin: User = Depends(require_admin)):
-    """Retrieve global platform configuration."""
-    settings_data = AdminService.get_platform_settings()
+def get_admin_settings(
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Retrieve global platform configuration from database."""
+    settings_data = AdminService.get_platform_settings(db)
     return APIResponse(
         success=True,
         message="Platform settings retrieved successfully",
         data=settings_data,
+    )
+
+
+@router.put("/settings", response_model=APIResponse[AdminPlatformSettingsResponse])
+def update_admin_settings(
+    payload: AdminPlatformSettingsUpdateRequest,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Update global platform configuration with database persistence (Admin RBAC)."""
+    updated_data = AdminService.update_platform_settings(db, payload, _admin)
+    return APIResponse(
+        success=True,
+        message="Platform settings updated and persisted successfully",
+        data=updated_data,
     )
 
 

@@ -81,7 +81,7 @@ class GeminiService:
             category=effective_cat,
             location=effective_dest,
             max_price=effective_budget,
-            limit=10,
+            limit=20,
             status="PUBLISHED",
         )
         service_catalog = [
@@ -99,64 +99,87 @@ class GeminiService:
             for s in published_services
         ]
 
+        # Recommendation diversity & de-duplication
+        previously_recommended: set = session_data.setdefault("recommended_ids", set())
+        
+        # Prioritize unseen services with unique titles/locations
+        seen_titles = set()
+        unseen_candidates = []
+        repeat_candidates = []
+
+        for s in service_catalog:
+            title_key = f"{s['title'].strip().lower()}_{s['location'].strip().lower()}"
+            if title_key in seen_titles:
+                continue
+            seen_titles.add(title_key)
+            if s["id"] not in previously_recommended:
+                unseen_candidates.append(s)
+            else:
+                repeat_candidates.append(s)
+
+        diversified_catalog = unseen_candidates + repeat_candidates
+        selected_candidates = diversified_catalog[:4] if diversified_catalog else service_catalog[:4]
+
+        # Record recommended IDs in session
+        for s in selected_candidates:
+            previously_recommended.add(s["id"])
+
         lang_instruction = "Respond in English."
         if lang_code == "kn" or "kannada" in lang_code:
             lang_instruction = "Respond strictly in Kannada (ಕನ್ನಡ) unless requested otherwise."
         elif lang_code == "hi" or "hindi" in lang_code:
             lang_instruction = "Respond strictly in Hindi (हिन्दी) unless requested otherwise."
 
-        # Attempt Gemini 1.5 Flash API
-        if cls.is_configured():
-            try:
-                logger.info(f"Gemini request started for conversation {conv_id}...")
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={settings.GEMINI_API_KEY}"
-                system_instruction = (
-                    f"You are Namma AI, your personal Karnataka travel assistant. {lang_instruction} "
-                    "Recommend only verified agritourism services from the catalog. "
-                    "Never invent prices or confirm bookings directly; always direct to the Booking button."
-                )
-                req_body = {
-                    "contents": [
-                        {
-                            "parts": [
-                                {
-                                    "text": (
-                                        f"{system_instruction}\n\n"
-                                        f"Accumulated Context: {json.dumps(accumulated)}\n\n"
-                                        f"Catalog:\n{json.dumps(service_catalog)}\n\n"
-                                        f"User Prompt: {prompt}"
-                                    )
-                                }
-                            ]
-                        }
-                    ]
-                }
-                headers = {"Content-Type": "application/json"}
-                req = urllib.request.Request(
-                    url,
-                    data=json.dumps(req_body).encode("utf-8"),
-                    headers=headers,
-                    method="POST",
-                )
-                with urllib.request.urlopen(req, timeout=10) as resp:
-                    logger.info("Gemini response received successfully.")
-                    data = json.loads(resp.read().decode("utf-8"))
-                    text_reply = data["candidates"][0]["content"]["parts"][0]["text"]
-                    session_data["history"].append({"user": prompt, "ai": text_reply})
-                    return {
-                        "reply": text_reply,
-                        "recommended_services": service_catalog[:4],
-                        "source": "gemini_api",
+        # Attempt Gemini API
+        if cls.is_configured() and selected_candidates:
+            for model_name in ["models/gemma-4-26b-a4b-it", "models/gemini-flash-latest"]:
+                try:
+                    logger.info(f"Gemini request started for conversation {conv_id} using {model_name}...")
+                    url = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent?key={settings.GEMINI_API_KEY}"
+                    system_instruction = (
+                        f"You are Namma AI, your personal Karnataka travel assistant. {lang_instruction} "
+                        "Recommend only verified agritourism services from the provided catalog. "
+                        "Never invent prices, locations, ratings, or services; always use the exact details from the catalog. "
+                        "Direct users to the Booking button for reserving."
+                    )
+                    req_body = {
+                        "contents": [
+                            {
+                                "parts": [
+                                    {
+                                        "text": (
+                                            f"{system_instruction}\n\n"
+                                            f"Accumulated Context: {json.dumps(accumulated)}\n\n"
+                                            f"Verified Service Catalog:\n{json.dumps(selected_candidates)}\n\n"
+                                            f"User Query: {prompt}"
+                                        )
+                                    }
+                                ]
+                            }
+                        ]
                     }
-            except Exception as e:
-                logger.warning(f"Gemini API call failed: {e}. Falling back to grounded rule engine.")
+                    headers = {"Content-Type": "application/json"}
+                    req = urllib.request.Request(
+                        url,
+                        data=json.dumps(req_body).encode("utf-8"),
+                        headers=headers,
+                        method="POST",
+                    )
+                    with urllib.request.urlopen(req, timeout=3) as resp:
+                        logger.info("Gemini response received successfully.")
+                        data = json.loads(resp.read().decode("utf-8"))
+                        text_reply = data["candidates"][0]["content"]["parts"][0]["text"]
+                        session_data["history"].append({"user": prompt, "ai": text_reply})
+                        return {
+                            "reply": text_reply,
+                            "recommended_services": selected_candidates,
+                            "source": "gemini_api",
+                        }
+                except Exception as e:
+                    logger.warning(f"Model {model_name} call failed: {e}. Trying next...")
 
         # Grounded multi-turn rule engine fallback
-        matched = [
-            s for s in service_catalog
-            if not effective_dest or effective_dest.lower() in s["location"].lower() or effective_dest.lower() in s["district"].lower()
-        ] or service_catalog
-        selected = matched[:3]
+        selected = selected_candidates[:3]
 
         is_greeting = any(g in prompt_lower for g in ["hello", "hi", "hey", "namaskara", "namaste"])
         is_weather = any(w in prompt_lower for w in ["weather", "climate", "monsoon", "rain", "season", "temperature", "ಹವಾಮಾನ", "मौसम"])

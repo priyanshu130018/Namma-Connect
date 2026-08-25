@@ -22,6 +22,9 @@ from app.models.user import User
 from app.models.service import Service, Review
 from app.models.partner_application import PartnerApplication
 from app.models.booking import Booking
+from app.models.payment import Payment
+from app.models.support import SupportTicket
+from app.models.setting import PlatformSetting
 from app.models.creator import CreatorProfile
 from app.models.notification import Notification
 from app.services.embedding import EmbeddingService
@@ -185,16 +188,15 @@ def seed_development_data(db: Session):
     # ── 1. Seed Users (500+ Synthetic Accounts) ──
     print("\n[1/6] Seeding 550 synthetic users (Customers, Partners, Creators, Admins)...")
     
-    # Roles distribution: 300 customers, 180 partners, 60 creators, 10 admins
+    # Roles distribution: 310 customers, 180 partners, 60 creators (only 1 admin exists: admin@namnaconnect.com)
     roles_plan = (
-        [("customer", "Customer")] * 300
+        [("customer", "Customer")] * 310
         + [("partner", "Farmer")] * 80
         + [("partner", "Homestay Host")] * 40
         + [("partner", "Local Guide")] * 30
         + [("partner", "Food Artisan")] * 20
         + [("partner", "Travel Operator")] * 10
         + [("creator", "Content Creator")] * 60
-        + [("admin", "Admin Coordinator")] * 10
     )
 
     created_users = []
@@ -350,8 +352,8 @@ def seed_development_data(db: Session):
         img = IMAGE_POOL[s_idx % len(IMAGE_POOL)]
         gallery = [img, IMAGE_POOL[(s_idx + 1) % len(IMAGE_POOL)], IMAGE_POOL[(s_idx + 2) % len(IMAGE_POOL)]]
 
-        # Generate embedding for published services
-        embedding_vec = EmbeddingService.generate_embedding(f"{title} | {desc} | {location_val} | {district_val}") if status_val == "PUBLISHED" else None
+        # Generate 768-dim normalized embedding for published services
+        embedding_vec = EmbeddingService._generate_deterministic_vector(f"{title} | {desc} | {location_val} | {district_val}") if status_val == "PUBLISHED" else None
 
         srv = Service(
             id=uuid.uuid4(),
@@ -431,6 +433,23 @@ def seed_development_data(db: Session):
             db.add(bkg)
             seeded_bookings += 1
 
+            # Seed matching payment
+            pay = Payment(
+                id=uuid.uuid4(),
+                booking_id=bkg.id,
+                customer_id=cust.id,
+                razorpay_order_id=f"order_dev_{bkg.booking_code}",
+                razorpay_payment_id=f"pay_dev_{idx:06d}",
+                razorpay_signature=f"sig_{uuid.uuid4().hex[:16]}",
+                amount=float(bkg.total_amount),
+                currency="INR",
+                status="PAID" if bkg.status in ["CONFIRMED", "COMPLETED"] else "PENDING",
+                is_test_data=True,
+                created_at=bkg.created_at,
+                updated_at=bkg.updated_at,
+            )
+            db.add(pay)
+
             # Seed matching review
             rev = Review(
                 id=uuid.uuid4(),
@@ -448,9 +467,73 @@ def seed_development_data(db: Session):
             seeded_reviews += 1
 
     db.commit()
-    print(f"      Seeded {seeded_bookings} bookings and {seeded_reviews} verified customer reviews.")
+    print(f"      Seeded {seeded_bookings} bookings, payments, and {seeded_reviews} verified customer reviews.")
 
-    # ── 6. Summary Report ──
+    # ── 6. Seed Support Tickets ──
+    print("\n[6/7] Seeding realistic Support Inquiries...")
+    ticket_categories = ["Booking", "Payment", "Service", "KYC", "General", "Account"]
+    ticket_statuses = ["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"]
+    ticket_priorities = ["LOW", "MEDIUM", "HIGH", "URGENT"]
+
+    seeded_tickets = 0
+    if db.query(SupportTicket).count() < 10:
+        for idx in range(1, 25):
+            code = f"NC-TICK-DEV-{idx:04d}"
+            existing_t = db.query(SupportTicket).filter(SupportTicket.ticket_code == code).first()
+            if existing_t:
+                continue
+            u = created_users[idx % len(created_users)][0]
+            cat = ticket_categories[idx % len(ticket_categories)]
+            stat = ticket_statuses[idx % len(ticket_statuses)]
+            prio = ticket_priorities[idx % len(ticket_priorities)]
+            created_dt = datetime.utcnow() - timedelta(days=idx, hours=idx * 2)
+
+            t = SupportTicket(
+                id=uuid.uuid4(),
+                ticket_code=code,
+                user_id=u.id,
+                user_name=u.full_name,
+                user_email=u.email,
+                booking_id=f"NC-BKG-{9000 + idx}" if idx % 2 == 0 else None,
+                category=cat,
+                subject=f"Inquiry regarding {cat.lower()} details and schedule #{idx}",
+                description=f"Hello team, I need assistance with my {cat.lower()} request in {u.location}. Please assist at the earliest.",
+                status=stat,
+                priority=prio,
+                responses_json=json.dumps([
+                    {
+                        "sender_name": "NammaConnect Support Concierge",
+                        "sender_role": "admin",
+                        "message": f"Thank you for contacting NammaConnect support regarding {cat}. Our team is reviewing your ticket.",
+                        "created_at": (created_dt + timedelta(hours=1)).isoformat(),
+                    }
+                ]) if stat != "OPEN" else json.dumps([]),
+                resolved_at=created_dt + timedelta(days=1) if stat in ["RESOLVED", "CLOSED"] else None,
+                is_test_data=True,
+                created_at=created_dt,
+                updated_at=created_dt + timedelta(hours=3),
+            )
+            db.add(t)
+            seeded_tickets += 1
+        db.commit()
+    print(f"      Seeded {seeded_tickets} platform support tickets.")
+
+    # ── 7. Seed Platform Settings ──
+    defaults = [
+        ('platform_name', 'NammaConnect', 'Platform Brand Name'),
+        ('commission_rate', '0.05', 'Platform Commission Rate'),
+        ('currency', 'INR', 'Default Platform Currency'),
+        ('environment', 'production', 'Platform Operating Environment'),
+        ('is_maintenance_mode', 'false', 'Maintenance Mode Status'),
+        ('support_email', 'support@nammaconnect.in', 'System Support Contact')
+    ]
+    for k, v, d in defaults:
+        existing_s = db.query(PlatformSetting).filter(PlatformSetting.key == k).first()
+        if not existing_s:
+            db.add(PlatformSetting(key=k, value=v, description=d))
+    db.commit()
+
+    # ── 8. Summary Report ──
     print("\n========================================================")
     print("  DEVELOPMENT DATA SEEDING COMPLETE")
     print("========================================================")
@@ -463,6 +546,8 @@ def seed_development_data(db: Session):
     print(f"  Partner Applications:      {db.query(PartnerApplication).filter(PartnerApplication.is_test_data == True).count()}")
     print(f"  Creator Profiles:          {db.query(CreatorProfile).filter(CreatorProfile.is_test_data == True).count()}")
     print(f"  Bookings:                  {db.query(Booking).filter(Booking.is_test_data == True).count()}")
+    print(f"  Payments:                  {db.query(Payment).count()}")
+    print(f"  Support Tickets:           {db.query(SupportTicket).count()}")
     print(f"  Reviews:                   {db.query(Review).filter(Review.is_test_data == True).count()}")
     print("========================================================\n")
 

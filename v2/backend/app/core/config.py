@@ -10,7 +10,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # Therefore the unified .env is parents[4] / ".env"
 
 CURRENT_FILE = Path(__file__).resolve()
-PROJECT_ROOT = CURRENT_FILE.parents[4]
+PROJECT_ROOT = CURRENT_FILE.parents[2]
 ENV_FILE = PROJECT_ROOT / ".env"
 
 
@@ -56,18 +56,69 @@ class Settings(BaseSettings):
         return value
 
     # ==========================================================================
-    # Database
+    # Database Credentials & Connection URLs
     # ==========================================================================
 
-    DATABASE_URL: str = (
-        "postgresql+asyncpg://postgres:postgres@localhost:5432/"
-        "namma_connect_db"
-    )
+    POSTGRES_USER: str = "postgres"
+    POSTGRES_PASSWORD: str = ""
+    POSTGRES_DB: str = "namma_connect_db"
+    POSTGRES_HOST: str = "localhost"
+    POSTGRES_PORT: str = "5432"
 
-    DATABASE_SYNC_URL: str = (
-        "postgresql://postgres:postgres@localhost:5432/"
-        "namma_connect_db"
-    )
+    DATABASE_URL: str = ""
+    DATABASE_SYNC_URL: str = ""
+
+    @field_validator("DATABASE_SYNC_URL", mode="before")
+    @classmethod
+    def resolve_database_sync_url(cls, value, values):
+        import os
+        from urllib.parse import quote_plus
+        
+        user = os.getenv("POSTGRES_USER", "postgres")
+        raw_pw = os.getenv("POSTGRES_PASSWORD", "")
+        # If password is provided, ensure it's properly url-encoded if it contains special characters
+        encoded_pw = raw_pw if "%" in raw_pw else quote_plus(raw_pw)
+        db_name = os.getenv("POSTGRES_DB", "namma_connect_db")
+        host = os.getenv("POSTGRES_HOST", "localhost")
+        port = os.getenv("POSTGRES_PORT", "5432")
+
+        if not value or not isinstance(value, str) or not value.strip():
+            pw_part = f":{encoded_pw}" if encoded_pw else ""
+            return f"postgresql://{user}{pw_part}@{host}:{port}/{db_name}"
+
+        url = value.strip()
+        # Replace template placeholders if they exist in the env string
+        url = url.replace("POSTGRES_USER", user)
+        if "POSTGRES_PASSWORD" in url:
+            url = url.replace("POSTGRES_PASSWORD", encoded_pw)
+        if "POSTGRES_DB" in url:
+            url = url.replace("POSTGRES_DB", db_name)
+        return url
+
+    @field_validator("DATABASE_URL", mode="before")
+    @classmethod
+    def resolve_database_async_url(cls, value, values):
+        import os
+        from urllib.parse import quote_plus
+
+        user = os.getenv("POSTGRES_USER", "postgres")
+        raw_pw = os.getenv("POSTGRES_PASSWORD", "")
+        encoded_pw = raw_pw if "%" in raw_pw else quote_plus(raw_pw)
+        db_name = os.getenv("POSTGRES_DB", "namma_connect_db")
+        host = os.getenv("POSTGRES_HOST", "localhost")
+        port = os.getenv("POSTGRES_PORT", "5432")
+
+        if not value or not isinstance(value, str) or not value.strip():
+            pw_part = f":{encoded_pw}" if encoded_pw else ""
+            return f"postgresql+asyncpg://{user}{pw_part}@{host}:{port}/{db_name}"
+
+        url = value.strip()
+        url = url.replace("POSTGRES_USER", user)
+        if "POSTGRES_PASSWORD" in url:
+            url = url.replace("POSTGRES_PASSWORD", encoded_pw)
+        if "POSTGRES_DB" in url:
+            url = url.replace("POSTGRES_DB", db_name)
+        return url
 
     # ==========================================================================
     # Redis

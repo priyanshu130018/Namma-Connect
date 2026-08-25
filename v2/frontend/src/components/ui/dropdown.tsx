@@ -51,7 +51,7 @@ export function Dropdown({
       {isOpen && (
         <div
           className={cn(
-            "absolute z-50 mt-2 min-w-[220px] rounded-2xl border border-slate-200 bg-white p-1.5 shadow-dropdown animate-in fade-in-0 zoom-in-95 focus:outline-none",
+            "absolute z-50 mt-2 min-w-[220px] rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-1.5 shadow-dropdown animate-in fade-in-0 zoom-in-95 focus:outline-none text-slate-900 dark:text-slate-100",
             align === "right" ? "right-0" : "left-0",
             className
           )}
@@ -84,8 +84,8 @@ export function DropdownItem({
       className={cn(
         "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-xs font-semibold transition-colors text-left",
         destructive
-          ? "text-rose-600 hover:bg-rose-50 hover:text-rose-700"
-          : "text-slate-700 hover:bg-slate-100 hover:text-slate-900",
+          ? "text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 dark:hover:text-rose-300"
+          : "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white",
         className
       )}
     >
@@ -96,7 +96,7 @@ export function DropdownItem({
 }
 
 export function DropdownDivider({ className }: { className?: string }) {
-  return <div className={cn("my-1 border-t border-slate-100", className)} />;
+  return <div className={cn("my-1 border-t border-slate-100 dark:border-slate-800", className)} />;
 }
 
 export function DropdownHeader({
@@ -107,7 +107,7 @@ export function DropdownHeader({
   className?: string;
 }) {
   return (
-    <div className={cn("px-3 py-2 text-xs font-medium text-slate-500", className)}>
+    <div className={cn("px-3 py-2 text-xs font-medium text-slate-500 dark:text-slate-400", className)}>
       {children}
     </div>
   );

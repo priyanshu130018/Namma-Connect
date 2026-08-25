@@ -1,8 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
-import { PageHeader } from "@/components/ui/page-header";
-import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Users,
   Building2,
@@ -14,38 +10,50 @@ import {
   LifeBuoy,
   Settings as SettingsIcon,
   RefreshCw,
-  AlertCircle,
-  CheckCircle2,
   Search,
   Check,
   X,
+  AlertCircle,
+  CheckCircle2,
   ShieldCheck,
-  ShieldAlert,
   Eye,
-  Ban,
-  Trash2,
+  Mail,
+  Phone,
   MapPin,
+  Clock,
+  Tag,
+  DollarSign,
+  UserCheck,
+  FileText,
+  ExternalLink,
 } from "lucide-react";
+import { PageHeader } from "@/components/ui/page-header";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { AdminPagination } from "@/components/admin/AdminPagination";
+import { AdminDetailDrawer } from "@/components/admin/AdminDetailDrawer";
 import {
   getAdminOverview,
   getAdminUsers,
+  updateAdminUserStatus,
+  updateAdminUserVerification,
   getAdminPartners,
+  getAdminPartnerApplications,
+  approveAdminPartnerApplication,
+  rejectAdminPartnerApplication,
   getAdminServices,
   approveAdminService,
   rejectAdminService,
   removeAdminService,
-  blockAdminProvider,
   getAdminBookings,
   getAdminPayments,
   getAdminPayouts,
   updateAdminPayoutStatus,
   getAdminSupportTickets,
   getAdminSettings,
-  getAdminPartnerApplications,
-  approveAdminPartnerApplication,
-  rejectAdminPartnerApplication,
+  updateAdminSettings,
 } from "@/services/adminService";
-import { PartnerApplicationData } from "@/services/partnerApplicationService";
 import {
   AdminOverviewData,
   AdminUserItem,
@@ -56,6 +64,7 @@ import {
   AdminSupportTicketItem,
   AdminPlatformSettings,
 } from "@/types";
+import { PartnerApplicationData } from "@/services/partnerApplicationService";
 
 // ==========================================
 // 1. ADMIN OVERVIEW / HOME PAGE
@@ -122,76 +131,76 @@ export function AdminHomePage() {
         </div>
       ) : data ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card className="p-6 bg-slate-900 border-slate-800 text-white">
+          <Card className="p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400">Total Users</span>
-              <Users className="h-5 w-5 text-rose-400" />
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Total Users</span>
+              <Users className="h-5 w-5 text-rose-500" />
             </div>
-            <p className="text-2xl font-black text-rose-400 mt-2">{data.total_users.toLocaleString()}</p>
-            <p className="text-[11px] text-slate-400 mt-1">Customers, Hosts, and Admins</p>
+            <p className="text-2xl font-black text-rose-500 dark:text-rose-400 mt-2">{data.total_users.toLocaleString()}</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Customers, Hosts, and Admins</p>
           </Card>
 
-          <Card className="p-6 bg-slate-900 border-slate-800 text-white">
+          <Card className="p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400">Partner Farms</span>
-              <Building2 className="h-5 w-5 text-rose-400" />
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Partner Farms</span>
+              <Building2 className="h-5 w-5 text-rose-500" />
             </div>
-            <p className="text-2xl font-black text-rose-400 mt-2">{data.total_partners.toLocaleString()}</p>
-            <p className="text-[11px] text-slate-400 mt-1">Verified & registered hosts</p>
+            <p className="text-2xl font-black text-rose-500 dark:text-rose-400 mt-2">{data.total_partners.toLocaleString()}</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Verified & registered hosts</p>
           </Card>
 
-          <Card className="p-6 bg-slate-900 border-slate-800 text-white">
+          <Card className="p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400">KYC Pending</span>
-              <CheckSquare className="h-5 w-5 text-amber-400" />
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">KYC Pending</span>
+              <CheckSquare className="h-5 w-5 text-amber-500" />
             </div>
-            <p className="text-2xl font-black text-amber-400 mt-2">{data.pending_verifications}</p>
-            <p className="text-[11px] text-slate-400 mt-1">Awaiting document inspection</p>
+            <p className="text-2xl font-black text-amber-500 dark:text-amber-400 mt-2">{data.pending_verifications}</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Awaiting document inspection</p>
           </Card>
 
-          <Card className="p-6 bg-slate-900 border-slate-800 text-white">
+          <Card className="p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400">Published Listings</span>
-              <Layers className="h-5 w-5 text-emerald-400" />
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Published Listings</span>
+              <Layers className="h-5 w-5 text-emerald-500" />
             </div>
-            <p className="text-2xl font-black text-emerald-400 mt-2">{data.published_services}</p>
-            <p className="text-[11px] text-slate-400 mt-1">Active on marketplace</p>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-2">{data.published_services}</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Active on marketplace</p>
           </Card>
 
-          <Card className="p-6 bg-slate-900 border-slate-800 text-white">
+          <Card className="p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400">Total Bookings</span>
-              <Calendar className="h-5 w-5 text-rose-400" />
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Total Bookings</span>
+              <Calendar className="h-5 w-5 text-rose-500" />
             </div>
-            <p className="text-2xl font-black text-rose-400 mt-2">{data.total_bookings.toLocaleString()}</p>
-            <p className="text-[11px] text-slate-400 mt-1">Lifetime reservations</p>
+            <p className="text-2xl font-black text-rose-500 dark:text-rose-400 mt-2">{data.total_bookings.toLocaleString()}</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Lifetime reservations</p>
           </Card>
 
-          <Card className="p-6 bg-slate-900 border-slate-800 text-white">
+          <Card className="p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400">Gross Platform GMV</span>
-              <CreditCard className="h-5 w-5 text-emerald-400" />
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Gross Platform GMV</span>
+              <CreditCard className="h-5 w-5 text-emerald-500" />
             </div>
-            <p className="text-2xl font-black text-emerald-400 mt-2">₹{data.total_revenue.toLocaleString()}</p>
-            <p className="text-[11px] text-slate-400 mt-1">Settled transactions</p>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-2">₹{data.total_revenue.toLocaleString()}</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Settled transactions</p>
           </Card>
 
-          <Card className="p-6 bg-slate-900 border-slate-800 text-white">
+          <Card className="p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400">Pending Payouts</span>
-              <Banknote className="h-5 w-5 text-amber-400" />
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Pending Payouts</span>
+              <Banknote className="h-5 w-5 text-amber-500" />
             </div>
-            <p className="text-2xl font-black text-amber-400 mt-2">{data.pending_payouts}</p>
-            <p className="text-[11px] text-slate-400 mt-1">In-flight bank disbursements</p>
+            <p className="text-2xl font-black text-amber-500 dark:text-amber-400 mt-2">{data.pending_payouts}</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">In-flight bank disbursements</p>
           </Card>
 
-          <Card className="p-6 bg-slate-900 border-slate-800 text-white">
+          <Card className="p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-slate-400">Support Inquiries</span>
-              <LifeBuoy className="h-5 w-5 text-rose-400" />
+              <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Support Inquiries</span>
+              <LifeBuoy className="h-5 w-5 text-rose-500" />
             </div>
-            <p className="text-2xl font-black text-rose-400 mt-2">{data.open_support_tickets}</p>
-            <p className="text-[11px] text-slate-400 mt-1">Open support tickets</p>
+            <p className="text-2xl font-black text-rose-500 dark:text-rose-400 mt-2">{data.open_support_tickets}</p>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">Open support tickets</p>
           </Card>
         </div>
       ) : null}
@@ -205,59 +214,108 @@ export function AdminHomePage() {
 export function AdminUsersPage() {
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [roleFilter, setRoleFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [verificationFilter, setVerificationFilter] = useState<string>("");
+  const [sortBy, setSortBy] = useState<string>("newest");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  // Pagination state
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+
+  // Detail Drawer state
+  const [selectedUser, setSelectedUser] = useState<AdminUserItem | null>(null);
 
   const fetchUsers = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await getAdminUsers({ role: roleFilter || undefined, search: searchQuery || undefined });
-      setUsers(res);
+      const is_active = statusFilter === "active" ? true : statusFilter === "disabled" ? false : undefined;
+      const is_verified = verificationFilter === "verified" ? true : verificationFilter === "unverified" ? false : undefined;
+      const res = await getAdminUsers({
+        role: roleFilter || undefined,
+        search: searchQuery || undefined,
+        is_active,
+        is_verified,
+        sort_by: sortBy,
+        limit: 100, // Fetch up to 100 for client pagination
+      });
+      setUsers(res || []);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load user directory");
     } finally {
       setIsLoading(false);
     }
-  }, [roleFilter, searchQuery]);
+  }, [roleFilter, statusFilter, verificationFilter, sortBy, searchQuery]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
 
+  // Reset to page 1 on filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [roleFilter, statusFilter, verificationFilter, sortBy, searchQuery]);
+
+  const handleToggleStatus = async (user: AdminUserItem) => {
+    setActionLoadingId(user.id);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const nextStatus = !user.is_active;
+      await updateAdminUserStatus(user.id, nextStatus);
+      setSuccessMsg(`User ${user.full_name} is now ${nextStatus ? "Active" : "Disabled"}.`);
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, is_active: nextStatus } : u)));
+      if (selectedUser?.id === user.id) {
+        setSelectedUser((prev) => (prev ? { ...prev, is_active: nextStatus } : null));
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to update user status");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleToggleVerification = async (user: AdminUserItem) => {
+    setActionLoadingId(user.id);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const nextVerified = !user.is_verified;
+      await updateAdminUserVerification(user.id, nextVerified);
+      setSuccessMsg(`User ${user.full_name} verification set to ${nextVerified ? "Verified" : "Unverified"}.`);
+      setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, is_verified: nextVerified } : u)));
+      if (selectedUser?.id === user.id) {
+        setSelectedUser((prev) => (prev ? { ...prev, is_verified: nextVerified } : null));
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to update verification status");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  // Client-side pagination slices
+  const totalRecords = users.length;
+  const paginatedUsers = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return users.slice(start, start + pageSize);
+  }, [users, page, pageSize]);
+
   return (
     <div className="space-y-6">
-      <PageHeader title="User Directory" subtitle="Manage accounts, user roles, and account access status." />
+      <PageHeader title="User Directory" subtitle="Manage user accounts, roles, access permissions, and verification badges." />
 
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-72">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
-            <input
-              type="text"
-              placeholder="Search by name or email..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl bg-slate-900 border border-slate-800 py-2 pl-9 pr-4 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
-            />
-          </div>
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="rounded-xl bg-slate-900 border border-slate-800 py-2 px-3 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-rose-500"
-          >
-            <option value="">All Roles</option>
-            <option value="customer">Customer</option>
-            <option value="partner">Partner / Host</option>
-            <option value="creator">Creator</option>
-            <option value="admin">Admin</option>
-          </select>
+      {successMsg && (
+        <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-800 text-emerald-300 text-xs flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <span>{successMsg}</span>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchUsers} className="border-slate-800 bg-slate-900 text-slate-300">
-          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} /> Refresh
-        </Button>
-      </div>
+      )}
 
       {error && (
         <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 text-xs flex justify-between items-center">
@@ -268,33 +326,113 @@ export function AdminUsersPage() {
         </div>
       )}
 
-      <Card className="overflow-hidden bg-slate-900 border-slate-800">
+      {/* Filters Bar */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-slate-900/80 p-3 rounded-2xl border border-slate-800">
+        <div className="flex flex-wrap items-center gap-2 flex-1">
+          <div className="relative min-w-[220px] flex-1">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search name or email..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-xl bg-slate-950 border border-slate-800 py-2 pl-9 pr-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+            />
+          </div>
+
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="rounded-xl bg-slate-950 border border-slate-800 py-2 px-3 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-rose-500"
+          >
+            <option value="">All Roles</option>
+            <option value="customer">Customer</option>
+            <option value="partner">Partner / Host</option>
+            <option value="creator">Creator</option>
+            <option value="admin">Admin</option>
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-xl bg-slate-950 border border-slate-800 py-2 px-3 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-rose-500"
+          >
+            <option value="">All Statuses</option>
+            <option value="active">Active Accounts</option>
+            <option value="disabled">Disabled Accounts</option>
+          </select>
+
+          <select
+            value={verificationFilter}
+            onChange={(e) => setVerificationFilter(e.target.value)}
+            className="rounded-xl bg-slate-950 border border-slate-800 py-2 px-3 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-rose-500"
+          >
+            <option value="">All Verification</option>
+            <option value="verified">Verified</option>
+            <option value="unverified">Unverified</option>
+          </select>
+
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="rounded-xl bg-slate-950 border border-slate-800 py-2 px-3 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-rose-500"
+          >
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+            <option value="name_asc">Name (A - Z)</option>
+            <option value="name_desc">Name (Z - A)</option>
+          </select>
+        </div>
+
+        <Button variant="outline" size="sm" onClick={fetchUsers} disabled={isLoading} className="border-slate-700 bg-slate-800 text-slate-200">
+          <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isLoading ? "animate-spin" : ""}`} /> Refresh
+        </Button>
+      </div>
+
+      <Card className="overflow-hidden bg-slate-900 border-slate-800 shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
-            <thead className="border-b border-slate-800 bg-slate-950/50 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <thead className="border-b border-slate-800 bg-slate-950/60 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="px-6 py-4">User</th>
                 <th className="px-6 py-4">Role</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4">Verification</th>
                 <th className="px-6 py-4">Created Date</th>
+                <th className="px-6 py-4 text-right">Quick Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-800/80">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-500">Loading user accounts...</td>
+                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-rose-500" />
+                    Loading user directory...
+                  </td>
                 </tr>
-              ) : users.length === 0 ? (
+              ) : paginatedUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-500">No user accounts found matching filters.</td>
+                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                    No user accounts found matching the current filters.
+                  </td>
                 </tr>
               ) : (
-                users.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-800/40 transition-colors">
+                paginatedUsers.map((u) => (
+                  <tr
+                    key={u.id}
+                    onClick={() => setSelectedUser(u)}
+                    className="hover:bg-slate-800/60 transition-colors cursor-pointer"
+                  >
                     <td className="px-6 py-4">
-                      <div className="font-bold text-white">{u.full_name}</div>
-                      <div className="text-slate-400">{u.email}</div>
+                      <div className="font-bold text-white flex items-center gap-2">
+                        <span>{u.full_name}</span>
+                        {u.role === "admin" && (
+                          <Badge variant="destructive" className="text-[9px] py-0 px-1 font-mono">
+                            Admin
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="text-slate-400 text-[11px]">{u.email}</div>
                     </td>
                     <td className="px-6 py-4">
                       <Badge variant="outline" className="capitalize border-slate-700 bg-slate-800 text-slate-300">
@@ -307,12 +445,37 @@ export function AdminUsersPage() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4">
-                      <Badge variant={u.is_verified ? "default" : "outline"} className={u.is_verified ? "bg-emerald-600 text-white" : "border-slate-700 text-slate-400"}>
+                      <Badge
+                        variant={u.is_verified ? "default" : "outline"}
+                        className={u.is_verified ? "bg-emerald-600 text-white font-bold" : "border-slate-700 text-slate-400"}
+                      >
                         {u.is_verified ? "Verified" : "Unverified"}
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-slate-400">
                       {u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"}
+                    </td>
+                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelectedUser(u)}
+                          className="h-7 px-2 text-[11px] rounded-lg border-slate-700 text-slate-300 hover:bg-slate-800"
+                        >
+                          <Eye className="h-3.5 w-3.5 mr-1" /> View
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant={u.is_active ? "destructive" : "default"}
+                          disabled={actionLoadingId === u.id || u.role === "admin"}
+                          onClick={() => handleToggleStatus(u)}
+                          className="h-7 px-2 text-[11px] rounded-lg font-bold"
+                          title={u.role === "admin" ? "Admin accounts cannot be deactivated" : ""}
+                        >
+                          {u.is_active ? "Disable" : "Activate"}
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -320,7 +483,83 @@ export function AdminUsersPage() {
             </tbody>
           </table>
         </div>
+
+        <AdminPagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalRecords={totalRecords}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       </Card>
+
+      {/* USER DETAIL INSPECTION DRAWER */}
+      {selectedUser && (
+        <AdminDetailDrawer
+          isOpen={!!selectedUser}
+          onClose={() => setSelectedUser(null)}
+          title={selectedUser.full_name}
+          subtitle={`Account ID: ${selectedUser.id}`}
+          badge={{
+            text: selectedUser.is_active ? "Active Account" : "Disabled / Suspended",
+            variant: selectedUser.is_active ? "default" : "destructive",
+          }}
+          fields={[
+            { label: "Email Address", value: selectedUser.email, icon: Mail },
+            { label: "System Role", value: <span className="capitalize font-bold">{selectedUser.role}</span>, icon: Tag },
+            {
+              label: "KYC Verification",
+              value: (
+                <Badge
+                  variant={selectedUser.is_verified ? "default" : "outline"}
+                  className={selectedUser.is_verified ? "bg-emerald-600 text-white font-bold" : "border-slate-700 text-slate-400"}
+                >
+                  {selectedUser.is_verified ? "Verified Identity" : "Unverified"}
+                </Badge>
+              ),
+              icon: ShieldCheck,
+            },
+            {
+              label: "Created Date",
+              value: selectedUser.created_at ? new Date(selectedUser.created_at).toLocaleString() : "—",
+              icon: Clock,
+            },
+          ]}
+          actions={
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedUser(null)}
+                className="border-slate-700 text-slate-300"
+              >
+                Close
+              </Button>
+              <Button
+                size="sm"
+                variant={selectedUser.is_verified ? "outline" : "default"}
+                disabled={actionLoadingId === selectedUser.id}
+                onClick={() => handleToggleVerification(selectedUser)}
+                className={!selectedUser.is_verified ? "bg-emerald-600 hover:bg-emerald-500 text-white font-bold" : "border-slate-700 text-slate-300"}
+              >
+                {selectedUser.is_verified ? "Unverify User" : "Verify User"}
+              </Button>
+              <Button
+                size="sm"
+                variant={selectedUser.is_active ? "destructive" : "default"}
+                disabled={actionLoadingId === selectedUser.id || selectedUser.role === "admin"}
+                onClick={() => handleToggleStatus(selectedUser)}
+                className="font-bold"
+              >
+                {selectedUser.is_active ? "Disable Account" : "Activate Account"}
+              </Button>
+            </>
+          }
+        />
+      )}
     </div>
   );
 }
@@ -330,15 +569,21 @@ export function AdminUsersPage() {
 // ==========================================
 export function AdminPartnersPage() {
   const [partners, setPartners] = useState<AdminUserItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Pagination state
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [selectedPartner, setSelectedPartner] = useState<AdminUserItem | null>(null);
 
   const fetchPartners = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await getAdminPartners();
-      setPartners(res);
+      const res = await getAdminPartners({ limit: 100 });
+      setPartners(res || []);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load partner hosts");
     } finally {
@@ -350,9 +595,41 @@ export function AdminPartnersPage() {
     fetchPartners();
   }, [fetchPartners]);
 
+  const filteredPartners = useMemo(() => {
+    if (!searchQuery.trim()) return partners;
+    const q = searchQuery.toLowerCase();
+    return partners.filter((p) => p.full_name?.toLowerCase().includes(q) || p.email?.toLowerCase().includes(q));
+  }, [partners, searchQuery]);
+
+  const totalRecords = filteredPartners.length;
+  const paginatedPartners = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredPartners.slice(start, start + pageSize);
+  }, [filteredPartners, page, pageSize]);
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Partner Directory" subtitle="All registered farm hosts and agricultural organizations." />
+      <PageHeader title="Partner Directory" subtitle="All registered farm hosts, nature guides, and agricultural providers." />
+
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/80 p-3 rounded-2xl border border-slate-800">
+        <div className="relative min-w-[240px] flex-1">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+          <input
+            type="text"
+            placeholder="Search partner by name or email..."
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(1);
+            }}
+            className="w-full rounded-xl bg-slate-950 border border-slate-800 py-2 pl-9 pr-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+          />
+        </div>
+        <Button variant="outline" size="sm" onClick={fetchPartners} disabled={isLoading} className="border-slate-700 bg-slate-800 text-slate-200">
+          <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isLoading ? "animate-spin" : ""}`} /> Refresh
+        </Button>
+      </div>
+
       {error && (
         <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 text-xs flex justify-between items-center">
           <span>{error}</span>
@@ -361,33 +638,41 @@ export function AdminPartnersPage() {
           </Button>
         </div>
       )}
-      <Card className="overflow-hidden bg-slate-900 border-slate-800">
+
+      <Card className="overflow-hidden bg-slate-900 border-slate-800 shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
-            <thead className="border-b border-slate-800 bg-slate-950/50 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <thead className="border-b border-slate-800 bg-slate-950/60 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="px-6 py-4">Host / Partner</th>
-                <th className="px-6 py-4">Type</th>
+                <th className="px-6 py-4">Host Type</th>
                 <th className="px-6 py-4">KYC State</th>
                 <th className="px-6 py-4">Account Status</th>
                 <th className="px-6 py-4">Registered Date</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-800/80">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-500">Loading partner hosts...</td>
+                  <td colSpan={5} className="py-12 text-center text-slate-500">
+                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-rose-500" />
+                    Loading partner hosts...
+                  </td>
                 </tr>
-              ) : partners.length === 0 ? (
+              ) : paginatedPartners.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-500">No partner hosts found.</td>
+                  <td colSpan={5} className="py-12 text-center text-slate-500">No partner hosts found.</td>
                 </tr>
               ) : (
-                partners.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-800/40 transition-colors">
+                paginatedPartners.map((p) => (
+                  <tr
+                    key={p.id}
+                    onClick={() => setSelectedPartner(p)}
+                    className="hover:bg-slate-800/60 transition-colors cursor-pointer"
+                  >
                     <td className="px-6 py-4">
                       <div className="font-bold text-white">{p.full_name}</div>
-                      <div className="text-slate-400">{p.email}</div>
+                      <div className="text-slate-400 text-[11px]">{p.email}</div>
                     </td>
                     <td className="px-6 py-4">
                       <Badge variant="outline" className="capitalize border-slate-700 bg-slate-800 text-slate-300">
@@ -395,7 +680,10 @@ export function AdminPartnersPage() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4">
-                      <Badge variant={p.is_verified ? "default" : "warning"} className={p.is_verified ? "bg-emerald-600 text-white" : ""}>
+                      <Badge
+                        variant={p.is_verified ? "default" : "outline"}
+                        className={p.is_verified ? "bg-emerald-600 text-white font-bold" : "border-slate-700 text-slate-400"}
+                      >
                         {p.is_verified ? "KYC Approved" : "KYC Pending"}
                       </Badge>
                     </td>
@@ -413,16 +701,66 @@ export function AdminPartnersPage() {
             </tbody>
           </table>
         </div>
+
+        <AdminPagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalRecords={totalRecords}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       </Card>
+
+      {/* PARTNER DETAIL DRAWER */}
+      {selectedPartner && (
+        <AdminDetailDrawer
+          isOpen={!!selectedPartner}
+          onClose={() => setSelectedPartner(null)}
+          title={selectedPartner.full_name}
+          subtitle={`Host ID: ${selectedPartner.id}`}
+          badge={{
+            text: selectedPartner.is_verified ? "KYC Verified Host" : "KYC Pending Review",
+            variant: selectedPartner.is_verified ? "default" : "outline",
+          }}
+          fields={[
+            { label: "Email Address", value: selectedPartner.email, icon: Mail },
+            { label: "Host Role", value: <span className="capitalize font-bold">{selectedPartner.role}</span>, icon: Tag },
+            {
+              label: "Account Status",
+              value: (
+                <Badge variant={selectedPartner.is_active ? "default" : "destructive"}>
+                  {selectedPartner.is_active ? "Active & Live" : "Suspended"}
+                </Badge>
+              ),
+              icon: UserCheck,
+            },
+            {
+              label: "Registered Date",
+              value: selectedPartner.created_at ? new Date(selectedPartner.created_at).toLocaleString() : "—",
+              icon: Clock,
+            },
+          ]}
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedPartner(null)}
+              className="border-slate-700 text-slate-300"
+            >
+              Close
+            </Button>
+          }
+        />
+      )}
     </div>
   );
 }
 
 // ==========================================
-// 4. ADMIN PARTNER VERIFICATION QUEUE
-// ==========================================
-// ==========================================
-// 4. ADMIN PARTNER VERIFICATION QUEUE
+// 4. ADMIN PARTNER VERIFICATION QUEUE (KYC)
 // ==========================================
 export function AdminVerificationPage() {
   const [applications, setApplications] = useState<PartnerApplicationData[]>([]);
@@ -431,6 +769,10 @@ export function AdminVerificationPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Pagination state
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
 
   // Modal inspection states
   const [selectedApp, setSelectedApp] = useState<PartnerApplicationData | null>(null);
@@ -444,6 +786,7 @@ export function AdminVerificationPage() {
     try {
       const res = await getAdminPartnerApplications({
         status: statusFilter === "ALL" ? undefined : statusFilter,
+        limit: 100,
       });
       setApplications(res || []);
     } catch (err: unknown) {
@@ -456,6 +799,10 @@ export function AdminVerificationPage() {
   useEffect(() => {
     fetchApplications();
   }, [fetchApplications]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter]);
 
   const handleApprove = async (app: PartnerApplicationData) => {
     setActionLoadingId(app.id);
@@ -500,13 +847,19 @@ export function AdminVerificationPage() {
   const getStatusBadge = (st: string) => {
     switch (st.toUpperCase()) {
       case "APPROVED":
-        return <Badge className="bg-emerald-600 text-white border-0">Approved</Badge>;
+        return <Badge className="bg-emerald-600 text-white border-0 font-bold">Approved</Badge>;
       case "REJECTED":
         return <Badge variant="destructive">Needs Changes</Badge>;
       default:
-        return <Badge className="bg-amber-500 text-white border-0">Pending Verification</Badge>;
+        return <Badge className="bg-amber-500 text-white border-0 font-bold">Pending Review</Badge>;
     }
   };
+
+  const totalRecords = applications.length;
+  const paginatedApplications = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return applications.slice(start, start + pageSize);
+  }, [applications, page, pageSize]);
 
   return (
     <div className="space-y-6">
@@ -530,7 +883,7 @@ export function AdminVerificationPage() {
               onClick={() => setStatusFilter(tab.id)}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
                 statusFilter === tab.id
-                  ? "bg-emerald-600 text-white shadow-sm"
+                  ? "bg-rose-600 text-white shadow-sm"
                   : "text-slate-400 hover:text-white hover:bg-slate-800/60"
               }`}
             >
@@ -567,10 +920,10 @@ export function AdminVerificationPage() {
         </div>
       )}
 
-      <Card className="overflow-hidden bg-slate-900 border-slate-800">
+      <Card className="overflow-hidden bg-slate-900 border-slate-800 shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
-            <thead className="border-b border-slate-800 bg-slate-950/50 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <thead className="border-b border-slate-800 bg-slate-950/60 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="px-6 py-4">App Code</th>
                 <th className="px-6 py-4">Applicant</th>
@@ -581,26 +934,31 @@ export function AdminVerificationPage() {
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-800/80">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-500">
+                  <td colSpan={7} className="py-12 text-center text-slate-500">
+                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-rose-500" />
                     Loading partner verification queue...
                   </td>
                 </tr>
-              ) : applications.length === 0 ? (
+              ) : paginatedApplications.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-emerald-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-1">
-                      <ShieldCheck className="h-6 w-6" />
+                      <ShieldCheck className="h-6 w-6 text-emerald-400" />
                       <span className="font-bold">No applications found in this queue.</span>
                     </div>
                   </td>
                 </tr>
               ) : (
-                applications.map((app) => (
-                  <tr key={app.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="px-6 py-4 font-mono font-bold text-emerald-400">
+                paginatedApplications.map((app) => (
+                  <tr
+                    key={app.id}
+                    onClick={() => setSelectedApp(app)}
+                    className="hover:bg-slate-800/60 transition-colors cursor-pointer"
+                  >
+                    <td className="px-6 py-4 font-mono font-bold text-rose-400">
                       {app.application_code}
                     </td>
                     <td className="px-6 py-4">
@@ -622,7 +980,7 @@ export function AdminVerificationPage() {
                     <td className="px-6 py-4">
                       {getStatusBadge(app.status)}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
                         <Button
                           size="sm"
@@ -630,7 +988,7 @@ export function AdminVerificationPage() {
                           onClick={() => setSelectedApp(app)}
                           className="h-7 px-2.5 text-xs rounded-lg border-slate-700 hover:bg-slate-800 text-slate-200"
                         >
-                          View Details
+                          Details
                         </Button>
                         {app.status === "PENDING" && (
                           <>
@@ -651,7 +1009,7 @@ export function AdminVerificationPage() {
                                 setRejectionReasonInput("");
                                 setRejectionError(null);
                               }}
-                              className="h-7 px-2.5 text-xs rounded-lg"
+                              className="h-7 px-2.5 text-xs rounded-lg font-bold"
                             >
                               <X className="h-3.5 w-3.5 mr-1" /> Reject
                             </Button>
@@ -665,158 +1023,62 @@ export function AdminVerificationPage() {
             </tbody>
           </table>
         </div>
+
+        <AdminPagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalRecords={totalRecords}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       </Card>
 
-      {/* ========================================== */}
-      {/* APPLICATION DETAIL INSPECTION MODAL */}
-      {/* ========================================== */}
+      {/* APPLICATION DETAIL INSPECTION DRAWER */}
       {selectedApp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-800 text-slate-100 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-6">
-            <div className="flex items-start justify-between border-b border-slate-800 pb-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-black text-white">Application #{selectedApp.application_code}</h3>
-                  {getStatusBadge(selectedApp.status)}
-                </div>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Submitted: {new Date(selectedApp.created_at).toLocaleString("en-IN")}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setSelectedApp(null)}
-                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            {/* Rejection notice if previously rejected */}
-            {selectedApp.rejection_reason && (
-              <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800 text-xs text-rose-300">
-                <span className="font-bold">Rejection Feedback: </span>
-                {selectedApp.rejection_reason}
-              </div>
-            )}
-
-            {/* Grid Sections */}
-            <div className="space-y-4 text-xs">
-              {/* 1. Personal & Contact */}
-              <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-800/80 space-y-2">
-                <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Personal &amp; Contact</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <div>
-                    <span className="text-slate-500">Applicant:</span>
-                    <p className="font-bold text-white">{selectedApp.full_name}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-500">Mobile:</span>
-                    <p className="font-bold text-white">{selectedApp.mobile}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-500">Email:</span>
-                    <p className="font-bold text-white">{selectedApp.email}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-500">Location:</span>
-                    <p className="font-bold text-white">{selectedApp.address}, {selectedApp.district}, {selectedApp.state}</p>
-                    {selectedApp.latitude && selectedApp.longitude && (
-                      <p className="text-[10px] text-emerald-400 mt-0.5">GPS: {selectedApp.latitude}, {selectedApp.longitude}</p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* 2. Professional & Business */}
-              <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-800/80 space-y-2">
-                <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Professional Profile</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <div>
-                    <span className="text-slate-500">Host Role:</span>
-                    <p className="font-bold text-white capitalize">{selectedApp.role_type}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-500">Business / Farm Name:</span>
-                    <p className="font-bold text-white">{selectedApp.business_name}</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-500">Experience:</span>
-                    <p className="font-bold text-white">{selectedApp.experience_years} Years</p>
-                  </div>
-                  <div>
-                    <span className="text-slate-500">Languages:</span>
-                    <p className="font-bold text-white">{selectedApp.languages || "None specified"}</p>
-                  </div>
-                  {selectedApp.bio && (
-                    <div className="sm:col-span-2">
-                      <span className="text-slate-500">Bio &amp; Story:</span>
-                      <p className="text-slate-300 mt-0.5 leading-relaxed bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
-                        {selectedApp.bio}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* 3. Services & Activities */}
-              <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-800/80 space-y-3">
-                <div>
-                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1.5">
-                    Offered Services ({selectedApp.services?.length || 0})
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedApp.services?.map((s, i) => (
-                      <Badge key={i} className="bg-emerald-950 text-emerald-300 border border-emerald-800 text-[11px]">
-                        {s}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1.5">
-                    Offered Activities ({selectedApp.activities?.length || 0})
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    {selectedApp.activities?.map((a, i) => (
-                      <Badge key={i} variant="outline" className="text-teal-300 border-teal-800 text-[11px]">
-                        {a}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* 4. KYC & Verification Document */}
-              <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-800/80 space-y-2">
-                <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Identity &amp; KYC Verification</span>
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
-                  <div>
-                    <span className="text-slate-500">Document Type &amp; Number:</span>
-                    <p className="font-bold text-white">{selectedApp.id_type} &bull; <span className="font-mono text-emerald-400">{selectedApp.id_number}</span></p>
-                  </div>
-                  <div>
-                    {selectedApp.document_url ? (
-                      <a
-                        href={selectedApp.document_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition-colors"
-                      >
-                        <span>View Uploaded Document</span>
-                      </a>
-                    ) : (
-                      <span className="text-slate-500 italic text-xs">No file uploaded</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Modal Actions */}
-            <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+        <AdminDetailDrawer
+          isOpen={!!selectedApp}
+          onClose={() => setSelectedApp(null)}
+          title={`Application #${selectedApp.application_code}`}
+          subtitle={`Applicant: ${selectedApp.full_name} (${selectedApp.business_name})`}
+          badge={{
+            text: selectedApp.status,
+            variant: selectedApp.status === "APPROVED" ? "default" : selectedApp.status === "REJECTED" ? "destructive" : "outline",
+          }}
+          fields={[
+            { label: "Applicant Name", value: selectedApp.full_name, icon: Users },
+            { label: "Contact Mobile", value: selectedApp.mobile, icon: Phone },
+            { label: "Email Address", value: selectedApp.email, icon: Mail },
+            { label: "Host Role", value: <span className="capitalize font-bold">{selectedApp.role_type}</span>, icon: Tag },
+            { label: "Business / Farm Name", value: selectedApp.business_name, icon: Building2 },
+            { label: "Experience", value: `${selectedApp.experience_years} Years`, icon: Clock },
+            { label: "Location", value: `${selectedApp.address}, ${selectedApp.district}, ${selectedApp.state}`, icon: MapPin, fullWidth: true },
+            { label: "Document Type & ID", value: `${selectedApp.id_type} • ${selectedApp.id_number}`, icon: FileText },
+            {
+              label: "Verification Document",
+              value: selectedApp.document_url ? (
+                <a
+                  href={selectedApp.document_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-emerald-400 hover:underline font-bold"
+                >
+                  <span>View Uploaded File</span>
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              ) : (
+                <span className="text-slate-400 italic">No document file attached</span>
+              ),
+              icon: FileText,
+            },
+          ]}
+          actions={
+            <>
               <Button
                 variant="outline"
+                size="sm"
                 onClick={() => setSelectedApp(null)}
                 className="border-slate-700 text-slate-300"
               >
@@ -826,6 +1088,7 @@ export function AdminVerificationPage() {
                 <div className="flex gap-2">
                   <Button
                     variant="destructive"
+                    size="sm"
                     onClick={() => {
                       setRejectingApp(selectedApp);
                       setRejectionReasonInput("");
@@ -836,6 +1099,7 @@ export function AdminVerificationPage() {
                     Reject with Feedback
                   </Button>
                   <Button
+                    size="sm"
                     onClick={() => handleApprove(selectedApp)}
                     disabled={actionLoadingId === selectedApp.id}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
@@ -844,20 +1108,31 @@ export function AdminVerificationPage() {
                   </Button>
                 </div>
               )}
+            </>
+          }
+        >
+          {selectedApp.rejection_reason && (
+            <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800 text-xs text-rose-300">
+              <span className="font-bold">Rejection Note: </span>
+              {selectedApp.rejection_reason}
             </div>
-          </div>
-        </div>
+          )}
+          {selectedApp.bio && (
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 space-y-1">
+              <span className="font-bold text-slate-400 uppercase text-[10px]">Host Story & Bio</span>
+              <p className="leading-relaxed">{selectedApp.bio}</p>
+            </div>
+          )}
+        </AdminDetailDrawer>
       )}
 
-      {/* ========================================== */}
-      {/* REJECTION REASON PROMPT DIALOG */}
-      {/* ========================================== */}
+      {/* REJECTION REASON DIALOG */}
       {rejectingApp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
           <div className="bg-slate-900 border border-slate-800 text-slate-100 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
             <h3 className="text-base font-black text-white">Reject Partner Application</h3>
             <p className="text-xs text-slate-400">
-              Provide feedback for <strong>{rejectingApp.full_name}</strong>. This message will be sent to the applicant and displayed on their reapplication dashboard.
+              Provide feedback for <strong>{rejectingApp.full_name}</strong>. This message will be recorded in the applicant's record.
             </p>
 
             {rejectionError && (
@@ -873,7 +1148,7 @@ export function AdminVerificationPage() {
                 value={rejectionReasonInput}
                 onChange={(e) => setRejectionReasonInput(e.target.value)}
                 placeholder="e.g. Please upload a clearer copy of your RTC / Land record showing owner name matching applicant..."
-                className="w-full rounded-xl border border-slate-700 bg-slate-800 p-3 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full rounded-xl border border-slate-700 bg-slate-800 p-3 text-xs text-white focus:outline-none focus:ring-2 focus:ring-rose-500"
               />
             </div>
 
@@ -907,27 +1182,29 @@ export function AdminVerificationPage() {
 export function AdminServicesPage() {
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("PENDING");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
+  // Pagination state
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+
   // Modals state
   const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
-  const [isDetailOpen, setIsDetailOpen] = useState<boolean>(false);
   const [rejectingService, setRejectingService] = useState<ServiceItem | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string>("");
   const [removingService, setRemovingService] = useState<ServiceItem | null>(null);
   const [removalReason, setRemovalReason] = useState<string>("");
-  const [blockingProvider, setBlockingProvider] = useState<{ providerId: string; providerName: string } | null>(null);
-  const [blockReason, setBlockReason] = useState<string>("");
 
   const fetchServices = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const filterParam = statusFilter === "ALL" ? undefined : statusFilter;
-      const res = await getAdminServices({ status: filterParam });
-      setServices(res);
+      const res = await getAdminServices({ status: filterParam, limit: 100 });
+      setServices(res || []);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load marketplace listings");
     } finally {
@@ -939,11 +1216,14 @@ export function AdminServicesPage() {
     fetchServices();
   }, [fetchServices]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, searchQuery]);
+
   const handleApprove = async (service: ServiceItem) => {
     setActionLoadingId(service.id);
     try {
       await approveAdminService(service.id);
-      setIsDetailOpen(false);
       setSelectedService(null);
       fetchServices();
     } catch (err: unknown) {
@@ -955,8 +1235,8 @@ export function AdminServicesPage() {
 
   const handleRejectConfirm = async () => {
     if (!rejectingService) return;
-    if (!rejectionReason.trim() || rejectionReason.trim().length < 3) {
-      setError("Please provide a valid rejection reason (minimum 3 characters).");
+    if (!rejectionReason.trim()) {
+      setError("Please provide a valid rejection reason.");
       return;
     }
     setActionLoadingId(rejectingService.id);
@@ -964,7 +1244,6 @@ export function AdminServicesPage() {
       await rejectAdminService(rejectingService.id, rejectionReason.trim());
       setRejectingService(null);
       setRejectionReason("");
-      setIsDetailOpen(false);
       setSelectedService(null);
       fetchServices();
     } catch (err: unknown) {
@@ -976,8 +1255,8 @@ export function AdminServicesPage() {
 
   const handleRemoveConfirm = async () => {
     if (!removingService) return;
-    if (!removalReason.trim() || removalReason.trim().length < 3) {
-      setError("Please provide a valid removal reason (minimum 3 characters).");
+    if (!removalReason.trim()) {
+      setError("Please provide a valid removal reason.");
       return;
     }
     setActionLoadingId(removingService.id);
@@ -985,7 +1264,6 @@ export function AdminServicesPage() {
       await removeAdminService(removingService.id, removalReason.trim());
       setRemovingService(null);
       setRemovalReason("");
-      setIsDetailOpen(false);
       setSelectedService(null);
       fetchServices();
     } catch (err: unknown) {
@@ -995,31 +1273,17 @@ export function AdminServicesPage() {
     }
   };
 
-  const handleBlockProviderConfirm = async () => {
-    if (!blockingProvider) return;
-    if (!blockReason.trim() || blockReason.trim().length < 3) {
-      setError("Please provide a valid provider suspension reason (minimum 3 characters).");
-      return;
-    }
-    setActionLoadingId(blockingProvider.providerId);
-    try {
-      await blockAdminProvider(blockingProvider.providerId, blockReason.trim());
-      setBlockingProvider(null);
-      setBlockReason("");
-      setIsDetailOpen(false);
-      setSelectedService(null);
-      fetchServices();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : `Failed to block provider '${blockingProvider.providerName}'`);
-    } finally {
-      setActionLoadingId(null);
-    }
-  };
+  const filteredServices = useMemo(() => {
+    if (!searchQuery.trim()) return services;
+    const q = searchQuery.toLowerCase();
+    return services.filter((s) => s.title?.toLowerCase().includes(q) || s.provider_name?.toLowerCase().includes(q));
+  }, [services, searchQuery]);
 
-  const openDetail = (s: ServiceItem) => {
-    setSelectedService(s);
-    setIsDetailOpen(true);
-  };
+  const totalRecords = filteredServices.length;
+  const paginatedServices = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredServices.slice(start, start + pageSize);
+  }, [filteredServices, page, pageSize]);
 
   return (
     <div className="space-y-6">
@@ -1028,34 +1292,44 @@ export function AdminServicesPage() {
           title="Service Listing Moderation"
           subtitle="Audit, approve, reject, or remove farm stays and agro-experience listings."
         />
-        <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={fetchServices} className="border-slate-800 bg-slate-900 text-slate-300">
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} /> Refresh
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={fetchServices} disabled={isLoading} className="border-slate-800 bg-slate-900 text-slate-300">
+          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} /> Refresh
+        </Button>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-slate-800 text-xs">
-        {[
-          { key: "PENDING", label: "Pending Review" },
-          { key: "PUBLISHED", label: "Published" },
-          { key: "REJECTED", label: "Rejected" },
-          { key: "REMOVED", label: "Removed / Suspended" },
-          { key: "ALL", label: "All Listings" },
-        ].map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setStatusFilter(tab.key)}
-            className={`px-4 py-2 rounded-xl font-medium transition-all ${
-              statusFilter === tab.key
-                ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-                : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
+      {/* Filter Tabs & Search */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-xl">
+          {[
+            { key: "PENDING", label: "Pending Review" },
+            { key: "PUBLISHED", label: "Published" },
+            { key: "REJECTED", label: "Rejected" },
+            { key: "ALL", label: "All Listings" },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setStatusFilter(tab.key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                statusFilter === tab.key
+                  ? "bg-rose-600 text-white shadow-sm"
+                  : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="relative min-w-[220px]">
+          <Search className="absolute left-3 top-2.5 h-3.5 w-3.5 text-slate-500" />
+          <input
+            type="text"
+            placeholder="Search listings..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-xl bg-slate-950 border border-slate-800 py-1.5 pl-8 pr-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+          />
+        </div>
       </div>
 
       {error && (
@@ -1067,10 +1341,10 @@ export function AdminServicesPage() {
         </div>
       )}
 
-      <Card className="overflow-hidden bg-slate-900 border-slate-800">
+      <Card className="overflow-hidden bg-slate-900 border-slate-800 shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
-            <thead className="border-b border-slate-800 bg-slate-950/50 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <thead className="border-b border-slate-800 bg-slate-950/60 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="px-6 py-4">Service</th>
                 <th className="px-6 py-4">Host / Provider</th>
@@ -1080,42 +1354,34 @@ export function AdminServicesPage() {
                 <th className="px-6 py-4 text-right">Moderation Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-800/80">
               {isLoading ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-500">
-                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-rose-400" />
+                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-rose-500" />
                     Loading listings for moderation queue...
                   </td>
                 </tr>
-              ) : services.length === 0 ? (
+              ) : paginatedServices.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="py-12 text-center text-slate-500">
                     No listings found matching filter '{statusFilter}'.
                   </td>
                 </tr>
               ) : (
-                services.map((s) => (
-                  <tr key={s.id} className="hover:bg-slate-800/40 transition-colors">
+                paginatedServices.map((s) => (
+                  <tr
+                    key={s.id}
+                    onClick={() => setSelectedService(s)}
+                    className="hover:bg-slate-800/60 transition-colors cursor-pointer"
+                  >
                     <td className="px-6 py-4">
-                      <div className="font-bold text-white text-sm">{s.title}</div>
-                      <div className="text-slate-400 flex items-center gap-1 mt-0.5">
-                        <MapPin className="h-3 w-3 text-slate-500" /> {s.location}, {s.district}
-                      </div>
+                      <div className="font-bold text-white">{s.title}</div>
+                      <div className="text-slate-400 text-[11px]">{s.location}</div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="font-medium text-slate-200">{s.provider_name}</div>
-                      <div className="flex items-center gap-1 mt-1">
-                        {s.provider_verified ? (
-                          <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-1.5 py-0.5 rounded">
-                            <ShieldCheck className="h-3 w-3" /> Verified Partner
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-400 bg-amber-950/60 border border-amber-800 px-1.5 py-0.5 rounded">
-                            <ShieldAlert className="h-3 w-3" /> Unverified
-                          </span>
-                        )}
-                      </div>
+                      <div className="text-[11px] text-slate-400">{s.provider_type || "Partner"}</div>
                     </td>
                     <td className="px-6 py-4">
                       <Badge variant="outline" className="border-slate-700 bg-slate-800 text-slate-300">
@@ -1123,54 +1389,35 @@ export function AdminServicesPage() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 font-bold text-emerald-400">
-                      ₹{s.price.toLocaleString()} / {s.unit}
+                      ₹{s.price.toLocaleString()} / {s.unit || "night"}
                     </td>
                     <td className="px-6 py-4">
                       <Badge
-                        variant={
-                          s.status === "PUBLISHED"
-                            ? "default"
-                            : s.status === "REJECTED"
-                            ? "destructive"
-                            : s.status === "REMOVED"
-                            ? "destructive"
-                            : "outline"
-                        }
-                        className={
-                          s.status === "PUBLISHED"
-                            ? "bg-emerald-600 text-white font-bold"
-                            : s.status === "PENDING"
-                            ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
-                            : s.status === "REMOVED"
-                            ? "bg-rose-950 text-rose-300 border border-rose-800"
-                            : ""
-                        }
+                        variant={s.status === "PUBLISHED" ? "default" : s.status === "REJECTED" ? "destructive" : "warning"}
+                        className={s.status === "PUBLISHED" ? "bg-emerald-600 text-white font-bold" : ""}
                       >
                         {s.status}
                       </Badge>
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => openDetail(s)}
-                          className="h-8 px-2.5 text-xs rounded-lg border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
-                          title="Inspect Full Listing Details"
+                          onClick={() => setSelectedService(s)}
+                          className="h-7 px-2 text-xs rounded-lg border-slate-700 text-slate-300 hover:bg-slate-800"
                         >
-                          <Eye className="h-3.5 w-3.5 mr-1" /> View
+                          Details
                         </Button>
-
                         {s.status === "PENDING" && (
                           <>
                             <Button
                               size="sm"
                               disabled={actionLoadingId === s.id}
                               onClick={() => handleApprove(s)}
-                              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-8 px-2.5 text-xs rounded-lg shadow-sm"
-                              title="Approve & Publish Listing"
+                              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-7 px-2 text-xs rounded-lg"
                             >
-                              <Check className="h-3.5 w-3.5 mr-1" /> Approve
+                              Approve
                             </Button>
                             <Button
                               size="sm"
@@ -1180,14 +1427,12 @@ export function AdminServicesPage() {
                                 setRejectingService(s);
                                 setRejectionReason("");
                               }}
-                              className="h-8 px-2.5 text-xs rounded-lg"
-                              title="Reject Listing with Reason"
+                              className="h-7 px-2 text-xs rounded-lg font-bold"
                             >
-                              <X className="h-3.5 w-3.5 mr-1" /> Reject
+                              Reject
                             </Button>
                           </>
                         )}
-
                         {s.status === "PUBLISHED" && (
                           <Button
                             size="sm"
@@ -1197,29 +1442,9 @@ export function AdminServicesPage() {
                               setRemovingService(s);
                               setRemovalReason("");
                             }}
-                            className="bg-rose-900/80 hover:bg-rose-800 text-rose-200 border border-rose-700 h-8 px-2.5 text-xs rounded-lg"
-                            title="Remove Service from Marketplace"
+                            className="h-7 px-2 text-xs rounded-lg font-bold"
                           >
-                            <Trash2 className="h-3.5 w-3.5 mr-1" /> Remove
-                          </Button>
-                        )}
-
-                        {s.provider_id && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            disabled={actionLoadingId === s.provider_id}
-                            onClick={() => {
-                              setBlockingProvider({
-                                providerId: s.provider_id!,
-                                providerName: s.provider_name,
-                              });
-                              setBlockReason("");
-                            }}
-                            className="h-8 px-2 text-xs rounded-lg border-amber-800/60 bg-amber-950/40 text-amber-300 hover:bg-amber-900/50"
-                            title="Suspend/Block Provider Account"
-                          >
-                            <Ban className="h-3.5 w-3.5" />
+                            Remove
                           </Button>
                         )}
                       </div>
@@ -1230,225 +1455,104 @@ export function AdminServicesPage() {
             </tbody>
           </table>
         </div>
+
+        <AdminPagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalRecords={totalRecords}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       </Card>
 
-      {/* SERVICE DETAIL INSPECTION MODAL */}
-      {isDetailOpen && selectedService && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl text-slate-200">
-            {/* Header */}
-            <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h3 className="text-lg font-bold text-white">{selectedService.title}</h3>
-                  <Badge
-                    variant={
-                      selectedService.status === "PUBLISHED"
-                        ? "default"
-                        : selectedService.status === "REJECTED"
-                        ? "destructive"
-                        : "outline"
-                    }
-                    className={
-                      selectedService.status === "PUBLISHED"
-                        ? "bg-emerald-600 text-white"
-                        : selectedService.status === "PENDING"
-                        ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
-                        : ""
-                    }
-                  >
-                    {selectedService.status}
-                  </Badge>
-                </div>
-                <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
-                  <MapPin className="h-3.5 w-3.5 text-slate-500" />
-                  {selectedService.location}, {selectedService.district}, {selectedService.state}
-                </p>
-              </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setIsDetailOpen(false)}
-                className="text-slate-400 hover:text-white"
-              >
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
-
-            {/* Scrollable Content */}
-            <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
-              {/* Host / Provider Information Card */}
-              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
-                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
-                  <span>Host / Provider Information</span>
-                  {selectedService.provider_verified ? (
-                    <span className="inline-flex items-center gap-1 text-emerald-400 bg-emerald-950 border border-emerald-800 px-2 py-0.5 rounded text-[10px]">
-                      <ShieldCheck className="h-3.5 w-3.5" /> Verified Partner
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-amber-400 bg-amber-950 border border-amber-800 px-2 py-0.5 rounded text-[10px]">
-                      <ShieldAlert className="h-3.5 w-3.5" /> Unverified Account
-                    </span>
-                  )}
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-slate-300">
-                  <div>
-                    <span className="text-slate-500">Name:</span> {selectedService.provider_name}
-                  </div>
-                  <div>
-                    <span className="text-slate-500">Role / Type:</span> {selectedService.provider_type}
-                  </div>
-                  {selectedService.provider_email && (
-                    <div>
-                      <span className="text-slate-500">Email:</span> {selectedService.provider_email}
-                    </div>
-                  )}
-                  {selectedService.provider_mobile && (
-                    <div>
-                      <span className="text-slate-500">Mobile:</span> {selectedService.provider_mobile}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Service Details & Pricing */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                  <span className="text-slate-500 block text-[10px]">Category</span>
-                  <span className="font-semibold text-slate-200">{selectedService.category}</span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                  <span className="text-slate-500 block text-[10px]">Pricing</span>
-                  <span className="font-bold text-emerald-400 text-sm">
-                    ₹{selectedService.price.toLocaleString()} / {selectedService.unit}
-                  </span>
-                </div>
-                <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                  <span className="text-slate-500 block text-[10px]">Capacity & Duration</span>
-                  <span className="font-semibold text-slate-200">
-                    {selectedService.max_capacity ? `Up to ${selectedService.max_capacity} guests` : "Standard capacity"}
-                    {selectedService.duration_hours ? ` • ${selectedService.duration_hours} hrs` : ""}
-                  </span>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div>
-                <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Description</h4>
-                <p className="text-slate-300 leading-relaxed bg-slate-950/40 p-3 rounded-xl border border-slate-800 whitespace-pre-wrap">
-                  {selectedService.description}
-                </p>
-              </div>
-
-              {/* Inclusions & Amenities */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {selectedService.inclusions && selectedService.inclusions.length > 0 && (
-                  <div>
-                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Inclusions</h4>
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedService.inclusions.map((item, idx) => (
-                        <span key={idx} className="bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg text-slate-300">
-                          ✓ {item}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {selectedService.amenities && selectedService.amenities.length > 0 && (
-                  <div>
-                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Amenities</h4>
-                    <div className="flex flex-wrap gap-1.5">
-                      {selectedService.amenities.map((item, idx) => (
-                        <span key={idx} className="bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg text-slate-300">
-                          • {item}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Rejection / Removal Reason History if applicable */}
-              {selectedService.rejection_reason && (
-                <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800">
-                  <div className="text-[11px] font-bold uppercase tracking-wider text-rose-400 mb-1">
-                    Moderation Note / Reason
-                  </div>
-                  <p className="text-rose-200">{selectedService.rejection_reason}</p>
-                </div>
-              )}
-            </div>
-
-            {/* Footer Action Buttons */}
-            <div className="p-6 border-t border-slate-800 flex items-center justify-between bg-slate-950/50">
+      {/* SERVICE DETAIL DRAWER */}
+      {selectedService && (
+        <AdminDetailDrawer
+          isOpen={!!selectedService}
+          onClose={() => setSelectedService(null)}
+          title={selectedService.title}
+          subtitle={`Provider: ${selectedService.provider_name} (${selectedService.location})`}
+          badge={{
+            text: selectedService.status,
+            variant: selectedService.status === "PUBLISHED" ? "default" : selectedService.status === "REJECTED" ? "destructive" : "outline",
+          }}
+          fields={[
+            { label: "Category", value: selectedService.category, icon: Tag },
+            { label: "Price / Rate", value: `₹${selectedService.price.toLocaleString()} / ${selectedService.unit || "unit"}`, icon: DollarSign },
+            { label: "Location", value: selectedService.location, icon: MapPin },
+            { label: "Max Capacity", value: selectedService.max_capacity ? `${selectedService.max_capacity} guests` : "Not specified", icon: Users },
+            { label: "Description", value: selectedService.description, icon: FileText, fullWidth: true },
+          ]}
+          actions={
+            <>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setIsDetailOpen(false)}
-                className="border-slate-800 text-slate-400"
+                onClick={() => setSelectedService(null)}
+                className="border-slate-700 text-slate-300"
               >
                 Close
               </Button>
-              <div className="flex items-center gap-2">
-                {selectedService.status === "PENDING" && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => {
-                        setRejectingService(selectedService);
-                        setRejectionReason("");
-                      }}
-                      className="px-4 font-semibold"
-                    >
-                      <X className="h-4 w-4 mr-1.5" /> Reject Listing
-                    </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => handleApprove(selectedService)}
-                      disabled={actionLoadingId === selectedService.id}
-                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4"
-                    >
-                      <Check className="h-4 w-4 mr-1.5" /> Approve & Publish
-                    </Button>
-                  </>
-                )}
-
-                {selectedService.status === "PUBLISHED" && (
+              {selectedService.status === "PENDING" && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => {
+                      setRejectingService(selectedService);
+                      setRejectionReason("");
+                    }}
+                    className="font-bold"
+                  >
+                    Reject Listing
+                  </Button>
                   <Button
                     size="sm"
-                    variant="destructive"
-                    onClick={() => {
-                      setRemovingService(selectedService);
-                      setRemovalReason("");
-                    }}
-                    className="bg-rose-900 hover:bg-rose-800 text-rose-200 border border-rose-700 px-4 font-semibold"
+                    onClick={() => handleApprove(selectedService)}
+                    disabled={actionLoadingId === selectedService.id}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
                   >
-                    <Trash2 className="h-4 w-4 mr-1.5" /> Remove from Marketplace
+                    Approve & Publish
                   </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
+                </div>
+              )}
+              {selectedService.status === "PUBLISHED" && (
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  onClick={() => {
+                    setRemovingService(selectedService);
+                    setRemovalReason("");
+                  }}
+                  className="font-bold"
+                >
+                  Remove from Marketplace
+                </Button>
+              )}
+            </>
+          }
+        />
       )}
 
       {/* REJECTION REASON DIALOG */}
       {rejectingService && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
             <h3 className="text-base font-bold text-white">Reject Service Listing</h3>
             <p className="text-xs text-slate-400">
-              Please provide a clear reason for rejecting <span className="text-white font-semibold">{rejectingService.title}</span>. This feedback will be sent to the host.
+              Provide feedback for <span className="text-white font-semibold">{rejectingService.title}</span>.
             </p>
             <textarea
               rows={4}
               value={rejectionReason}
               onChange={(e) => setRejectionReason(e.target.value)}
-              placeholder="e.g. Inaccurate pricing details, photos do not meet quality guidelines, or missing required farm safety documentation."
+              placeholder="e.g. Missing required photo quality or incomplete accommodation amenities."
               className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-rose-500"
             />
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
               <Button
                 variant="outline"
                 size="sm"
@@ -1473,20 +1577,20 @@ export function AdminServicesPage() {
 
       {/* REMOVAL REASON DIALOG */}
       {removingService && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-md p-6 space-y-4 shadow-2xl">
             <h3 className="text-base font-bold text-white">Remove Listing from Marketplace</h3>
             <p className="text-xs text-slate-400">
-              Removing <span className="text-white font-semibold">{removingService.title}</span> will immediately hide it from public search and booking.
+              Removing <span className="text-white font-semibold">{removingService.title}</span> will immediately hide it from public search.
             </p>
             <textarea
               rows={4}
               value={removalReason}
               onChange={(e) => setRemovalReason(e.target.value)}
-              placeholder="e.g. Policy violation, fraudulent photos, or duplicate listing."
+              placeholder="e.g. Temporary farm maintenance or host request."
               className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-rose-500"
             />
-            <div className="flex justify-end gap-2 pt-2">
+            <div className="flex justify-end gap-2 pt-2 border-t border-slate-800">
               <Button
                 variant="outline"
                 size="sm"
@@ -1500,50 +1604,9 @@ export function AdminServicesPage() {
                 size="sm"
                 disabled={actionLoadingId === removingService.id || !removalReason.trim()}
                 onClick={handleRemoveConfirm}
-                className="bg-rose-900 hover:bg-rose-800 text-rose-200 border border-rose-700 font-bold px-4"
+                className="font-bold px-4"
               >
                 Remove Listing
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* BLOCK PROVIDER CONFIRMATION DIALOG */}
-      {blockingProvider && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
-            <div className="flex items-center gap-2 text-rose-400">
-              <ShieldAlert className="h-5 w-5" />
-              <h3 className="text-base font-bold text-white">Suspend Provider Account</h3>
-            </div>
-            <p className="text-xs text-slate-400">
-              Blocking <span className="text-white font-semibold">{blockingProvider.providerName}</span> will suspend their account and remove all of their active and pending listings from the marketplace.
-            </p>
-            <textarea
-              rows={4}
-              value={blockReason}
-              onChange={(e) => setBlockReason(e.target.value)}
-              placeholder="e.g. Repeated violation of hosting terms, verified fraud report, or invalid KYC documents."
-              className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-rose-500"
-            />
-            <div className="flex justify-end gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setBlockingProvider(null)}
-                className="border-slate-800 text-slate-400"
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                disabled={actionLoadingId === blockingProvider.providerId || !blockReason.trim()}
-                onClick={handleBlockProviderConfirm}
-                className="bg-rose-600 hover:bg-rose-500 text-white font-bold px-4"
-              >
-                Suspend & Remove Listings
               </Button>
             </div>
           </div>
@@ -1559,15 +1622,21 @@ export function AdminServicesPage() {
 export function AdminBookingsPage() {
   const [bookings, setBookings] = useState<ProviderBookingItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Pagination state
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [selectedBooking, setSelectedBooking] = useState<ProviderBookingItem | null>(null);
 
   const fetchBookings = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await getAdminBookings({ status: statusFilter || undefined });
-      setBookings(res);
+      const res = await getAdminBookings({ status: statusFilter || undefined, limit: 100 });
+      setBookings(res || []);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load bookings");
     } finally {
@@ -1579,25 +1648,60 @@ export function AdminBookingsPage() {
     fetchBookings();
   }, [fetchBookings]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, searchQuery]);
+
+  const filteredBookings = useMemo(() => {
+    if (!searchQuery.trim()) return bookings;
+    const q = searchQuery.toLowerCase();
+    return bookings.filter(
+      (b) =>
+        b.booking_code?.toLowerCase().includes(q) ||
+        b.customer_name?.toLowerCase().includes(q) ||
+        b.service_title?.toLowerCase().includes(q)
+    );
+  }, [bookings, searchQuery]);
+
+  const totalRecords = filteredBookings.length;
+  const paginatedBookings = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredBookings.slice(start, start + pageSize);
+  }, [filteredBookings, page, pageSize]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <PageHeader title="Global Bookings & Disputes" subtitle="System-wide reservations and guest dispute mediation." />
-        <div className="flex items-center gap-2">
+        <PageHeader title="Global Bookings & Disputes" subtitle="System-wide reservations, guest manifestations, and payment statuses." />
+        <Button variant="outline" size="sm" onClick={fetchBookings} disabled={isLoading} className="border-slate-800 bg-slate-900 text-slate-300">
+          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} /> Refresh
+        </Button>
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/80 p-3 rounded-2xl border border-slate-800">
+        <div className="flex flex-wrap items-center gap-2 flex-1">
+          <div className="relative min-w-[220px] flex-1">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search code, customer, experience..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-xl bg-slate-950 border border-slate-800 py-2 pl-9 pr-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+            />
+          </div>
+
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-xl bg-slate-900 border border-slate-800 py-2 px-3 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-rose-500"
+            className="rounded-xl bg-slate-950 border border-slate-800 py-2 px-3 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-rose-500"
           >
-            <option value="">All Bookings</option>
+            <option value="">All Statuses</option>
             <option value="PENDING">Pending</option>
             <option value="CONFIRMED">Confirmed</option>
             <option value="COMPLETED">Completed</option>
             <option value="CANCELLED">Cancelled</option>
           </select>
-          <Button variant="outline" size="sm" onClick={fetchBookings} className="border-slate-800 bg-slate-900 text-slate-300">
-            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} /> Refresh
-          </Button>
         </div>
       </div>
 
@@ -1610,10 +1714,10 @@ export function AdminBookingsPage() {
         </div>
       )}
 
-      <Card className="overflow-hidden bg-slate-900 border-slate-800">
+      <Card className="overflow-hidden bg-slate-900 border-slate-800 shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
-            <thead className="border-b border-slate-800 bg-slate-950/50 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <thead className="border-b border-slate-800 bg-slate-950/60 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="px-6 py-4">Ref Code</th>
                 <th className="px-6 py-4">Guest</th>
@@ -1624,22 +1728,29 @@ export function AdminBookingsPage() {
                 <th className="px-6 py-4">Payment</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-800/80">
               {isLoading ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-500">Loading global reservations...</td>
+                  <td colSpan={7} className="py-12 text-center text-slate-500">
+                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-rose-500" />
+                    Loading global reservations...
+                  </td>
                 </tr>
-              ) : bookings.length === 0 ? (
+              ) : paginatedBookings.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-slate-500">No reservations found matching filter.</td>
+                  <td colSpan={7} className="py-12 text-center text-slate-500">No reservations found matching filter.</td>
                 </tr>
               ) : (
-                bookings.map((b) => (
-                  <tr key={b.id} className="hover:bg-slate-800/40 transition-colors">
+                paginatedBookings.map((b) => (
+                  <tr
+                    key={b.id}
+                    onClick={() => setSelectedBooking(b)}
+                    className="hover:bg-slate-800/60 transition-colors cursor-pointer"
+                  >
                     <td className="px-6 py-4 font-mono font-bold text-rose-400">{b.booking_code}</td>
                     <td className="px-6 py-4">
                       <div className="font-bold text-white">{b.customer_name}</div>
-                      <div className="text-slate-400">{b.customer_email || "—"}</div>
+                      <div className="text-slate-400 text-[11px]">{b.customer_email || "—"}</div>
                     </td>
                     <td className="px-6 py-4 font-medium text-slate-200">{b.service_title}</td>
                     <td className="px-6 py-4 text-slate-400">
@@ -1663,7 +1774,7 @@ export function AdminBookingsPage() {
                     <td className="px-6 py-4">
                       <Badge
                         variant={b.payment_status === "PAID" ? "default" : "outline"}
-                        className={b.payment_status === "PAID" ? "bg-emerald-600 text-white" : "border-slate-700 text-slate-400"}
+                        className={b.payment_status === "PAID" ? "bg-emerald-600 text-white font-bold" : "border-slate-700 text-slate-400"}
                       >
                         {b.payment_status}
                       </Badge>
@@ -1674,7 +1785,58 @@ export function AdminBookingsPage() {
             </tbody>
           </table>
         </div>
+
+        <AdminPagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalRecords={totalRecords}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       </Card>
+
+      {/* BOOKING DETAIL DRAWER */}
+      {selectedBooking && (
+        <AdminDetailDrawer
+          isOpen={!!selectedBooking}
+          onClose={() => setSelectedBooking(null)}
+          title={`Booking ${selectedBooking.booking_code}`}
+          subtitle={`Experience: ${selectedBooking.service_title}`}
+          badge={{
+            text: selectedBooking.status,
+            variant: selectedBooking.status === "CONFIRMED" || selectedBooking.status === "COMPLETED" ? "default" : "outline",
+          }}
+          fields={[
+            { label: "Customer Name", value: selectedBooking.customer_name, icon: Users },
+            { label: "Customer Email", value: selectedBooking.customer_email || "Not recorded", icon: Mail },
+            { label: "Check-in Date", value: selectedBooking.start_date, icon: Calendar },
+            { label: "Guest Count", value: `${selectedBooking.guest_count} guests`, icon: Users },
+            { label: "Total Amount", value: `₹${selectedBooking.total_amount.toLocaleString()}`, icon: DollarSign },
+            {
+              label: "Payment Status",
+              value: (
+                <Badge variant={selectedBooking.payment_status === "PAID" ? "default" : "outline"}>
+                  {selectedBooking.payment_status}
+                </Badge>
+              ),
+              icon: CreditCard,
+            },
+          ]}
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedBooking(null)}
+              className="border-slate-700 text-slate-300"
+            >
+              Close
+            </Button>
+          }
+        />
+      )}
     </div>
   );
 }
@@ -1684,15 +1846,21 @@ export function AdminBookingsPage() {
 // ==========================================
 export function AdminPaymentsPage() {
   const [payments, setPayments] = useState<AdminPaymentAuditItem[]>([]);
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Pagination state
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [selectedPayment, setSelectedPayment] = useState<AdminPaymentAuditItem | null>(null);
 
   const fetchPayments = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await getAdminPayments();
-      setPayments(res);
+      const res = await getAdminPayments({ limit: 100 });
+      setPayments(res || []);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load payment transactions");
     } finally {
@@ -1704,13 +1872,43 @@ export function AdminPaymentsPage() {
     fetchPayments();
   }, [fetchPayments]);
 
+  const filteredPayments = useMemo(() => {
+    if (!searchQuery.trim()) return payments;
+    const q = searchQuery.toLowerCase();
+    return payments.filter(
+      (p) =>
+        p.id?.toLowerCase().includes(q) ||
+        p.razorpay_order_id?.toLowerCase().includes(q) ||
+        p.razorpay_payment_id?.toLowerCase().includes(q)
+    );
+  }, [payments, searchQuery]);
+
+  const totalRecords = filteredPayments.length;
+  const paginatedPayments = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredPayments.slice(start, start + pageSize);
+  }, [filteredPayments, page, pageSize]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <PageHeader title="Payment Transactions Audit" subtitle="Razorpay payment settlements, fees, and audit ledger." />
-        <Button variant="outline" size="sm" onClick={fetchPayments} className="border-slate-800 bg-slate-900 text-slate-300">
+        <PageHeader title="Payment Transactions Audit" subtitle="Razorpay payment settlements, transaction IDs, and audit ledger." />
+        <Button variant="outline" size="sm" onClick={fetchPayments} disabled={isLoading} className="border-slate-800 bg-slate-900 text-slate-300">
           <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} /> Refresh
         </Button>
+      </div>
+
+      <div className="flex items-center justify-between gap-3 bg-slate-900/80 p-3 rounded-2xl border border-slate-800">
+        <div className="relative min-w-[240px] flex-1">
+          <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+          <input
+            type="text"
+            placeholder="Search transaction ID or gateway order..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full rounded-xl bg-slate-950 border border-slate-800 py-2 pl-9 pr-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+          />
+        </div>
       </div>
 
       {error && (
@@ -1722,10 +1920,10 @@ export function AdminPaymentsPage() {
         </div>
       )}
 
-      <Card className="overflow-hidden bg-slate-900 border-slate-800">
+      <Card className="overflow-hidden bg-slate-900 border-slate-800 shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
-            <thead className="border-b border-slate-800 bg-slate-950/50 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <thead className="border-b border-slate-800 bg-slate-950/60 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="px-6 py-4">Transaction ID</th>
                 <th className="px-6 py-4">Gateway Order ID</th>
@@ -1735,20 +1933,27 @@ export function AdminPaymentsPage() {
                 <th className="px-6 py-4">Timestamp</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-800/80">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-500">Loading payment audit records...</td>
+                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-rose-500" />
+                    Loading payment audit records...
+                  </td>
                 </tr>
-              ) : payments.length === 0 ? (
+              ) : paginatedPayments.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-500">No payment records found.</td>
+                  <td colSpan={6} className="py-12 text-center text-slate-500">No payment records found.</td>
                 </tr>
               ) : (
-                payments.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="px-6 py-4 font-mono font-bold text-white">{p.id.slice(0, 8)}...</td>
-                    <td className="px-6 py-4 font-mono text-slate-400">{p.razorpay_order_id}</td>
+                paginatedPayments.map((p) => (
+                  <tr
+                    key={p.id}
+                    onClick={() => setSelectedPayment(p)}
+                    className="hover:bg-slate-800/60 transition-colors cursor-pointer"
+                  >
+                    <td className="px-6 py-4 font-mono font-bold text-white">{p.id.slice(0, 10)}...</td>
+                    <td className="px-6 py-4 font-mono text-slate-400">{p.razorpay_order_id || "—"}</td>
                     <td className="px-6 py-4 font-bold text-emerald-400">₹{p.amount.toLocaleString()} {p.currency}</td>
                     <td className="px-6 py-4">
                       <Badge variant={p.status === "PAID" ? "default" : "destructive"}>
@@ -1765,7 +1970,54 @@ export function AdminPaymentsPage() {
             </tbody>
           </table>
         </div>
+
+        <AdminPagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalRecords={totalRecords}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       </Card>
+
+      {/* PAYMENT DETAIL DRAWER */}
+      {selectedPayment && (
+        <AdminDetailDrawer
+          isOpen={!!selectedPayment}
+          onClose={() => setSelectedPayment(null)}
+          title={`Payment #${selectedPayment.id.slice(0, 12)}`}
+          subtitle={`Amount: ₹${selectedPayment.amount.toLocaleString()} ${selectedPayment.currency}`}
+          badge={{
+            text: selectedPayment.status,
+            variant: selectedPayment.status === "PAID" ? "default" : "destructive",
+          }}
+          fields={[
+            { label: "Transaction ID", value: selectedPayment.id, icon: Tag, fullWidth: true },
+            { label: "Razorpay Order ID", value: selectedPayment.razorpay_order_id || "N/A", icon: FileText },
+            { label: "Razorpay Payment ID", value: selectedPayment.razorpay_payment_id || "N/A", icon: FileText },
+            { label: "Settlement Amount", value: `₹${selectedPayment.amount.toLocaleString()} ${selectedPayment.currency}`, icon: DollarSign },
+            { label: "Payment Gateway", value: selectedPayment.method || "Razorpay Gateway", icon: CreditCard },
+            {
+              label: "Timestamp",
+              value: selectedPayment.created_at ? new Date(selectedPayment.created_at).toLocaleString() : "—",
+              icon: Clock,
+            },
+          ]}
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedPayment(null)}
+              className="border-slate-700 text-slate-300"
+            >
+              Close
+            </Button>
+          }
+        />
+      )}
     </div>
   );
 }
@@ -1779,12 +2031,17 @@ export function AdminPayoutsPage() {
   const [error, setError] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
+  // Pagination state
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [selectedPayout, setSelectedPayout] = useState<PayoutItem | null>(null);
+
   const fetchPayouts = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await getAdminPayouts();
-      setPayouts(res);
+      const res = await getAdminPayouts({ limit: 100 });
+      setPayouts(res || []);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load payouts ledger");
     } finally {
@@ -1801,6 +2058,7 @@ export function AdminPayoutsPage() {
     try {
       await updateAdminPayoutStatus(payoutId, { status });
       fetchPayouts();
+      if (selectedPayout?.id === payoutId) setSelectedPayout(null);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : `Failed to update payout to ${status}`);
     } finally {
@@ -1808,11 +2066,17 @@ export function AdminPayoutsPage() {
     }
   };
 
+  const totalRecords = payouts.length;
+  const paginatedPayouts = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return payouts.slice(start, start + pageSize);
+  }, [payouts, page, pageSize]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <PageHeader title="Host Payouts Ledger" subtitle="Review and moderate automated bank payouts to farm hosts." />
-        <Button variant="outline" size="sm" onClick={fetchPayouts} className="border-slate-800 bg-slate-900 text-slate-300">
+        <Button variant="outline" size="sm" onClick={fetchPayouts} disabled={isLoading} className="border-slate-800 bg-slate-900 text-slate-300">
           <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} /> Refresh
         </Button>
       </div>
@@ -1826,10 +2090,10 @@ export function AdminPayoutsPage() {
         </div>
       )}
 
-      <Card className="overflow-hidden bg-slate-900 border-slate-800">
+      <Card className="overflow-hidden bg-slate-900 border-slate-800 shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
-            <thead className="border-b border-slate-800 bg-slate-950/50 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <thead className="border-b border-slate-800 bg-slate-950/60 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="px-6 py-4">Reference</th>
                 <th className="px-6 py-4">Disbursement Amount</th>
@@ -1839,18 +2103,25 @@ export function AdminPayoutsPage() {
                 <th className="px-6 py-4 text-right">Moderation</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-800/80">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-500">Loading payouts ledger...</td>
+                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-rose-500" />
+                    Loading payouts ledger...
+                  </td>
                 </tr>
-              ) : payouts.length === 0 ? (
+              ) : paginatedPayouts.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-500">No payout records found.</td>
+                  <td colSpan={6} className="py-12 text-center text-slate-500">No payout records found.</td>
                 </tr>
               ) : (
-                payouts.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-800/40 transition-colors">
+                paginatedPayouts.map((p) => (
+                  <tr
+                    key={p.id}
+                    onClick={() => setSelectedPayout(p)}
+                    className="hover:bg-slate-800/60 transition-colors cursor-pointer"
+                  >
                     <td className="px-6 py-4 font-mono font-bold text-rose-400">{p.payout_code}</td>
                     <td className="px-6 py-4 font-bold text-emerald-400">₹{p.amount.toLocaleString()} {p.currency}</td>
                     <td className="px-6 py-4 text-slate-300">
@@ -1873,7 +2144,7 @@ export function AdminPayoutsPage() {
                     <td className="px-6 py-4 text-slate-400">
                       {p.created_at ? new Date(p.created_at).toLocaleDateString() : "—"}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                       {p.status === "PENDING" || p.status === "PROCESSING" ? (
                         <div className="flex items-center justify-end gap-2">
                           <Button
@@ -1904,7 +2175,76 @@ export function AdminPayoutsPage() {
             </tbody>
           </table>
         </div>
+
+        <AdminPagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalRecords={totalRecords}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       </Card>
+
+      {/* PAYOUT DETAIL DRAWER */}
+      {selectedPayout && (
+        <AdminDetailDrawer
+          isOpen={!!selectedPayout}
+          onClose={() => setSelectedPayout(null)}
+          title={`Payout ${selectedPayout.payout_code}`}
+          subtitle={`Disbursement Amount: ₹${selectedPayout.amount.toLocaleString()} ${selectedPayout.currency}`}
+          badge={{
+            text: selectedPayout.status,
+            variant: selectedPayout.status === "COMPLETED" ? "default" : selectedPayout.status === "FAILED" ? "destructive" : "outline",
+          }}
+          fields={[
+            { label: "Payout Reference", value: selectedPayout.payout_code, icon: Tag },
+            { label: "Host / Provider ID", value: selectedPayout.provider_id, icon: Users },
+            { label: "Net Amount", value: `₹${selectedPayout.amount.toLocaleString()} ${selectedPayout.currency}`, icon: DollarSign },
+            { label: "Bank Account (Last 4)", value: `•••• ${selectedPayout.bank_account_last4 || "4092"}`, icon: Banknote },
+            { label: "Bank IFSC Code", value: selectedPayout.ifsc_code || "SBIN0001234", icon: FileText },
+            {
+              label: "Created Date",
+              value: selectedPayout.created_at ? new Date(selectedPayout.created_at).toLocaleString() : "—",
+              icon: Clock,
+            },
+          ]}
+          actions={
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedPayout(null)}
+                className="border-slate-700 text-slate-300"
+              >
+                Close
+              </Button>
+              {(selectedPayout.status === "PENDING" || selectedPayout.status === "PROCESSING") && (
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => handleUpdateStatus(selectedPayout.id, "FAILED")}
+                    disabled={actionLoadingId === selectedPayout.id}
+                  >
+                    Mark as Failed
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleUpdateStatus(selectedPayout.id, "COMPLETED")}
+                    disabled={actionLoadingId === selectedPayout.id}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                  >
+                    Confirm Disbursement
+                  </Button>
+                </div>
+              )}
+            </>
+          }
+        />
+      )}
     </div>
   );
 }
@@ -1914,15 +2254,23 @@ export function AdminPayoutsPage() {
 // ==========================================
 export function AdminSupportPage() {
   const [tickets, setTickets] = useState<AdminSupportTicketItem[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [priorityFilter, setPriorityFilter] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Pagination state
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [selectedTicket, setSelectedTicket] = useState<AdminSupportTicketItem | null>(null);
 
   const fetchTickets = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const res = await getAdminSupportTickets();
-      setTickets(res);
+      setTickets(res || []);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load support inquiries");
     } finally {
@@ -1934,13 +2282,78 @@ export function AdminSupportPage() {
     fetchTickets();
   }, [fetchTickets]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, priorityFilter, searchQuery]);
+
+  const filteredTickets = useMemo(() => {
+    return tickets.filter((t) => {
+      if (statusFilter && t.status !== statusFilter) return false;
+      if (priorityFilter && t.priority !== priorityFilter) return false;
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        return (
+          t.id?.toLowerCase().includes(q) ||
+          t.user_name?.toLowerCase().includes(q) ||
+          t.subject?.toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [tickets, statusFilter, priorityFilter, searchQuery]);
+
+  const totalRecords = filteredTickets.length;
+  const paginatedTickets = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredTickets.slice(start, start + pageSize);
+  }, [filteredTickets, page, pageSize]);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <PageHeader title="Support Tickets Queue" subtitle="Manage customer and host support inquiries and grievances." />
-        <Button variant="outline" size="sm" onClick={fetchTickets} className="border-slate-800 bg-slate-900 text-slate-300">
+        <PageHeader title="Support Tickets Queue" subtitle="Manage customer and host support inquiries, requests, and grievances." />
+        <Button variant="outline" size="sm" onClick={fetchTickets} disabled={isLoading} className="border-slate-800 bg-slate-900 text-slate-300">
           <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} /> Refresh
         </Button>
+      </div>
+
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/80 p-3 rounded-2xl border border-slate-800">
+        <div className="flex flex-wrap items-center gap-2 flex-1">
+          <div className="relative min-w-[220px] flex-1">
+            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-500" />
+            <input
+              type="text"
+              placeholder="Search ticket code, requester, subject..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-xl bg-slate-950 border border-slate-800 py-2 pl-9 pr-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-rose-500"
+            />
+          </div>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-xl bg-slate-950 border border-slate-800 py-2 px-3 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-rose-500"
+          >
+            <option value="">All Statuses</option>
+            <option value="OPEN">Open</option>
+            <option value="IN_PROGRESS">In Progress</option>
+            <option value="RESOLVED">Resolved</option>
+            <option value="CLOSED">Closed</option>
+          </select>
+
+          <select
+            value={priorityFilter}
+            onChange={(e) => setPriorityFilter(e.target.value)}
+            className="rounded-xl bg-slate-950 border border-slate-800 py-2 px-3 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-rose-500"
+          >
+            <option value="">All Priorities</option>
+            <option value="URGENT">Urgent</option>
+            <option value="HIGH">High</option>
+            <option value="MEDIUM">Medium</option>
+            <option value="LOW">Low</option>
+          </select>
+        </div>
       </div>
 
       {error && (
@@ -1952,10 +2365,10 @@ export function AdminSupportPage() {
         </div>
       )}
 
-      <Card className="overflow-hidden bg-slate-900 border-slate-800">
+      <Card className="overflow-hidden bg-slate-900 border-slate-800 shadow-xl">
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs text-slate-300">
-            <thead className="border-b border-slate-800 bg-slate-950/50 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+            <thead className="border-b border-slate-800 bg-slate-950/60 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               <tr>
                 <th className="px-6 py-4">Ticket ID</th>
                 <th className="px-6 py-4">Requester</th>
@@ -1965,22 +2378,29 @@ export function AdminSupportPage() {
                 <th className="px-6 py-4">Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800">
+            <tbody className="divide-y divide-slate-800/80">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-500">Loading support queue...</td>
+                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-rose-500" />
+                    Loading support queue...
+                  </td>
                 </tr>
-              ) : tickets.length === 0 ? (
+              ) : paginatedTickets.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-500">No open support tickets.</td>
+                  <td colSpan={6} className="py-12 text-center text-slate-500">No support tickets found.</td>
                 </tr>
               ) : (
-                tickets.map((t) => (
-                  <tr key={t.id} className="hover:bg-slate-800/40 transition-colors">
+                paginatedTickets.map((t) => (
+                  <tr
+                    key={t.id}
+                    onClick={() => setSelectedTicket(t)}
+                    className="hover:bg-slate-800/60 transition-colors cursor-pointer"
+                  >
                     <td className="px-6 py-4 font-mono font-bold text-rose-400">{t.id}</td>
                     <td className="px-6 py-4">
                       <div className="font-bold text-white">{t.user_name}</div>
-                      <div className="text-slate-400">{t.user_email}</div>
+                      <div className="text-slate-400 text-[11px]">{t.user_email}</div>
                     </td>
                     <td className="px-6 py-4 font-medium text-slate-200">{t.subject}</td>
                     <td className="px-6 py-4 text-slate-400">{t.category}</td>
@@ -2008,18 +2428,77 @@ export function AdminSupportPage() {
             </tbody>
           </table>
         </div>
+
+        <AdminPagination
+          currentPage={page}
+          pageSize={pageSize}
+          totalRecords={totalRecords}
+          onPageChange={setPage}
+          onPageSizeChange={(newSize) => {
+            setPageSize(newSize);
+            setPage(1);
+          }}
+        />
       </Card>
+
+      {/* TICKET DETAIL DRAWER */}
+      {selectedTicket && (
+        <AdminDetailDrawer
+          isOpen={!!selectedTicket}
+          onClose={() => setSelectedTicket(null)}
+          title={`Ticket ${selectedTicket.id}`}
+          subtitle={`Requester: ${selectedTicket.user_name}`}
+          badge={{
+            text: `${selectedTicket.priority} Priority • ${selectedTicket.status}`,
+            variant: selectedTicket.priority === "URGENT" || selectedTicket.priority === "HIGH" ? "destructive" : "outline",
+          }}
+          fields={[
+            { label: "Requester Name", value: selectedTicket.user_name, icon: Users },
+            { label: "Requester Email", value: selectedTicket.user_email, icon: Mail },
+            { label: "Category", value: selectedTicket.category, icon: Tag },
+            { label: "Current Status", value: selectedTicket.status, icon: LifeBuoy },
+            { label: "Subject", value: selectedTicket.subject, icon: FileText, fullWidth: true },
+          ]}
+          actions={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedTicket(null)}
+              className="border-slate-700 text-slate-300"
+            >
+              Close
+            </Button>
+          }
+        />
+      )}
     </div>
   );
 }
 
 // ==========================================
-// 10. ADMIN SETTINGS
+// 10. ADMIN PLATFORM SETTINGS
 // ==========================================
 export function AdminSettingsPage() {
   const [settings, setSettings] = useState<AdminPlatformSettings | null>(null);
+  const [formData, setFormData] = useState<{
+    platform_name: string;
+    commission_rate: number;
+    currency: string;
+    environment: string;
+    support_email: string;
+    is_maintenance_mode: boolean;
+  }>({
+    platform_name: "NammaConnect",
+    commission_rate: 0.05,
+    currency: "INR",
+    environment: "development",
+    support_email: "support@nammaconnect.com",
+    is_maintenance_mode: false,
+  });
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const fetchSettings = useCallback(async () => {
     setIsLoading(true);
@@ -2027,6 +2506,14 @@ export function AdminSettingsPage() {
     try {
       const res = await getAdminSettings();
       setSettings(res);
+      setFormData({
+        platform_name: res.platform_name,
+        commission_rate: res.commission_rate,
+        currency: res.currency,
+        environment: res.environment,
+        support_email: res.support_email,
+        is_maintenance_mode: res.is_maintenance_mode,
+      });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load platform settings");
     } finally {
@@ -2038,12 +2525,42 @@ export function AdminSettingsPage() {
     fetchSettings();
   }, [fetchSettings]);
 
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSaving(true);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      const updated = await updateAdminSettings({
+        platform_name: formData.platform_name,
+        commission_rate: Number(formData.commission_rate),
+        currency: formData.currency,
+        environment: formData.environment,
+        support_email: formData.support_email,
+        is_maintenance_mode: formData.is_maintenance_mode,
+      });
+      setSettings(updated);
+      setSuccessMsg("Platform settings successfully updated and saved to database!");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to persist platform settings");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Global Platform Settings"
-        subtitle="Platform commission rate, operational currency, and server-authoritative configuration."
+        subtitle="Platform commission rate, operational currency, maintenance modes, and server configuration."
       />
+
+      {successMsg && (
+        <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-800 text-emerald-300 text-xs flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          <span>{successMsg}</span>
+        </div>
+      )}
 
       {error && (
         <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 text-xs flex justify-between items-center">
@@ -2059,55 +2576,156 @@ export function AdminSettingsPage() {
           Loading platform settings...
         </Card>
       ) : settings ? (
-        <Card className="p-6 bg-slate-900 border-slate-800 text-white space-y-6">
-          <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
-            <SettingsIcon className="h-6 w-6 text-rose-400" />
-            <div>
-              <h3 className="font-bold text-sm">Active Platform Configuration</h3>
-              <p className="text-xs text-slate-400">Server-enforced marketplace rates and financial policies.</p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
-            <div className="space-y-1">
-              <label className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Platform Name</label>
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-bold">{settings.platform_name}</div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Platform Take-Rate (Commission)</label>
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-bold text-emerald-400">
-                {(settings.commission_rate * 100).toFixed(0)}% (Host receives 95% net settlement)
+        <div className="space-y-6">
+          <Card className="p-6 bg-slate-900 border-slate-800 text-white space-y-6 shadow-xl">
+            <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
+              <SettingsIcon className="h-6 w-6 text-rose-500" />
+              <div>
+                <h3 className="font-bold text-sm">Active Platform Configuration</h3>
+                <p className="text-xs text-slate-400">Server-enforced marketplace rates and financial policies.</p>
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Operating Currency</label>
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-bold">{settings.currency} (₹ INR)</div>
-            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
+              <div className="space-y-1">
+                <label className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Platform Name</label>
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-bold">{settings.platform_name}</div>
+              </div>
 
-            <div className="space-y-1">
-              <label className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Environment Tier</label>
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-bold uppercase text-rose-400">
-                {settings.environment}
+              <div className="space-y-1">
+                <label className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Platform Take-Rate (Commission)</label>
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-bold text-emerald-400">
+                  {(settings.commission_rate * 100).toFixed(0)}% (Host receives 95% net settlement)
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Operating Currency</label>
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-bold">{settings.currency} (₹ INR)</div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Environment Tier</label>
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-bold uppercase text-rose-400">
+                  {settings.environment}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Support Contact Email</label>
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-bold">{settings.support_email}</div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Maintenance Mode</label>
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-bold">
+                  <Badge variant={settings.is_maintenance_mode ? "destructive" : "default"}>
+                    {settings.is_maintenance_mode ? "Enabled" : "Disabled (Live)"}
+                  </Badge>
+                </div>
               </div>
             </div>
+          </Card>
 
-            <div className="space-y-1">
-              <label className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Support Contact Email</label>
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-bold">{settings.support_email}</div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">Maintenance Mode</label>
-              <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 font-bold">
-                <Badge variant={settings.is_maintenance_mode ? "destructive" : "default"}>
-                  {settings.is_maintenance_mode ? "Enabled" : "Disabled (Live)"}
-                </Badge>
+          <form onSubmit={handleSave}>
+            <Card className="p-6 bg-slate-900 border-slate-800 text-white space-y-6 shadow-xl">
+              <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
+                <SettingsIcon className="h-6 w-6 text-emerald-500" />
+                <div>
+                  <h3 className="font-bold text-sm">Update Platform Configuration</h3>
+                  <p className="text-xs text-slate-400">Save changes directly to PostgreSQL database.</p>
+                </div>
               </div>
-            </div>
-          </div>
-        </Card>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-xs">
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-bold uppercase text-[10px] tracking-wider">Platform Name</label>
+                  <input
+                    type="text"
+                    value={formData.platform_name}
+                    onChange={(e) => setFormData({ ...formData, platform_name: e.target.value })}
+                    className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-rose-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-bold uppercase text-[10px] tracking-wider">Platform Commission Rate (e.g. 0.05 for 5%)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="0.5"
+                    value={formData.commission_rate}
+                    onChange={(e) => setFormData({ ...formData, commission_rate: parseFloat(e.target.value) || 0 })}
+                    className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-xs text-emerald-400 font-bold focus:outline-none focus:ring-1 focus:ring-rose-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-bold uppercase text-[10px] tracking-wider">Operating Currency</label>
+                  <input
+                    type="text"
+                    value={formData.currency}
+                    onChange={(e) => setFormData({ ...formData, currency: e.target.value })}
+                    className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-rose-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-bold uppercase text-[10px] tracking-wider">Environment Tier</label>
+                  <input
+                    type="text"
+                    value={formData.environment}
+                    onChange={(e) => setFormData({ ...formData, environment: e.target.value })}
+                    className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-xs text-rose-400 uppercase font-mono focus:outline-none focus:ring-1 focus:ring-rose-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-bold uppercase text-[10px] tracking-wider">Support Contact Email</label>
+                  <input
+                    type="email"
+                    value={formData.support_email}
+                    onChange={(e) => setFormData({ ...formData, support_email: e.target.value })}
+                    className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-xs text-white focus:outline-none focus:ring-1 focus:ring-rose-500"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-slate-300 font-bold uppercase text-[10px] tracking-wider">Maintenance Mode</label>
+                  <div className="flex items-center gap-3 p-2.5 rounded-xl bg-slate-950 border border-slate-800">
+                    <input
+                      type="checkbox"
+                      id="maintenance_mode_cb"
+                      checked={formData.is_maintenance_mode}
+                      onChange={(e) => setFormData({ ...formData, is_maintenance_mode: e.target.checked })}
+                      className="h-4 w-4 rounded text-rose-600 focus:ring-rose-500 bg-slate-800 border-slate-700"
+                    />
+                    <label htmlFor="maintenance_mode_cb" className="text-xs text-slate-300 font-medium cursor-pointer">
+                      Enable System Maintenance Barrier
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-4 border-t border-slate-800">
+                <Button
+                  type="submit"
+                  disabled={isSaving}
+                  className="bg-rose-600 hover:bg-rose-500 text-white font-bold px-6 rounded-xl shadow-lg"
+                >
+                  {isSaving ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> Saving...
+                    </>
+                  ) : (
+                    "Save Platform Settings"
+                  )}
+                </Button>
+              </div>
+            </Card>
+          </form>
+        </div>
       ) : null}
     </div>
   );

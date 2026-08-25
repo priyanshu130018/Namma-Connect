@@ -51,13 +51,13 @@ export function Divider({
     return (
       <div className={cn("relative my-6 flex items-center justify-center", className)}>
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-200" />
+          <div className="w-full border-t border-slate-200 dark:border-slate-800" />
         </div>
-        <span className="relative bg-white px-3 text-xs font-semibold uppercase tracking-wider text-slate-400">
+        <span className="relative bg-white dark:bg-slate-900 px-3 text-xs font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">
           {text}
         </span>
       </div>
     );
   }
-  return <hr className={cn("my-6 border-t border-slate-200", className)} />;
+  return <hr className={cn("my-6 border-t border-slate-200 dark:border-slate-800", className)} />;
 }

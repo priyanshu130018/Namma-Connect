@@ -14,6 +14,7 @@ from app.models.support import SupportTicket
 from app.models.refund import Refund
 from app.models.saved_service import SavedService
 from app.models.partner_application import PartnerApplication
+from app.models.setting import PlatformSetting
 
 __all__ = [
     "Base",
@@ -34,4 +35,5 @@ __all__ = [
     "Refund",
     "SavedService",
     "PartnerApplication",
+    "PlatformSetting",
 ]

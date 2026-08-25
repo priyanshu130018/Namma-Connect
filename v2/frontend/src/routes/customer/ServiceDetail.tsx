@@ -295,51 +295,51 @@ export function CustomerServiceDetailPage() {
         {/* Left Column: Details & Host Bio */}
         <div className="lg:col-span-7 space-y-6">
           {/* Host Profile Card */}
-          <Card className="p-6 rounded-3xl border-slate-200 bg-white shadow-sm flex items-center justify-between gap-4">
+          <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="h-14 w-14 rounded-2xl bg-harvest-100 text-harvest-800 flex items-center justify-center font-black text-lg shadow-sm">
+              <div className="h-14 w-14 rounded-2xl bg-harvest-100 dark:bg-harvest-950/80 text-harvest-800 dark:text-harvest-300 flex items-center justify-center font-black text-lg shadow-sm">
                 {service.provider_name.charAt(0)}
               </div>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-base font-bold text-slate-900">{service.provider_name}</h3>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">{service.provider_name}</h3>
                   {service.is_verified && (
                     <span title="Verified Agricultural Host">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-slate-500 mt-0.5">{service.provider_type}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{service.provider_type}</p>
               </div>
             </div>
-            <div className="hidden sm:flex items-center gap-2 rounded-2xl bg-emerald-50 px-3.5 py-2 text-xs font-bold text-emerald-800 border border-emerald-200">
-              <ShieldCheck className="h-4 w-4 text-emerald-600" />
+            <div className="hidden sm:flex items-center gap-2 rounded-2xl bg-emerald-50 dark:bg-emerald-950/80 px-3.5 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+              <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
               <span>Aadhaar & Land Verified</span>
             </div>
           </Card>
 
           {/* About Experience */}
-          <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 bg-white shadow-sm space-y-4">
-            <h3 className="text-lg font-bold text-slate-900">About This Agricultural Experience</h3>
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line">
+          <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">About This Agricultural Experience</h3>
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
               {service.description}
             </p>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-4 border-t border-slate-100 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs">
               {service.duration_hours && (
-                <div className="flex items-center gap-2 text-slate-700">
-                  <Clock className="h-4 w-4 text-harvest-700" />
+                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                  <Clock className="h-4 w-4 text-harvest-700 dark:text-harvest-400" />
                   <span>Duration: {service.duration_hours}h</span>
                 </div>
               )}
               {service.max_capacity && (
-                <div className="flex items-center gap-2 text-slate-700">
-                  <Users className="h-4 w-4 text-harvest-700" />
+                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                  <Users className="h-4 w-4 text-harvest-700 dark:text-harvest-400" />
                   <span>Max Capacity: {service.max_capacity} guests</span>
                 </div>
               )}
-              <div className="flex items-center gap-2 text-slate-700">
-                <Sprout className="h-4 w-4 text-emerald-600" />
+              <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                <Sprout className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 <span>100% Organic Farm</span>
               </div>
             </div>
@@ -347,12 +347,12 @@ export function CustomerServiceDetailPage() {
 
           {/* Inclusions & Highlights */}
           {service.inclusions && service.inclusions.length > 0 && (
-            <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 bg-white shadow-sm space-y-4">
-              <h3 className="text-lg font-bold text-slate-900">What's Included in This Experience</h3>
+            <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">What's Included in This Experience</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {service.inclusions.map((inc, i) => (
-                  <div key={i} className="flex items-start gap-2 text-xs text-slate-700">
-                    <Check className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                  <div key={i} className="flex items-start gap-2 text-xs text-slate-700 dark:text-slate-300">
+                    <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
                     <span>{inc}</span>
                   </div>
                 ))}
@@ -362,15 +362,15 @@ export function CustomerServiceDetailPage() {
 
           {/* Amenities & Farm Features */}
           {service.amenities && service.amenities.length > 0 && (
-            <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 bg-white shadow-sm space-y-4">
-              <h3 className="text-lg font-bold text-slate-900">Property & Estate Amenities</h3>
+            <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Property & Estate Amenities</h3>
               <div className="flex flex-wrap gap-2">
                 {service.amenities.map((amenity, i) => (
                   <span
                     key={i}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700"
+                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-300"
                   >
-                    <Check className="h-3.5 w-3.5 text-harvest-700" />
+                    <Check className="h-3.5 w-3.5 text-harvest-700 dark:text-harvest-400" />
                     {amenity}
                   </span>
                 ))}
@@ -379,10 +379,10 @@ export function CustomerServiceDetailPage() {
           )}
 
           {/* Verified Customer Reviews */}
-          <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 bg-white shadow-sm space-y-4">
+          <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">Verified Customer Reviews</h3>
-              <div className="flex items-center gap-1 text-xs font-bold text-slate-700">
+              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Verified Customer Reviews</h3>
+              <div className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
                 <Star className="h-4 w-4 fill-amber-400 text-amber-500" />
                 <span>{Number(service.rating).toFixed(2)} / 5.0</span>
               </div>
@@ -391,12 +391,12 @@ export function CustomerServiceDetailPage() {
             {reviews.length > 0 ? (
               <div className="space-y-4 pt-2">
                 {reviews.map((rev) => (
-                  <div key={rev.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-100 space-y-2">
+                  <div key={rev.id} className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 space-y-2">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-slate-900">{rev.user_name}</span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-slate-100">{rev.user_name}</span>
                         {rev.is_verified !== false && (
-                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded-full">
+                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.2 rounded-full">
                             Verified Booking
                           </span>
                         )}
@@ -408,13 +408,13 @@ export function CustomerServiceDetailPage() {
                             className={`h-3 w-3 ${
                               i < Math.round(rev.rating)
                                 ? "fill-amber-400 text-amber-500"
-                                : "text-slate-200"
+                                : "text-slate-200 dark:text-slate-700"
                             }`}
                           />
                         ))}
                       </div>
                     </div>
-                    <p className="text-xs text-slate-600 leading-relaxed">{rev.comment}</p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{rev.comment}</p>
                     {rev.created_at && (
                       <p className="text-[10px] text-slate-400 font-medium">
                         {formatDate(rev.created_at)}
@@ -424,7 +424,7 @@ export function CustomerServiceDetailPage() {
                 ))}
               </div>
             ) : (
-              <p className="text-xs text-slate-500 py-4 text-center">
+              <p className="text-xs text-slate-500 dark:text-slate-400 py-4 text-center">
                 No reviews published yet for this new farm listing.
               </p>
             )}
@@ -433,15 +433,15 @@ export function CustomerServiceDetailPage() {
 
         {/* Right Column: Pricing & Availability Workspace */}
         <div className="lg:col-span-5 sticky top-20 space-y-4">
-          <Card className="p-6 rounded-3xl border-slate-200 bg-white shadow-card space-y-6">
+          <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-card space-y-6">
             {/* Pricing Header */}
             <div>
               <span className="text-xs text-slate-400 font-medium block">Starting Price</span>
               <div className="flex items-baseline gap-1.5 mt-1">
-                <span className="text-3xl font-extrabold text-slate-900">
+                <span className="text-3xl font-extrabold text-slate-900 dark:text-slate-100">
                   {formatCurrency(service.price)}
                 </span>
-                <span className="text-xs text-slate-500 font-semibold">/ {service.unit}</span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold">/ {service.unit}</span>
               </div>
             </div>
 

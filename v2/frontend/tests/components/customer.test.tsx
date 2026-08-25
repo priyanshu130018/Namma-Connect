@@ -47,7 +47,7 @@ describe("Customer Application Components", () => {
     );
     expect(screen.getByText(/Namma/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Notifications/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Host Messages/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Messages/i)).toBeInTheDocument();
   });
 
   it("renders CustomerSidebar with ONLY Explore, My Trip, Collaborations, Become a Partner", () => {

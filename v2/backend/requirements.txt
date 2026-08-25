@@ -18,3 +18,6 @@ python-multipart>=0.0.9
 google-auth
 requests
 python-jose
+pydantic[email]
+email-validator
+pgvector

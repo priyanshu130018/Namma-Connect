@@ -51,7 +51,7 @@ export function PartnerSidebar({
             <button
               type="button"
               onClick={onToggleCollapse}
-              className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+              className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
               aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
             >
               {isCollapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
@@ -71,11 +71,11 @@ export function PartnerSidebar({
                   className={cn(
                     "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-xs font-bold transition-all",
                     active
-                      ? "bg-harvest-100/80 text-harvest-950 font-extrabold"
-                      : "text-slate-700 hover:bg-slate-100 hover:text-slate-900"
+                      ? "bg-harvest-100/80 dark:bg-harvest-950/80 text-harvest-950 dark:text-harvest-100 font-extrabold"
+                      : "text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-white"
                   )}
                 >
-                  <Icon className={cn("h-4 w-4 shrink-0", active ? "text-harvest-700" : "text-slate-400")} />
+                  <Icon className={cn("h-4 w-4 shrink-0", active ? "text-harvest-700 dark:text-harvest-400" : "text-slate-400")} />
                   {!isCollapsed && <span className="truncate">{item.label}</span>}
                 </Link>
               </Tooltip>
@@ -91,7 +91,7 @@ export function PartnerSidebar({
       {/* Desktop & Tablet Collapsible Sidebar */}
       <aside
         className={cn(
-          "hidden md:block fixed left-0 top-16 z-20 h-[calc(100vh-4rem)] border-r border-slate-200/80 bg-white transition-all duration-300 ease-in-out",
+          "hidden md:block fixed left-0 top-16 z-20 h-[calc(100vh-4rem)] border-r border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 transition-all duration-300 ease-in-out",
           isCollapsed ? "w-16" : "w-64"
         )}
       >
@@ -105,12 +105,12 @@ export function PartnerSidebar({
             className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm"
             onClick={onCloseMobile}
           />
-          <div className="fixed left-0 top-0 h-full w-72 bg-white shadow-2xl z-50 flex flex-col pt-4">
-            <div className="flex items-center justify-between px-4 pb-3 border-b border-slate-100">
-              <span className="text-sm font-bold text-slate-900">Partner Navigation</span>
+          <div className="fixed left-0 top-0 h-full w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 shadow-2xl z-50 flex flex-col pt-4">
+            <div className="flex items-center justify-between px-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+              <span className="text-sm font-bold text-slate-900 dark:text-slate-100">Partner Navigation</span>
               <button
                 onClick={onCloseMobile}
-                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"
+                className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
               >
                 ✕
               </button>

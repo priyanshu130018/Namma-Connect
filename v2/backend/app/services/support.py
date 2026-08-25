@@ -55,11 +55,20 @@ class SupportService:
         if count > 0:
             return
 
+        customer = db.query(User).filter(User.role == "customer").first()
+        partner = db.query(User).filter(User.role.in_(["partner", "farmer"])).first()
+        admin = db.query(User).filter(User.role == "admin").first()
+
+        fallback_user = customer or partner or admin
+        if not fallback_user:
+            return
+
         seed_data = [
             {
                 "ticket_code": "NC-TICK-1001",
-                "user_name": "Aravind Swamy",
-                "user_email": "aravind@example.com",
+                "user_id": customer.id if customer else fallback_user.id,
+                "user_name": customer.full_name if customer else "Aravind Swamy",
+                "user_email": customer.email if customer else "customer@namnaconnect.test",
                 "booking_id": "NC-BKG-9921",
                 "category": "Booking",
                 "subject": "Inquiry regarding farm tour timings and check-in",
@@ -70,8 +79,9 @@ class SupportService:
             },
             {
                 "ticket_code": "NC-TICK-1002",
-                "user_name": "Plantation Host",
-                "user_email": "host.plantation@example.com",
+                "user_id": partner.id if partner else fallback_user.id,
+                "user_name": partner.full_name if partner else "Plantation Host",
+                "user_email": partner.email if partner else "partner@namnaconnect.test",
                 "booking_id": None,
                 "category": "Service",
                 "subject": "Question about weekend availability calendar settings",
@@ -92,7 +102,7 @@ class SupportService:
         for s in seed_data:
             ticket = SupportTicket(
                 ticket_code=s["ticket_code"],
-                user_id=uuid.uuid4(),
+                user_id=s["user_id"],
                 user_name=s["user_name"],
                 user_email=s["user_email"],
                 booking_id=s["booking_id"],

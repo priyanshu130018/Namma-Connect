@@ -6,6 +6,7 @@ from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.logging import logger
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -61,70 +62,88 @@ class AuthService:
     @classmethod
     def register(cls, db: Session, req: UserRegisterRequest) -> TokenResponse:
         """Register a new user account."""
-        existing_email = UserRepository.get_by_email(db, req.email)
-        if existing_email:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="An account with this email address already exists. Please log in.",
-            )
-
-        if req.mobile:
-            existing_mobile = UserRepository.get_by_mobile(db, req.mobile)
-            if existing_mobile:
+        try:
+            existing_email = UserRepository.get_by_email(db, req.email)
+            if existing_email:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="An account with this mobile number already exists.",
+                    detail="An account with this email address already exists. Please log in.",
                 )
 
-        hashed = get_password_hash(req.password)
-        normalized_role = req.role.lower().strip() if req.role else "customer"
-        if normalized_role not in ["customer", "partner", "farmer", "creator", "admin", "support"]:
-            normalized_role = "customer"
+            if req.mobile:
+                existing_mobile = UserRepository.get_by_mobile(db, req.mobile)
+                if existing_mobile:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail="An account with this mobile number already exists.",
+                    )
 
-        user = UserRepository.create(
-            db,
-            email=req.email.lower().strip(),
-            hashed_password=hashed,
-            full_name=req.full_name.strip(),
-            mobile=req.mobile.strip() if req.mobile else None,
-            role=normalized_role,
-            is_active=True,
-            is_verified=False,
-            phone_verified=False,
-            auth_provider="local",
-        )
-        return cls._build_token_response(user)
+            hashed = get_password_hash(req.password)
+            normalized_role = req.role.lower().strip() if req.role else "customer"
+            if normalized_role not in ["customer", "partner", "farmer", "creator", "admin", "support"]:
+                normalized_role = "customer"
+
+            user = UserRepository.create(
+                db,
+                email=req.email.lower().strip(),
+                hashed_password=hashed,
+                full_name=req.full_name.strip(),
+                mobile=req.mobile.strip() if req.mobile else None,
+                role=normalized_role,
+                is_active=True,
+                is_verified=False,
+                phone_verified=False,
+                auth_provider="local",
+            )
+            return cls._build_token_response(user)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("Registration error: %s", exc, exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Unable to complete registration. Please try again.",
+            )
 
     @classmethod
     def login(cls, db: Session, req: UserLoginRequest) -> TokenResponse:
         """Authenticate user credentials and return JWT bundle."""
-        identifier = req.email.strip()
-        user = UserRepository.get_by_email(db, identifier)
-        if not user:
-            # Fallback check by mobile
-            user = UserRepository.get_by_mobile(db, identifier)
+        try:
+            identifier = req.email.strip()
+            user = UserRepository.get_by_email(db, identifier)
+            if not user:
+                # Fallback check by mobile
+                user = UserRepository.get_by_mobile(db, identifier)
 
-        if not user or not user.hashed_password:
+            if not user or not user.hashed_password:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Incorrect email/mobile or password.",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            if not verify_password(req.password, user.hashed_password):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Incorrect email/mobile or password.",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
+            if not user.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Account has been suspended. Please contact support.",
+                )
+
+            return cls._build_token_response(user)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("Login error: %s", exc, exc_info=True)
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect email/mobile or password.",
-                headers={"WWW-Authenticate": "Bearer"},
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Unable to complete sign-in. Please try again.",
             )
-
-        if not verify_password(req.password, user.hashed_password):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect email/mobile or password.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-
-        if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Account has been suspended. Please contact support.",
-            )
-
-        return cls._build_token_response(user)
 
     @classmethod
     def refresh(cls, db: Session, req: RefreshTokenRequest) -> TokenResponse:
@@ -147,15 +166,26 @@ class AuthService:
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Refresh token is expired or invalid",
             )
+        except HTTPException:
+            raise
 
-        user = UserRepository.get_by_id(db, user_id)
-        if not user or not user.is_active:
+        try:
+            user = UserRepository.get_by_id(db, user_id)
+            if not user or not user.is_active:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="User account no longer active",
+                )
+
+            return cls._build_token_response(user)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.error("Token refresh database error: %s", exc, exc_info=True)
             raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User account no longer active",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Unable to refresh authentication session. Please try again.",
             )
-
-        return cls._build_token_response(user)
 
     @classmethod
     def google_auth(cls, db: Session, req: GoogleAuthRequest) -> TokenResponse:
@@ -225,36 +255,43 @@ class AuthService:
                 detail="Google account email not found in verified credential",
             )
 
-        # 4. Find existing user by google_id or verified email
-        user = UserRepository.get_by_google_id(db, google_sub)
-        if not user:
-            user = UserRepository.get_by_email(db, google_email)
+        # 4. Find or create user in database
+        try:
+            user = UserRepository.get_by_google_id(db, google_sub)
+            if not user:
+                user = UserRepository.get_by_email(db, google_email)
 
-        if not user:
-            user = UserRepository.create(
-                db,
-                email=google_email.lower().strip(),
-                hashed_password=None,
-                full_name=google_name,
-                role="customer",
-                is_active=True,
-                is_verified=True,
-                phone_verified=False,
-                auth_provider="google",
-                google_id=google_sub,
-                avatar_url=google_picture,
+            if not user:
+                user = UserRepository.create(
+                    db,
+                    email=google_email.lower().strip(),
+                    hashed_password=None,
+                    full_name=google_name,
+                    role="customer",
+                    is_active=True,
+                    is_verified=True,
+                    phone_verified=False,
+                    auth_provider="google",
+                    google_id=google_sub,
+                    avatar_url=google_picture,
+                )
+            else:
+                update_kwargs = {}
+                if not user.google_id:
+                    update_kwargs["google_id"] = google_sub
+                if not user.is_verified:
+                    update_kwargs["is_verified"] = True
+                if google_picture and not user.avatar_url:
+                    update_kwargs["avatar_url"] = google_picture
+                if update_kwargs:
+                    user = UserRepository.update(db, user, **update_kwargs)
+            return cls._build_token_response(user)
+        except Exception as exc:
+            logger.error("Google authentication database error: %s", exc, exc_info=True)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Unable to complete sign-in. Please try again.",
             )
-        else:
-            update_kwargs = {}
-            if not user.google_id:
-                update_kwargs["google_id"] = google_sub
-            if not user.is_verified:
-                update_kwargs["is_verified"] = True
-            if google_picture and not user.avatar_url:
-                update_kwargs["avatar_url"] = google_picture
-            if update_kwargs:
-                user = UserRepository.update(db, user, **update_kwargs)
-        return cls._build_token_response(user)
 
     @classmethod
     def change_password(

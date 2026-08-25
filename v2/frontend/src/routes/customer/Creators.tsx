@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Star, ArrowUpRight, Sparkles, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Star, Sparkles, RefreshCw, AlertCircle, CheckCircle2 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -65,15 +65,15 @@ export function CustomerCreatorsPage() {
       {isLoading && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-pulse">
           {[1, 2, 3].map((i) => (
-            <Card key={i} className="p-6 rounded-3xl border-slate-200 bg-white space-y-4">
+            <Card key={i} className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
               <div className="flex items-center gap-3">
-                <div className="h-14 w-14 rounded-2xl bg-slate-200 shrink-0" />
+                <div className="h-14 w-14 rounded-2xl bg-slate-200 dark:bg-slate-800 shrink-0" />
                 <div className="space-y-2 flex-1">
-                  <div className="h-4 bg-slate-200 rounded w-2/3" />
-                  <div className="h-3 bg-slate-200 rounded w-1/3" />
+                  <div className="h-4 bg-slate-200 dark:bg-slate-800 rounded w-2/3" />
+                  <div className="h-3 bg-slate-200 dark:bg-slate-800 rounded w-1/3" />
                 </div>
               </div>
-              <div className="h-10 bg-slate-200 rounded" />
+              <div className="h-10 bg-slate-200 dark:bg-slate-800 rounded" />
             </Card>
           ))}
         </div>
@@ -82,11 +82,11 @@ export function CustomerCreatorsPage() {
       {!isLoading && !error && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {creators.map((creator) => (
-            <Card key={creator.id} hover className="overflow-hidden rounded-3xl border-slate-200 bg-white flex flex-col justify-between shadow-sm">
+            <Card key={creator.id} hover className="overflow-hidden rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col justify-between shadow-sm">
               <div className="p-6 space-y-4">
                 {/* Avatar & Header */}
                 <div className="flex items-center gap-3.5">
-                  <div className="h-14 w-14 rounded-2xl overflow-hidden bg-purple-100 shrink-0">
+                  <div className="h-14 w-14 rounded-2xl overflow-hidden bg-purple-100 dark:bg-purple-950/60 shrink-0">
                     <AppImage
                       src={creator.avatar_url || "https://images.unsplash.com/photo-1534528741775-53994a69daeb"}
                       alt={creator.display_name}
@@ -95,9 +95,9 @@ export function CustomerCreatorsPage() {
                     />
                   </div>
                   <div className="min-w-0">
-                    <h3 className="text-base font-bold text-slate-900 truncate">{creator.display_name}</h3>
-                    <p className="text-xs font-mono text-purple-700 font-semibold">{creator.handle}</p>
-                    <div className="flex items-center gap-2 text-[11px] text-slate-500 mt-0.5">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 truncate">{creator.display_name}</h3>
+                    <p className="text-xs font-mono text-purple-700 dark:text-purple-400 font-semibold">{creator.handle}</p>
+                    <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                       <div className="flex items-center gap-0.5 text-amber-500 font-bold">
                         <Star className="h-3 w-3 fill-amber-400" />
                         <span>{creator.rating.toFixed(2)}</span>
@@ -109,7 +109,7 @@ export function CustomerCreatorsPage() {
                 </div>
 
                 {/* Bio & Specialty */}
-                <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
+                <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-2">
                   {creator.bio}
                 </p>
 
@@ -122,21 +122,18 @@ export function CustomerCreatorsPage() {
                 </div>
               </div>
 
-              {/* Pricing & CTA */}
-              <div className="border-t border-slate-100 p-5 bg-slate-50/50 flex items-center justify-between">
+              {/* Action Footer */}
+              <div className="border-t border-slate-100 dark:border-slate-800 p-4 bg-slate-50/60 dark:bg-slate-950/40 flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] text-slate-400 uppercase font-bold block">Rate Starting</span>
-                  <span className="text-sm font-extrabold text-slate-900">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Starting at</span>
+                  <span className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
                     {formatCurrency(creator.starting_rate)}
                   </span>
                 </div>
-
-                <Link
-                  to={`/app/creators/${creator.id}`}
-                  className="inline-flex items-center gap-1 rounded-xl bg-purple-600 hover:bg-purple-700 text-white px-3.5 py-2 text-xs font-bold transition-colors shadow-sm"
-                >
-                  <span>Media Kit</span>
-                  <ArrowUpRight className="h-3.5 w-3.5" />
+                <Link to={`/app/creators/${creator.id}`}>
+                  <Button size="sm" className="font-bold text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-xl">
+                    View Portfolio
+                  </Button>
                 </Link>
               </div>
             </Card>
@@ -205,9 +202,9 @@ export function CustomerCreatorDetailPage() {
         ← Back to Creators
       </Link>
 
-      <Card className="p-8 rounded-3xl border-slate-200 bg-white space-y-6 shadow-sm">
+      <Card className="p-8 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-6 shadow-sm">
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="h-20 w-20 rounded-3xl overflow-hidden bg-purple-100 shrink-0">
+          <div className="h-20 w-20 rounded-3xl overflow-hidden bg-purple-100 dark:bg-purple-950/60 shrink-0">
             <AppImage
               src={creator.avatar_url || "https://images.unsplash.com/photo-1534528741775-53994a69daeb"}
               alt={creator.display_name}
@@ -217,47 +214,47 @@ export function CustomerCreatorDetailPage() {
           </div>
           <div className="space-y-1">
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-extrabold text-slate-900">{creator.display_name}</h1>
+              <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">{creator.display_name}</h1>
               <Badge variant="purple" className="text-xs">Verified Creator</Badge>
             </div>
-            <p className="text-xs font-mono font-bold text-purple-700">{creator.handle}</p>
-            <p className="text-xs text-slate-600">{creator.location}</p>
+            <p className="text-xs font-mono font-bold text-purple-700 dark:text-purple-400">{creator.handle}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-400">{creator.location}</p>
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 border-y border-slate-100 py-4 text-center">
+        <div className="grid grid-cols-3 gap-4 border-y border-slate-100 dark:border-slate-800 py-4 text-center">
           <div>
-            <span className="text-lg font-black text-slate-900">{creator.reach}</span>
+            <span className="text-lg font-black text-slate-900 dark:text-slate-100">{creator.reach}</span>
             <span className="text-[10px] text-slate-400 block uppercase font-semibold">Total Audience</span>
           </div>
           <div>
-            <span className="text-lg font-black text-amber-600 flex items-center justify-center gap-1">
+            <span className="text-lg font-black text-amber-600 dark:text-amber-400 flex items-center justify-center gap-1">
               <Star className="h-4 w-4 fill-amber-400" /> {creator.rating.toFixed(2)}
             </span>
             <span className="text-[10px] text-slate-400 block uppercase font-semibold">Quality Rating</span>
           </div>
           <div>
-            <span className="text-lg font-black text-emerald-700">{creator.reviews_count}</span>
+            <span className="text-lg font-black text-emerald-700 dark:text-emerald-400">{creator.reviews_count}</span>
             <span className="text-[10px] text-slate-400 block uppercase font-semibold">Completed Projects</span>
           </div>
         </div>
 
         <div className="space-y-2">
-          <h3 className="text-sm font-bold text-slate-900">About Media Capabilities</h3>
-          <p className="text-xs text-slate-600 leading-relaxed">{creator.bio}</p>
+          <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">About Media Capabilities</h3>
+          <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{creator.bio}</p>
         </div>
 
         {/* Portfolio Showcase */}
         {creator.portfolio_items.length > 0 && (
           <div className="space-y-3 pt-2">
-            <h3 className="text-sm font-bold text-slate-900">Verified Portfolio Work</h3>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Verified Portfolio Work</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {creator.portfolio_items.map((item, idx) => (
-                <div key={idx} className="rounded-2xl overflow-hidden border border-slate-200 bg-slate-50">
+                <div key={idx} className="rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800">
                   <AppImage src={item.imageUrl} alt={item.title} aspectRatio="video" className="w-full object-cover" />
                   <div className="p-3 space-y-0.5">
-                    <p className="text-xs font-bold text-slate-900">{item.title}</p>
-                    <p className="text-[10px] text-slate-500">{item.location}</p>
+                    <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{item.title}</p>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400">{item.location}</p>
                   </div>
                 </div>
               ))}

@@ -51,22 +51,22 @@ export function Drawer({
       />
       <div
         className={cn(
-          "fixed bg-white p-6 shadow-2xl flex flex-col border-slate-200",
+          "fixed bg-white dark:bg-slate-900 p-6 shadow-2xl flex flex-col border-slate-200 dark:border-slate-800 text-slate-900 dark:text-slate-100",
           sideClasses[side],
           className
         )}
       >
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+        <div className="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
           <div>
-            {title && <h3 className="text-lg font-bold text-slate-900">{title}</h3>}
+            {title && <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">{title}</h3>}
             {description && (
-              <p className="text-xs text-slate-500 mt-0.5">{description}</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{description}</p>
             )}
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+            className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
           >
             <X className="h-5 w-5" />
           </button>

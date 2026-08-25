@@ -161,11 +161,11 @@ export function CustomerMessagesPage() {
         </div>
       )}
 
-      <Card className="rounded-3xl border-slate-200 bg-white overflow-hidden shadow-sm">
+      <Card className="rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
         <div className="grid grid-cols-1 md:grid-cols-12 min-h-[560px]">
           {/* ── Threads List (4 cols) ── */}
           <div
-            className={`md:col-span-4 border-r border-slate-100 p-3 space-y-1 ${
+            className={`md:col-span-4 border-r border-slate-100 dark:border-slate-800 p-3 space-y-1 ${
               mobileShowThread ? "hidden md:block" : "block"
             }`}
           >
@@ -176,7 +176,7 @@ export function CustomerMessagesPage() {
             {isLoadingConversations && (
               <div className="space-y-2 p-2 animate-pulse">
                 {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-16 bg-slate-100 rounded-2xl" />
+                  <div key={i} className="h-16 bg-slate-100 dark:bg-slate-800 rounded-2xl" />
                 ))}
               </div>
             )}
@@ -184,7 +184,7 @@ export function CustomerMessagesPage() {
             {!isLoadingConversations && conversations.length === 0 && (
               <div className="p-8 text-center space-y-2">
                 <MessageSquare className="h-8 w-8 text-slate-300 mx-auto" />
-                <p className="text-xs font-bold text-slate-700">No conversations yet.</p>
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No conversations yet.</p>
                 <p className="text-[11px] text-slate-400">
                   When you book a retreat or reach out to a host, your message threads will appear here.
                 </p>
@@ -197,12 +197,12 @@ export function CustomerMessagesPage() {
                 onClick={() => handleSelectThread(t.id)}
                 className={`p-3 rounded-2xl cursor-pointer transition-all ${
                   activeThreadId === t.id
-                    ? "bg-emerald-50 text-emerald-950 border border-emerald-200/60 shadow-sm"
-                    : "hover:bg-slate-50 text-slate-700"
+                    ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-950 dark:text-emerald-200 border border-emerald-200/60 dark:border-emerald-800/60 shadow-sm"
+                    : "hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-transparent"
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-900 truncate">
+                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
                     {t.participant_name}
                   </span>
                   <span className="text-[10px] text-slate-400 font-medium">
@@ -210,12 +210,12 @@ export function CustomerMessagesPage() {
                   </span>
                 </div>
                 {t.subject && (
-                  <p className="text-[11px] text-emerald-800 font-medium truncate mt-0.5">
+                  <p className="text-[11px] text-emerald-800 dark:text-emerald-400 font-medium truncate mt-0.5">
                     {t.subject}
                   </p>
                 )}
                 <div className="flex items-center justify-between mt-1 gap-2">
-                  <p className="text-[11px] text-slate-500 truncate flex-1">
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate flex-1">
                     {t.last_message_text || "No messages yet"}
                   </p>
                   {t.unread_count > 0 && (
@@ -230,36 +230,36 @@ export function CustomerMessagesPage() {
 
           {/* ── Chat Window (8 cols) ── */}
           <div
-            className={`md:col-span-8 flex flex-col justify-between p-4 sm:p-6 bg-slate-50/40 ${
+            className={`md:col-span-8 flex flex-col justify-between p-4 sm:p-6 bg-slate-50/40 dark:bg-slate-950/40 ${
               mobileShowThread ? "block" : "hidden md:flex"
             }`}
           >
             {currentConv ? (
               <>
                 {/* Thread Header */}
-                <div className="flex items-center justify-between border-b border-slate-200/80 pb-3">
+                <div className="flex items-center justify-between border-b border-slate-200/80 dark:border-slate-800 pb-3">
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
                       onClick={() => setMobileShowThread(false)}
-                      className="md:hidden p-1.5 rounded-xl hover:bg-slate-200 text-slate-600"
+                      className="md:hidden p-1.5 rounded-xl hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400"
                       aria-label="Back to conversations"
                     >
                       <ArrowLeft className="h-4 w-4" />
                     </button>
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400 text-xs font-bold">
                       <User className="h-4 w-4" />
                     </div>
                     <div>
-                      <h4 className="text-xs sm:text-sm font-bold text-slate-900">
+                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">
                         {currentConv.participant_name}
                       </h4>
-                      <p className="text-[10px] text-slate-500">
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">
                         {currentConv.subject || "Verified Host Conversation"}
                       </p>
                     </div>
                   </div>
-                  <Badge variant="outline" className="text-[10px] text-emerald-700 bg-emerald-50 border-emerald-200">
+                  <Badge variant="outline" className="text-[10px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800">
                     Host Partner
                   </Badge>
                 </div>
@@ -290,14 +290,14 @@ export function CustomerMessagesPage() {
                           <div
                             className={`max-w-[78%] rounded-2xl p-3.5 text-xs shadow-sm ${
                               isMe
-                                ? "bg-slate-900 text-white rounded-tr-none"
-                                : "bg-white text-slate-800 border border-slate-200/80 rounded-tl-none"
+                                ? "bg-slate-900 dark:bg-emerald-600 text-white rounded-tr-none"
+                                : "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/80 dark:border-slate-700 rounded-tl-none"
                             }`}
                           >
                             <p className="leading-relaxed whitespace-pre-wrap">{m.content}</p>
                             <div
                               className={`flex items-center gap-1 mt-1 text-[9px] ${
-                                isMe ? "text-slate-400 justify-end" : "text-slate-400"
+                                isMe ? "text-slate-300 justify-end" : "text-slate-400"
                               }`}
                             >
                               <span>{formatTime(m.created_at)}</span>
@@ -313,7 +313,7 @@ export function CustomerMessagesPage() {
                 {/* Input Bar */}
                 <form
                   onSubmit={handleSend}
-                  className="flex items-center gap-2 border-t border-slate-200/80 pt-3"
+                  className="flex items-center gap-2 border-t border-slate-200/80 dark:border-slate-800 pt-3"
                 >
                   <input
                     type="text"
@@ -321,7 +321,7 @@ export function CustomerMessagesPage() {
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
                     disabled={isSending}
-                    className="flex-1 rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-900 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                    className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
                   />
                   <Button
                     type="submit"

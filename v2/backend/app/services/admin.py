@@ -4,21 +4,26 @@ from typing import List, Optional
 from datetime import datetime
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import func, desc, or_
+from sqlalchemy import func, desc, asc, or_
 
 from app.models.user import User
 from app.models.service import Service
 from app.models.booking import Booking
 from app.models.payment import Payment
 from app.models.payout import Payout
+from app.models.partner_application import PartnerApplication
+from app.models.support import SupportTicket
+from app.models.setting import PlatformSetting
 from app.schemas.admin import (
     AdminOverviewResponse,
     AdminUserItemResponse,
+    AdminUserDetailResponse,
     AdminPartnerVerificationRequest,
     AdminServiceStatusRequest,
     AdminPayoutStatusRequest,
     AdminSupportTicketItem,
     AdminPlatformSettingsResponse,
+    AdminPlatformSettingsUpdateRequest,
 )
 from app.schemas.service import ServiceResponse
 from app.schemas.booking import ProviderBookingResponse
@@ -32,12 +37,11 @@ class AdminService:
 
     @classmethod
     def get_platform_overview(cls, db: Session) -> AdminOverviewResponse:
-        """Fetch consolidated platform overview metrics."""
+        """Fetch consolidated platform overview metrics from real database."""
         total_users = db.query(func.count(User.id)).scalar() or 0
         total_partners = db.query(func.count(User.id)).filter(User.role.in_(["partner", "farmer"])).scalar() or 0
-        pending_verifications = db.query(func.count(User.id)).filter(
-            User.role.in_(["partner", "farmer"]),
-            User.is_verified == False
+        pending_verifications = db.query(func.count(PartnerApplication.id)).filter(
+            PartnerApplication.status == "PENDING"
         ).scalar() or 0
 
         published_services = db.query(func.count(Service.id)).filter(Service.status == "PUBLISHED").scalar() or 0
@@ -50,6 +54,10 @@ class AdminService:
             Payout.status.in_(["PENDING", "PROCESSING"])
         ).scalar() or 0
 
+        open_support_tickets = db.query(func.count(SupportTicket.id)).filter(
+            SupportTicket.status.in_(["OPEN", "IN_PROGRESS"])
+        ).scalar() or 0
+
         return AdminOverviewResponse(
             total_users=total_users,
             total_partners=total_partners,
@@ -58,7 +66,7 @@ class AdminService:
             total_bookings=total_bookings,
             total_revenue=round(float(total_revenue), 2),
             pending_payouts=pending_payouts,
-            open_support_tickets=2,
+            open_support_tickets=open_support_tickets,
         )
 
     @classmethod
@@ -67,18 +75,34 @@ class AdminService:
         db: Session,
         role: Optional[str] = None,
         search: Optional[str] = None,
+        is_active: Optional[bool] = None,
+        is_verified: Optional[bool] = None,
+        sort_by: Optional[str] = "newest",
         limit: int = 50,
         offset: int = 0,
     ) -> List[AdminUserItemResponse]:
-        """List platform users with optional role and search filters."""
+        """List platform users with role, search, status, and verification filters."""
         query = db.query(User)
-        if role:
+        if role and role.lower() != "all":
             query = query.filter(User.role == role.lower())
+        if is_active is not None:
+            query = query.filter(User.is_active == is_active)
+        if is_verified is not None:
+            query = query.filter(User.is_verified == is_verified)
         if search:
-            s = f"%{search.lower()}%"
+            s = f"%{search.lower().strip()}%"
             query = query.filter(or_(func.lower(User.full_name).like(s), func.lower(User.email).like(s)))
 
-        users = query.order_by(desc(User.created_at)).offset(offset).limit(limit).all()
+        if sort_by == "oldest":
+            query = query.order_by(asc(User.created_at))
+        elif sort_by == "name_asc":
+            query = query.order_by(asc(User.full_name))
+        elif sort_by == "name_desc":
+            query = query.order_by(desc(User.full_name))
+        else:
+            query = query.order_by(desc(User.created_at))
+
+        users = query.offset(offset).limit(limit).all()
         return [
             AdminUserItemResponse(
                 id=str(u.id),
@@ -94,9 +118,95 @@ class AdminService:
         ]
 
     @classmethod
-    def list_partners(cls, db: Session) -> List[AdminUserItemResponse]:
+    def get_user_by_id(cls, db: Session, user_id: str) -> AdminUserDetailResponse:
+        """Get sanitized user details for admin detail panel."""
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User '{user_id}' not found.")
+        return AdminUserDetailResponse(
+            id=str(user.id),
+            email=user.email,
+            full_name=user.full_name,
+            phone=getattr(user, "mobile", None),
+            role=user.role,
+            is_active=user.is_active,
+            is_verified=user.is_verified,
+            auth_provider=user.auth_provider or "local",
+            location=user.location,
+            language=user.language,
+            avatar_url=user.avatar_url,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+        )
+
+    @classmethod
+    def update_user_status(cls, db: Session, user_id: str, is_active: bool, admin_user: User) -> AdminUserItemResponse:
+        """Activate or deactivate user account with persistent notification."""
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User '{user_id}' not found.")
+
+        user.is_active = is_active
+        user.updated_at = datetime.utcnow()
+
+        msg = "Your account has been activated by the administrator." if is_active else "Your account has been deactivated by the administrator."
+        notif = NotificationService.create_notification(
+            db=db,
+            user_id=user.id,
+            title="Account Status Updated",
+            message=msg,
+            type="admin",
+        )
+        db.commit()
+        db.refresh(user)
+
+        return AdminUserItemResponse(
+            id=str(user.id),
+            email=user.email,
+            full_name=user.full_name,
+            phone=getattr(user, "mobile", None),
+            role=user.role,
+            is_active=user.is_active,
+            is_verified=user.is_verified,
+            created_at=user.created_at,
+        )
+
+    @classmethod
+    def update_user_verification(cls, db: Session, user_id: str, is_verified: bool, admin_user: User) -> AdminUserItemResponse:
+        """Verify or unverify user account with persistent notification."""
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User '{user_id}' not found.")
+
+        user.is_verified = is_verified
+        user.updated_at = datetime.utcnow()
+
+        msg = "Your account has been verified by the administrator." if is_verified else "Your account verification status has been changed by the administrator."
+        NotificationService.create_notification(
+            db=db,
+            user_id=user.id,
+            title="Verification Status Updated",
+            message=msg,
+            type="admin",
+        )
+        db.commit()
+        db.refresh(user)
+
+        return AdminUserItemResponse(
+            id=str(user.id),
+            email=user.email,
+            full_name=user.full_name,
+            phone=getattr(user, "mobile", None),
+            role=user.role,
+            is_active=user.is_active,
+            is_verified=user.is_verified,
+            created_at=user.created_at,
+        )
+
+    @classmethod
+    def list_partners(cls, db: Session, limit: int = 50, offset: int = 0) -> List[AdminUserItemResponse]:
         """List all registered agricultural hosts and providers."""
-        partners = db.query(User).filter(User.role.in_(["partner", "farmer"])).order_by(desc(User.created_at)).all()
+        partners = db.query(User).filter(User.role.in_(["partner", "farmer"])).order_by(desc(User.created_at)).offset(offset).limit(limit).all()
         return [
             AdminUserItemResponse(
                 id=str(u.id),
@@ -626,8 +736,19 @@ class AdminService:
         ]
 
     @classmethod
-    def get_platform_settings(cls) -> AdminPlatformSettingsResponse:
-        """Retrieve global platform configuration."""
+    def get_platform_settings(cls, db: Optional[Session] = None) -> AdminPlatformSettingsResponse:
+        """Retrieve global platform configuration from database."""
+        if db is not None:
+            settings_rows = db.query(PlatformSetting).all()
+            settings_map = {s.key: s.value for s in settings_rows}
+            return AdminPlatformSettingsResponse(
+                platform_name=settings_map.get("platform_name", "NammaConnect"),
+                commission_rate=float(settings_map.get("commission_rate", 0.05)),
+                currency=settings_map.get("currency", "INR"),
+                environment=settings_map.get("environment", "production"),
+                is_maintenance_mode=settings_map.get("is_maintenance_mode", "false").lower() == "true",
+                support_email=settings_map.get("support_email", "support@nammaconnect.in"),
+            )
         return AdminPlatformSettingsResponse(
             platform_name="NammaConnect",
             commission_rate=0.05,
@@ -636,6 +757,35 @@ class AdminService:
             is_maintenance_mode=False,
             support_email="support@nammaconnect.in",
         )
+
+    @classmethod
+    def update_platform_settings(
+        cls,
+        db: Session,
+        payload: AdminPlatformSettingsUpdateRequest,
+        admin_user: User,
+    ) -> AdminPlatformSettingsResponse:
+        """Update platform configuration with database persistence."""
+        updates = {
+            "platform_name": payload.platform_name,
+            "commission_rate": str(payload.commission_rate) if payload.commission_rate is not None else None,
+            "currency": payload.currency,
+            "environment": payload.environment,
+            "is_maintenance_mode": "true" if payload.is_maintenance_mode is True else ("false" if payload.is_maintenance_mode is False else None),
+            "support_email": payload.support_email,
+        }
+
+        for key, val in updates.items():
+            if val is not None:
+                record = db.query(PlatformSetting).filter(PlatformSetting.key == key).first()
+                if record:
+                    record.value = str(val)
+                    record.updated_at = datetime.utcnow()
+                else:
+                    db.add(PlatformSetting(key=key, value=str(val), updated_at=datetime.utcnow()))
+
+        db.commit()
+        return cls.get_platform_settings(db)
 
     @classmethod
     def list_collaborations(cls, db: Session, limit: int = 50, offset: int = 0):

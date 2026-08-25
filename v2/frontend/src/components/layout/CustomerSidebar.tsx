@@ -20,6 +20,7 @@ import {
   Bookmark,
   History,
   Users,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -273,8 +274,27 @@ export function CustomerSidebar({
 
       {/* Pinned Bottom CTA (Status-Aware & Collapsible) */}
       <div className="shrink-0 p-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900">
-        {/* CASE 1: APPROVED PARTNER -> SHOW NAMMACONNECT PARTNER LINK */}
-        {isApprovedPartner ? (
+        {/* CASE 0: SYSTEM ADMIN -> SHOW ADMIN CONSOLE LINK */}
+        {user?.role === "admin" ? (
+          <Tooltip content="System Admin Console" side="right" disabled={!isCollapsed}>
+            <Link
+              to="/admin"
+              onClick={onCloseMobile}
+              className="flex items-center gap-3 rounded-2xl p-2.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-200/80 dark:border-rose-800/80 text-rose-900 dark:text-rose-200 hover:bg-rose-100/70 dark:hover:bg-rose-900/60 transition-all"
+            >
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-rose-600 text-white shadow-sm">
+                <ShieldAlert className="h-4 w-4" />
+              </div>
+              {!isCollapsed && (
+                <div className="overflow-hidden">
+                  <p className="text-xs font-bold leading-tight">Admin Console</p>
+                  <p className="text-[10px] text-rose-700 dark:text-rose-400 font-medium">Open Admin Portal &rarr;</p>
+                </div>
+              )}
+            </Link>
+          </Tooltip>
+        ) : isApprovedPartner ? (
+          /* CASE 1: APPROVED PARTNER -> SHOW NAMMACONNECT PARTNER LINK */
           <Tooltip content="NammaConnect Partner Portal" side="right" disabled={!isCollapsed}>
             <Link
               to="/partner"
