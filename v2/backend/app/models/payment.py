@@ -1,7 +1,7 @@
 """Payment database model for Transaction Records and Gateway Ledgers."""
 
 import uuid
-from sqlalchemy import Column, String, Float, ForeignKey, Index
+from sqlalchemy import Column, String, Float, Boolean, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from app.models.base import Base, GUID, TimestampMixin
 
@@ -24,6 +24,7 @@ class Payment(Base, TimestampMixin):
     amount = Column(Float, nullable=False)  # in INR (e.g. 5600.0)
     currency = Column(String(10), nullable=False, default="INR")
     status = Column(String(32), nullable=False, default="PENDING", index=True)  # PENDING, PROCESSING, PAID, FAILED, CANCELLED
+    is_test_data = Column(Boolean, nullable=False, default=False, index=True)
 
     # ORM Relationships
     booking = relationship("Booking", backref="payments")

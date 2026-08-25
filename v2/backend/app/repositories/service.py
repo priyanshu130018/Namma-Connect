@@ -5,6 +5,7 @@ from typing import Optional, List, Tuple
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, desc, asc, func
 from app.models.service import Service, Review
+from app.models.user import User
 
 
 class ServiceRepository:
@@ -38,6 +39,16 @@ class ServiceRepository:
     ) -> Tuple[List[Service], int]:
         """List discoverable services with SQL-level filters and pagination."""
         query = db.query(Service).filter(Service.status == status)
+
+        # Provider verification filter: only show services from active, verified providers or seed services (provider_id is null)
+        query = query.filter(
+            or_(
+                Service.provider_id.is_(None),
+                Service.provider_id.in_(
+                    db.query(User.id).filter(User.is_active == True, User.is_verified == True)
+                ),
+            )
+        )
 
         if category and category.lower() != "all":
             cat_clean = category.lower().strip()
@@ -94,6 +105,16 @@ class ServiceRepository:
     ) -> Tuple[List[Service], int]:
         """Execute full search on titles, descriptions, and locations."""
         query = db.query(Service).filter(Service.status == status)
+
+        # Provider verification filter: only show services from active, verified providers or seed services (provider_id is null)
+        query = query.filter(
+            or_(
+                Service.provider_id.is_(None),
+                Service.provider_id.in_(
+                    db.query(User.id).filter(User.is_active == True, User.is_verified == True)
+                ),
+            )
+        )
 
         if query_text:
             search_pattern = f"%{query_text.strip()}%"

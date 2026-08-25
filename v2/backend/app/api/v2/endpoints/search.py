@@ -16,16 +16,22 @@ def search_services(
     q: str = Query("", description="Search text query (e.g. coffee, Coorg, trail)"),
     category: Optional[str] = Query(None, description="Category filter"),
     location: Optional[str] = Query(None, description="Location filter"),
+    min_price: Optional[float] = Query(None, description="Minimum price filter"),
+    max_price: Optional[float] = Query(None, description="Maximum price filter"),
+    min_rating: Optional[float] = Query(None, description="Minimum rating filter"),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(12, ge=1, le=50, description="Items per page"),
     db: Session = Depends(get_db),
 ):
-    """Full-text marketplace service search across titles, locations, and descriptions."""
+    """Semantic vector & keyword marketplace service search using pgvector."""
     results = MarketplaceService.search_services(
         db,
         query=q,
         category=category,
         location=location,
+        min_price=min_price,
+        max_price=max_price,
+        min_rating=min_rating,
         page=page,
         limit=limit,
     )

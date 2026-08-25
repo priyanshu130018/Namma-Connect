@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { AppImage } from "@/components/ui/image";
 import { formatCurrency } from "@/lib/utils";
 import { createBooking } from "@/services/bookingService";
-import { createPaymentOrder, verifyPayment } from "@/services/paymentService";
+import { createPaymentOrder, verifyPayment, loadRazorpayScript } from "@/services/paymentService";
 import { MarketplaceService, TimeSlot, BookingItem, PaymentVerificationResult } from "@/types";
 
 declare global {
@@ -49,14 +49,15 @@ export function BookingReviewModal({
   const [guestCount, setGuestCount] = useState<number>(1);
   const [specialRequests, setSpecialRequests] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [isPaying, setIsPaying] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [paymentError, setPaymentError] = useState<string | null>(null);
 
-  // Lifecycle states
+  // Post-Creation Payment State
   const [createdBooking, setCreatedBooking] = useState<BookingItem | null>(null);
+  const [isPaying, setIsPaying] = useState<boolean>(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
   const [confirmedPayment, setConfirmedPayment] = useState<PaymentVerificationResult | null>(null);
 
+  // Max guests calculation
   const maxGuests = Math.min(
     service.max_capacity || 10,
     selectedSlot?.remaining_capacity || service.max_capacity || 10
@@ -127,10 +128,13 @@ export function BookingReviewModal({
     setPaymentError(null);
 
     try {
-      // 1. Fetch Razorpay Order from server
+      // 1. Ensure Razorpay checkout script is loaded
+      await loadRazorpayScript();
+
+      // 2. Fetch authoritative Razorpay Order from server
       const order = await createPaymentOrder(createdBooking.id);
 
-      // 2. Razorpay Checkout Handler
+      // 3. Razorpay Checkout Handler
       const onPaymentSuccess = async (response: {
         razorpay_payment_id: string;
         razorpay_order_id: string;
@@ -178,13 +182,13 @@ export function BookingReviewModal({
           modal: {
             ondismiss: () => {
               setIsPaying(false);
-              setPaymentError("Payment was cancelled. You can retry payment anytime.");
+              setPaymentError("Payment was not completed. You can try again.");
             },
           },
         });
         rzp.open();
-      } else {
-        // Safe development / test fallback checkout flow
+      } else if (typeof import.meta !== "undefined" && import.meta.env?.MODE === "test") {
+        // Safe unit testing mock handler
         const mockPaymentId = `pay_mock_${Date.now()}`;
         const mockSignature = "mock_sig_123456";
         await onPaymentSuccess({
@@ -192,6 +196,10 @@ export function BookingReviewModal({
           razorpay_payment_id: mockPaymentId,
           razorpay_signature: mockSignature,
         });
+      } else {
+        throw new Error(
+          "Unable to load Razorpay payment gateway checkout. Please check your internet connection or disable ad-blockers and try again."
+        );
       }
     } catch (err: any) {
       setPaymentError(

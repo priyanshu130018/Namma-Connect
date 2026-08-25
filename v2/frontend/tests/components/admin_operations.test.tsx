@@ -57,15 +57,30 @@ const mockUsers: AdminUserItem[] = [
   },
 ];
 
-const mockVerificationQueue: AdminUserItem[] = [
+const mockPartnerApplications = [
   {
-    id: "usr-queue-01",
-    email: "anand.farm@example.com",
+    id: "app-queue-01",
+    application_code: "PA-2026-1001",
+    user_id: "usr-queue-01",
+    role_type: "farmer",
     full_name: "Anand Kumar",
-    role: "partner",
-    is_active: true,
-    is_verified: false,
+    email: "anand.farm@example.com",
+    mobile: "9845011223",
+    address: "Farm Road, Mandya",
+    district: "Mandya",
+    state: "Karnataka",
+    business_name: "Anand Organic Sugar Farm",
+    experience_years: 5,
+    bio: "Sugarcane and jaggery production",
+    languages: "Kannada, English",
+    id_type: "Land_RTC",
+    id_number: "RTC-9988",
+    document_url: "https://example.com/rtc.pdf",
+    services: ["Jaggery Making Workshop"],
+    activities: ["Sugarcane Harvesting"],
+    status: "PENDING",
     created_at: "2026-08-10T10:00:00Z",
+    updated_at: "2026-08-10T10:00:00Z",
   },
 ];
 
@@ -84,7 +99,7 @@ const mockServices: ServiceItem[] = [
     state: "Karnataka",
     price: 3500,
     unit: "night",
-    status: "DRAFT",
+    status: "PENDING",
     primary_image: "https://images.unsplash.com/photo-1",
     images: [],
     inclusions: [],
@@ -221,11 +236,11 @@ describe("Admin Operations Component Suite", () => {
   });
 
   it("handles KYC Verification action in AdminVerificationPage", async () => {
-    vi.spyOn(adminService, "getAdminVerificationQueue").mockResolvedValue(mockVerificationQueue);
-    const verifySpy = vi.spyOn(adminService, "verifyAdminPartner").mockResolvedValue({
-      ...mockVerificationQueue[0],
-      is_verified: true,
-    });
+    vi.spyOn(adminService, "getAdminPartnerApplications").mockResolvedValue(mockPartnerApplications as any);
+    const approveSpy = vi.spyOn(adminService, "approveAdminPartnerApplication").mockResolvedValue({
+      ...mockPartnerApplications[0],
+      status: "APPROVED",
+    } as any);
 
     render(
       <BrowserRouter>
@@ -236,21 +251,19 @@ describe("Admin Operations Component Suite", () => {
     await waitFor(() => {
       expect(screen.getByText("Host KYC Verification Queue")).toBeInTheDocument();
       expect(screen.getByText("Anand Kumar")).toBeInTheDocument();
+      expect(screen.getByText("Anand Organic Sugar Farm")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Approve/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^Approve$/i }));
 
     await waitFor(() => {
-      expect(verifySpy).toHaveBeenCalledWith("usr-queue-01", {
-        action: "APPROVE",
-        notes: "Approved by Admin Operations",
-      });
+      expect(approveSpy).toHaveBeenCalledWith("app-queue-01");
     });
   });
 
-  it("handles Service Moderation in AdminServicesPage", async () => {
+  it("renders AdminServicesPage and moderates a service", async () => {
     vi.spyOn(adminService, "getAdminServices").mockResolvedValue(mockServices);
-    const updateSpy = vi.spyOn(adminService, "updateAdminServiceStatus").mockResolvedValue({
+    const approveSpy = vi.spyOn(adminService, "approveAdminService").mockResolvedValue({
       ...mockServices[0],
       status: "PUBLISHED",
     });
@@ -266,10 +279,10 @@ describe("Admin Operations Component Suite", () => {
       expect(screen.getByText("Organic Coffee Estate Stay")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Publish/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Approve/i }));
 
     await waitFor(() => {
-      expect(updateSpy).toHaveBeenCalledWith("srv-01", { status: "PUBLISHED" });
+      expect(approveSpy).toHaveBeenCalledWith("srv-01");
     });
   });
 

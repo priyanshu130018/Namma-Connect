@@ -27,3 +27,4 @@ class User(Base, TimestampMixin):
     theme_preference = Column(String(32), nullable=False, default="system")
     notification_preferences = Column(String(1024), nullable=True, default='{"email": true, "sms": true, "promo": false, "bookings": true, "payments": true, "collaborations": true, "support": true}')
     privacy_preferences = Column(String(512), nullable=True, default='{"share_profile": true, "personalize_location": true}')
+    is_test_data = Column(Boolean, default=False, nullable=False, index=True)

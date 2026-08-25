@@ -14,6 +14,9 @@ from app.schemas.admin import (
     AdminUserItemResponse,
     AdminPartnerVerificationRequest,
     AdminServiceStatusRequest,
+    AdminServiceRejectRequest,
+    AdminServiceRemoveRequest,
+    AdminProviderBlockRequest,
     AdminPayoutStatusRequest,
     AdminSupportTicketItem,
     AdminPlatformSettingsResponse,
@@ -128,6 +131,99 @@ def list_admin_services(
         success=True,
         message=f"Retrieved {len(services)} services",
         data=services,
+    )
+
+
+@router.get("/services/{service_id}", response_model=APIResponse[ServiceResponse])
+def get_admin_service_detail(
+    service_id: str,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Get full details of a service for admin inspection."""
+    service = AdminService.get_service_by_id(db, service_id)
+    return APIResponse(
+        success=True,
+        message="Service details retrieved successfully",
+        data=service,
+    )
+
+
+@router.post("/services/{service_id}/approve", response_model=APIResponse[ServiceResponse])
+def approve_admin_service(
+    service_id: str,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Approve a pending service listing and publish it to the marketplace."""
+    service = AdminService.approve_service(db, service_id, _admin)
+    return APIResponse(
+        success=True,
+        message=f"Service listing '{service.title}' approved and published successfully",
+        data=service,
+    )
+
+
+@router.post("/services/{service_id}/reject", response_model=APIResponse[ServiceResponse])
+def reject_admin_service(
+    service_id: str,
+    req: AdminServiceRejectRequest,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Reject a pending service listing with mandatory feedback reason."""
+    service = AdminService.reject_service(db, service_id, _admin, req.rejection_reason)
+    return APIResponse(
+        success=True,
+        message=f"Service listing '{service.title}' rejected successfully",
+        data=service,
+    )
+
+
+@router.post("/services/{service_id}/remove", response_model=APIResponse[ServiceResponse])
+def remove_admin_service(
+    service_id: str,
+    req: AdminServiceRemoveRequest,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Remove/unpublish an active or fraudulent service listing from the marketplace."""
+    service = AdminService.remove_service(db, service_id, _admin, req.removal_reason)
+    return APIResponse(
+        success=True,
+        message=f"Service listing '{service.title}' removed from marketplace",
+        data=service,
+    )
+
+
+@router.post("/providers/{provider_id}/block", response_model=APIResponse[AdminUserItemResponse])
+def block_provider(
+    provider_id: str,
+    req: AdminProviderBlockRequest,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Suspend/block a provider and remove all their services from marketplace."""
+    user = AdminService.block_provider(db, provider_id, _admin, req.reason)
+    return APIResponse(
+        success=True,
+        message=f"Provider '{user.full_name}' has been blocked and listings removed",
+        data=user,
+    )
+
+
+@router.post("/providers/{provider_id}/unblock", response_model=APIResponse[AdminUserItemResponse])
+def unblock_provider(
+    provider_id: str,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Unblock/restore a provider account."""
+    user = AdminService.unblock_provider(db, provider_id, _admin)
+    return APIResponse(
+        success=True,
+        message=f"Provider '{user.full_name}' has been unblocked",
+        data=user,
     )
 
 

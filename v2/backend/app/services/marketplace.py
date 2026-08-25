@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.models.service import Service, Review
 from app.repositories.service import ServiceRepository
+from app.services.communication import NotificationService
 from app.schemas.service import (
     ServiceResponse,
     ServiceListResponse,
@@ -31,7 +32,7 @@ class MarketplaceService:
     """Business logic for Marketplace Discovery, Search, and Availability."""
 
     @classmethod
-    def _to_service_response(cls, s: Service) -> ServiceResponse:
+    def _to_service_response(cls, s: Service, db: Optional[Session] = None) -> ServiceResponse:
         """Serialize SQLAlchemy Service model to Pydantic ServiceResponse."""
         try:
             images = json.loads(s.images_json) if s.images_json else []
@@ -48,6 +49,16 @@ class MarketplaceService:
         except Exception:
             amenities = []
 
+        provider_verified = getattr(s, "is_verified", True)
+        provider_email = None
+        provider_mobile = None
+        if s.provider_id and db:
+            provider = db.query(User).filter(User.id == s.provider_id).first()
+            if provider:
+                provider_verified = provider.is_verified
+                provider_email = provider.email
+                provider_mobile = getattr(provider, "mobile", None)
+
         return ServiceResponse(
             id=str(s.id),
             title=s.title,
@@ -58,6 +69,8 @@ class MarketplaceService:
             location=s.location,
             district=s.district,
             state=s.state,
+            latitude=s.latitude,
+            longitude=s.longitude,
             price=s.price,
             unit=s.unit,
             duration_hours=s.duration_hours,
@@ -66,13 +79,20 @@ class MarketplaceService:
             reviews_count=s.reviews_count,
             is_verified=s.is_verified,
             status=s.status,
+            provider_id=str(s.provider_id) if s.provider_id else None,
             provider_name=s.provider_name,
             provider_type=s.provider_type,
             provider_avatar=s.provider_avatar,
+            provider_verified=provider_verified,
+            provider_email=provider_email,
+            provider_mobile=provider_mobile,
             primary_image=s.primary_image,
             images=images,
             inclusions=inclusions,
             amenities=amenities,
+            rejection_reason=s.rejection_reason,
+            reviewed_by=str(s.reviewed_by) if s.reviewed_by else None,
+            reviewed_at=s.reviewed_at,
             created_at=s.created_at,
         )
 
@@ -257,17 +277,24 @@ class MarketplaceService:
         query: str = "",
         category: Optional[str] = None,
         location: Optional[str] = None,
+        min_price: Optional[float] = None,
+        max_price: Optional[float] = None,
+        min_rating: Optional[float] = None,
         page: int = 1,
         limit: int = 12,
     ) -> SearchResponse:
-        """Search published services catalog."""
+        """Search published services catalog using the unified pgvector Semantic Search Pipeline."""
         cls.ensure_seeded(db)
+        from app.services.search import SemanticSearchService
 
-        items, total = ServiceRepository.search_services(
+        items, total = SemanticSearchService.semantic_search(
             db,
-            query_text=query,
+            query=query,
             category=category,
             location=location,
+            min_price=min_price,
+            max_price=max_price,
+            min_rating=min_rating,
             page=page,
             limit=limit,
             status="PUBLISHED",
@@ -275,7 +302,7 @@ class MarketplaceService:
 
         return SearchResponse(
             query=query,
-            results=[cls._to_service_response(s) for s in items],
+            results=[cls._to_service_response(s, db=db) for s in items],
             total=total,
             page=page,
             limit=limit,
@@ -644,6 +671,14 @@ class MarketplaceService:
     ) -> ServiceResponse:
         """Create a new service listing under the authenticated provider's account."""
         cls.ensure_seeded(db)
+
+        # Enforce that blocked/inactive providers cannot create services
+        if not provider.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Blocked or suspended provider accounts cannot create service listings.",
+            )
+
         slug_base = payload.title.lower().replace(" ", "-").replace("/", "-")
         # Remove any non-alphanumeric chars except dashes
         slug_clean = "".join(c for c in slug_base if c.isalnum() or c == "-")
@@ -670,7 +705,7 @@ class MarketplaceService:
             rating=5.0,
             reviews_count=0,
             is_verified=provider.is_verified,
-            status=payload.status or "DRAFT",
+            status="PENDING",  # Always start as PENDING for moderation
             provider_id=provider.id,
             provider_name=provider.full_name,
             provider_type=provider.role.capitalize(),
@@ -683,7 +718,38 @@ class MarketplaceService:
         db.add(service)
         db.commit()
         db.refresh(service)
-        return cls._to_service_response(service)
+
+        # Notify provider
+        try:
+            NotificationService.create_notification(
+                db,
+                user_id=provider.id,
+                title="Service Submitted for Review",
+                message=f"Your service listing '{service.title}' has been submitted and is pending administrative review.",
+                type="service",
+                resource_type="service",
+                resource_id=str(service.id),
+            )
+        except Exception:
+            pass
+
+        # Notify admins
+        try:
+            admins = db.query(User).filter(User.role == "admin").all()
+            for adm in admins:
+                NotificationService.create_notification(
+                    db,
+                    user_id=adm.id,
+                    title="New Service Listing",
+                    message=f"{provider.full_name} submitted '{service.title}' for moderation.",
+                    type="admin",
+                    resource_type="service",
+                    resource_id=str(service.id),
+                )
+        except Exception:
+            pass
+
+        return cls._to_service_response(service, db=db)
 
     @classmethod
     def list_partner_services(
@@ -694,7 +760,7 @@ class MarketplaceService:
         """List all services owned by the authenticated provider."""
         cls.ensure_seeded(db)
         services = db.query(Service).filter(Service.provider_id == provider_id).order_by(Service.created_at.desc()).all()
-        return [cls._to_service_response(s) for s in services]
+        return [cls._to_service_response(s, db=db) for s in services]
 
     @classmethod
     def get_partner_service_by_id(
@@ -713,7 +779,7 @@ class MarketplaceService:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You are not authorized to view or edit this service listing.",
             )
-        return cls._to_service_response(service)
+        return cls._to_service_response(service, db=db)
 
     @classmethod
     def update_partner_service(
@@ -725,6 +791,10 @@ class MarketplaceService:
     ) -> ServiceResponse:
         """Update an existing service listing owned by the authenticated provider."""
         cls.ensure_seeded(db)
+        provider = db.query(User).filter(User.id == provider_id).first()
+        if not provider or not provider.is_active:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Provider account is inactive or blocked.")
+
         service = db.query(Service).filter(Service.id == service_id).first()
         if not service:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Service with ID '{service_id}' not found.")
@@ -763,12 +833,17 @@ class MarketplaceService:
             service.inclusions_json = json.dumps(payload.inclusions)
         if payload.amenities is not None:
             service.amenities_json = json.dumps(payload.amenities)
-        if payload.status is not None:
-            service.status = payload.status
+
+        # If rejected, resubmission or editing resets status to PENDING
+        if service.status in ["REJECTED", "DRAFT"]:
+            service.status = "PENDING"
+            service.rejection_reason = None
+            service.reviewed_by = None
+            service.reviewed_at = None
 
         db.commit()
         db.refresh(service)
-        return cls._to_service_response(service)
+        return cls._to_service_response(service, db=db)
 
     @classmethod
     def submit_partner_service_for_review(
@@ -777,8 +852,12 @@ class MarketplaceService:
         provider_id: uuid.UUID,
         service_id: str,
     ) -> ServiceResponse:
-        """Transition service listing status to UNDER REVIEW for admin moderation."""
+        """Transition service listing status to PENDING for admin moderation."""
         cls.ensure_seeded(db)
+        provider = db.query(User).filter(User.id == provider_id).first()
+        if not provider or not provider.is_active:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Provider account is inactive or blocked.")
+
         service = db.query(Service).filter(Service.id == service_id).first()
         if not service:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Service with ID '{service_id}' not found.")
@@ -788,8 +867,25 @@ class MarketplaceService:
                 detail="You are not authorized to submit this service listing.",
             )
 
-        service.status = "UNDER REVIEW"
+        service.status = "PENDING"
+        service.rejection_reason = None
+        service.reviewed_by = None
+        service.reviewed_at = None
         db.commit()
         db.refresh(service)
-        return cls._to_service_response(service)
+
+        try:
+            NotificationService.create_notification(
+                db,
+                user_id=provider.id,
+                title="Service Submitted for Review",
+                message=f"Your service listing '{service.title}' has been submitted and is pending administrative review.",
+                type="service",
+                resource_type="service",
+                resource_id=str(service.id),
+            )
+        except Exception:
+            pass
+
+        return cls._to_service_response(service, db=db)
 

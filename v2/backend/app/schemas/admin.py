@@ -38,6 +38,18 @@ class AdminServiceStatusRequest(BaseModel):
     status: str = Field(..., description="PUBLISHED, DRAFT, ARCHIVED, or REJECTED")
 
 
+class AdminServiceRejectRequest(BaseModel):
+    rejection_reason: str = Field(..., min_length=3, description="Detailed explanation why the service listing is rejected")
+
+
+class AdminServiceRemoveRequest(BaseModel):
+    removal_reason: str = Field(..., min_length=3, description="Reason for removing the service listing from the marketplace")
+
+
+class AdminProviderBlockRequest(BaseModel):
+    reason: str = Field(..., min_length=3, description="Reason for suspending/blocking the provider")
+
+
 class AdminPayoutStatusRequest(BaseModel):
     status: str = Field(..., description="COMPLETED, FAILED, or PROCESSING")
     failure_reason: Optional[str] = None

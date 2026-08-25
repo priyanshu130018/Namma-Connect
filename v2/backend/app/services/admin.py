@@ -24,6 +24,7 @@ from app.schemas.service import ServiceResponse
 from app.schemas.booking import ProviderBookingResponse
 from app.schemas.payout import PayoutItemResponse
 from app.services.marketplace import MarketplaceService
+from app.services.communication import NotificationService
 
 
 class AdminService:
@@ -177,13 +178,272 @@ class AdminService:
         """List marketplace services for administrative moderation."""
         MarketplaceService.ensure_seeded(db)
         query = db.query(Service)
-        if status_filter:
+        if status_filter and status_filter.upper() != "ALL":
             query = query.filter(func.lower(Service.status) == status_filter.lower())
         if category:
             query = query.filter(func.lower(Service.category_slug) == category.lower())
 
         services = query.order_by(desc(Service.created_at)).offset(offset).limit(limit).all()
-        return [MarketplaceService._to_service_response(s) for s in services]
+        return [MarketplaceService._to_service_response(s, db=db) for s in services]
+
+    @classmethod
+    def get_service_by_id(cls, db: Session, service_id: str) -> ServiceResponse:
+        """Get complete details of a service for admin inspection."""
+        MarketplaceService.ensure_seeded(db)
+        service = db.query(Service).filter(Service.id == service_id).first()
+        if not service:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Service with ID '{service_id}' not found.")
+        return MarketplaceService._to_service_response(service, db=db)
+
+    @classmethod
+    def approve_service(cls, db: Session, service_id: str, admin_user: User) -> ServiceResponse:
+        """Approve and publish a pending service listing."""
+        MarketplaceService.ensure_seeded(db)
+        service = db.query(Service).filter(Service.id == service_id).first()
+        if not service:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Service with ID '{service_id}' not found.")
+
+        # Provider verification check
+        if service.provider_id:
+            provider = db.query(User).filter(User.id == service.provider_id).first()
+            if not provider or not provider.is_active or not provider.is_verified:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot approve service: Provider is unverified, inactive, or suspended.",
+                )
+
+        # State transition validation
+        if service.status == "PUBLISHED":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Service is already published.")
+        if service.status == "REJECTED":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Rejected service listing cannot be approved directly without resubmission.",
+            )
+        if service.status == "REMOVED":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Removed service listing cannot be approved directly.",
+            )
+
+        service.status = "PUBLISHED"
+        service.reviewed_by = admin_user.id
+        service.reviewed_at = datetime.utcnow()
+        service.rejection_reason = None
+        db.commit()
+        db.refresh(service)
+
+        # Dispatch provider notification
+        if service.provider_id:
+            try:
+                NotificationService.create_notification(
+                    db,
+                    user_id=service.provider_id,
+                    title="Service Listing Approved",
+                    message=f"Your service listing '{service.title}' has been reviewed and approved. It is now published on NammaConnect.",
+                    type="service",
+                    resource_type="service",
+                    resource_id=str(service.id),
+                )
+            except Exception:
+                pass
+
+        return MarketplaceService._to_service_response(service, db=db)
+
+    @classmethod
+    def reject_service(
+        cls,
+        db: Session,
+        service_id: str,
+        admin_user: User,
+        rejection_reason: str,
+    ) -> ServiceResponse:
+        """Reject a pending service listing with mandatory explanation."""
+        MarketplaceService.ensure_seeded(db)
+        if not rejection_reason or len(rejection_reason.strip()) < 3:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A valid non-empty rejection reason is required (minimum 3 characters).",
+            )
+
+        service = db.query(Service).filter(Service.id == service_id).first()
+        if not service:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Service with ID '{service_id}' not found.")
+
+        if service.status == "PUBLISHED":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot reject an already published service with normal review. Use remove service instead.",
+            )
+        if service.status == "REJECTED":
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Service is already rejected.")
+
+        service.status = "REJECTED"
+        service.reviewed_by = admin_user.id
+        service.reviewed_at = datetime.utcnow()
+        service.rejection_reason = rejection_reason.strip()
+        db.commit()
+        db.refresh(service)
+
+        # Dispatch provider notification
+        if service.provider_id:
+            try:
+                NotificationService.create_notification(
+                    db,
+                    user_id=service.provider_id,
+                    title="Service Listing Rejected",
+                    message=f"Your service listing '{service.title}' was not approved. Reason: {rejection_reason.strip()}",
+                    type="service",
+                    resource_type="service",
+                    resource_id=str(service.id),
+                )
+            except Exception:
+                pass
+
+        return MarketplaceService._to_service_response(service, db=db)
+
+    @classmethod
+    def remove_service(
+        cls,
+        db: Session,
+        service_id: str,
+        admin_user: User,
+        removal_reason: str,
+    ) -> ServiceResponse:
+        """Remove/unpublish an active or fraudulent service from the marketplace."""
+        MarketplaceService.ensure_seeded(db)
+        if not removal_reason or len(removal_reason.strip()) < 3:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A valid non-empty removal reason is required (minimum 3 characters).",
+            )
+
+        service = db.query(Service).filter(Service.id == service_id).first()
+        if not service:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Service with ID '{service_id}' not found.")
+
+        service.status = "REMOVED"
+        service.reviewed_by = admin_user.id
+        service.reviewed_at = datetime.utcnow()
+        service.rejection_reason = removal_reason.strip()
+        db.commit()
+        db.refresh(service)
+
+        # Dispatch provider notification
+        if service.provider_id:
+            try:
+                NotificationService.create_notification(
+                    db,
+                    user_id=service.provider_id,
+                    title="Service Listing Removed",
+                    message=f"Your service listing '{service.title}' has been removed from the NammaConnect marketplace. Reason: {removal_reason.strip()}",
+                    type="service",
+                    resource_type="service",
+                    resource_id=str(service.id),
+                )
+            except Exception:
+                pass
+
+        return MarketplaceService._to_service_response(service, db=db)
+
+    @classmethod
+    def block_provider(
+        cls,
+        db: Session,
+        provider_id: str,
+        admin_user: User,
+        reason: str,
+    ) -> AdminUserItemResponse:
+        """Suspend/block a provider and transactionally remove all their active services."""
+        if not reason or len(reason.strip()) < 3:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="A valid non-empty reason is required to block a provider (minimum 3 characters).",
+            )
+
+        provider = db.query(User).filter(User.id == provider_id).first()
+        if not provider:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Provider with ID '{provider_id}' not found.")
+
+        # Suspend provider
+        provider.is_active = False
+
+        # Transactionally remove all active/published services
+        services = db.query(Service).filter(Service.provider_id == provider.id).all()
+        for s in services:
+            s.status = "REMOVED"
+            s.rejection_reason = f"Provider suspended: {reason.strip()}"
+            s.reviewed_by = admin_user.id
+            s.reviewed_at = datetime.utcnow()
+
+        db.commit()
+        db.refresh(provider)
+
+        # Dispatch provider notification
+        try:
+            NotificationService.create_notification(
+                db,
+                user_id=provider.id,
+                title="Provider Account Suspended",
+                message=f"Your provider account and listings have been suspended. Reason: {reason.strip()}",
+                type="system",
+                resource_type="provider",
+                resource_id=str(provider.id),
+            )
+        except Exception:
+            pass
+
+        return AdminUserItemResponse(
+            id=str(provider.id),
+            email=provider.email,
+            full_name=provider.full_name,
+            phone=getattr(provider, "mobile", None),
+            role=provider.role,
+            is_active=provider.is_active,
+            is_verified=provider.is_verified,
+            created_at=provider.created_at,
+        )
+
+    @classmethod
+    def unblock_provider(
+        cls,
+        db: Session,
+        provider_id: str,
+        admin_user: User,
+    ) -> AdminUserItemResponse:
+        """Restore a suspended provider without auto-republishing previously removed services."""
+        provider = db.query(User).filter(User.id == provider_id).first()
+        if not provider:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Provider with ID '{provider_id}' not found.")
+
+        provider.is_active = True
+        db.commit()
+        db.refresh(provider)
+
+        # Dispatch provider notification
+        try:
+            NotificationService.create_notification(
+                db,
+                user_id=provider.id,
+                title="Provider Account Restored",
+                message="Your provider account has been unblocked. You may now manage and re-submit your service listings.",
+                type="system",
+                resource_type="provider",
+                resource_id=str(provider.id),
+            )
+        except Exception:
+            pass
+
+        return AdminUserItemResponse(
+            id=str(provider.id),
+            email=provider.email,
+            full_name=provider.full_name,
+            phone=getattr(provider, "mobile", None),
+            role=provider.role,
+            is_active=provider.is_active,
+            is_verified=provider.is_verified,
+            created_at=provider.created_at,
+        )
 
     @classmethod
     def update_service_status(
@@ -199,13 +459,13 @@ class AdminService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Service with ID '{service_id}' not found.")
 
         new_status = req.status.upper()
-        if new_status not in ["PUBLISHED", "DRAFT", "ARCHIVED", "REJECTED"]:
+        if new_status not in ["PUBLISHED", "DRAFT", "ARCHIVED", "REJECTED", "PENDING", "REMOVED"]:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid service status '{req.status}'.")
 
         service.status = new_status
         db.commit()
         db.refresh(service)
-        return MarketplaceService._to_service_response(service)
+        return MarketplaceService._to_service_response(service, db=db)
 
     @classmethod
     def list_bookings(
@@ -230,7 +490,7 @@ class AdminService:
         for b in bookings:
             cust_name = b.customer.full_name if b.customer else "Traveler"
             cust_email = b.customer.email if b.customer else None
-            cust_phone = b.customer.phone if b.customer else None
+            cust_phone = getattr(b.customer, "mobile", None) if b.customer else None
             srv_title = b.service.title if b.service else "Agricultural Experience"
 
             pay_status = "PENDING"
@@ -252,7 +512,6 @@ class AdminService:
                     booking_code=b.booking_code,
                     service_id=str(b.service_id),
                     service_title=srv_title,
-                    customer_id=str(b.customer_id),
                     customer_name=cust_name,
                     customer_email=cust_email,
                     customer_phone=cust_phone,
@@ -262,11 +521,10 @@ class AdminService:
                     guest_count=b.guest_count,
                     unit_price=b.unit_price,
                     total_amount=gross,
-                    platform_fee=platform_fee,
                     net_payout=net_payout,
                     status=b.status,
                     payment_status=pay_status,
-                    special_instructions=b.special_instructions,
+                    special_requests=b.special_requests,
                     created_at=b.created_at,
                 )
             )

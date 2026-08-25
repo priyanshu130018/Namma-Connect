@@ -73,7 +73,17 @@ class GeminiService:
         effective_cat = category or accumulated.get("category")
         effective_budget = accumulated.get("max_budget")
 
-        published_services, _ = ServiceRepository.list_services(db, limit=20, category=effective_cat)
+        from app.services.search import SemanticSearchService
+
+        published_services, _ = SemanticSearchService.semantic_search(
+            db,
+            query=prompt,
+            category=effective_cat,
+            location=effective_dest,
+            max_price=effective_budget,
+            limit=10,
+            status="PUBLISHED",
+        )
         service_catalog = [
             {
                 "id": str(s.id),
@@ -88,11 +98,6 @@ class GeminiService:
             }
             for s in published_services
         ]
-
-        if effective_budget:
-            budget_filtered = [s for s in service_catalog if s["price"] <= effective_budget]
-            if budget_filtered:
-                service_catalog = budget_filtered
 
         lang_instruction = "Respond in English."
         if lang_code == "kn" or "kannada" in lang_code:

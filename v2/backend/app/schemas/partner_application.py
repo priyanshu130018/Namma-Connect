@@ -52,6 +52,10 @@ class PartnerApplicationReviewRequest(BaseModel):
     rejection_reason: Optional[str] = Field(None, description="Detailed explanation if changes are required")
 
 
+class PartnerApplicationRejectRequest(BaseModel):
+    rejection_reason: str = Field(..., min_length=3, description="Detailed explanation why the application is rejected")
+
+
 class PartnerApplicationResponse(BaseModel):
     id: str
     application_code: str
@@ -76,6 +80,8 @@ class PartnerApplicationResponse(BaseModel):
     activities: List[str]
     status: str
     rejection_reason: Optional[str] = None
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

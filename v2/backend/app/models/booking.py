@@ -1,7 +1,7 @@
 """Booking database model for Customer Reservations."""
 
 import uuid
-from sqlalchemy import Column, String, Text, Float, Integer, ForeignKey, Index
+from sqlalchemy import Column, String, Text, Float, Integer, Boolean, ForeignKey, Index
 from sqlalchemy.orm import relationship
 from app.models.base import Base, GUID, TimestampMixin
 
@@ -35,6 +35,7 @@ class Booking(Base, TimestampMixin):
 
     # Customer notes
     special_requests = Column(Text, nullable=True)
+    is_test_data = Column(Boolean, nullable=False, default=False, index=True)
 
     # ORM Relationships
     customer = relationship("User", backref="bookings")

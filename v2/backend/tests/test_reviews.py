@@ -3,6 +3,7 @@
 import pytest
 from datetime import date, timedelta
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 
 @pytest.fixture
@@ -74,6 +75,7 @@ def test_review_lifecycle_and_authorization(
     auth_headers_customer1: dict,
     auth_headers_customer2: dict,
     auth_headers_partner: dict,
+    db_session: Session,
 ):
     """Test full review workflow: validation, creation, rating recalculation, and duplicate prevention."""
     # 1. Partner creates a published service
@@ -94,6 +96,12 @@ def test_review_lifecycle_and_authorization(
     assert create_resp.status_code in [200, 201]
     service = create_resp.json()["data"]
     service_id = service["id"]
+
+    from app.models.service import Service
+    serv_model = db_session.query(Service).filter(Service.id == service_id).first()
+    if serv_model:
+        serv_model.status = "PUBLISHED"
+        db_session.commit()
 
     # 2. Customer 1 books the service
     future_date = (date.today() + timedelta(days=5)).isoformat()

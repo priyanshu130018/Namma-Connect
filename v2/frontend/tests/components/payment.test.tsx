@@ -195,4 +195,60 @@ describe("Customer Payment & Razorpay Integration Suite", () => {
       expect(screen.getByRole("button", { name: /Pay Now/i })).toBeInTheDocument();
     });
   });
+
+  it("does not show Pay Now button for already CONFIRMED bookings in BookingDetail", async () => {
+    const confirmedBooking: BookingItem = {
+      ...mockPendingBooking,
+      status: "CONFIRMED",
+    };
+    vi.spyOn(bookingService, "getBookingById").mockResolvedValue(confirmedBooking);
+
+    window.history.pushState({}, "Voucher", "/app/bookings/bkg-201");
+
+    render(
+      <BrowserRouter>
+        <Routes>
+          <Route path="/app/bookings/:booking_id" element={<CustomerBookingDetailPage />} />
+        </Routes>
+      </BrowserRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Confirmation #NC-BKG-PAY01")).toBeInTheDocument();
+      expect(screen.getByText("Paid via Razorpay Secure")).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /Pay Now/i })).not.toBeInTheDocument();
+    });
+  });
+
+  it("handles order creation failure gracefully with error banner", async () => {
+    vi.spyOn(bookingService, "createBooking").mockResolvedValue(mockPendingBooking);
+    vi.spyOn(paymentService, "createPaymentOrder").mockRejectedValue(
+      new Error("Gateway unreachable")
+    );
+
+    render(
+      <BrowserRouter>
+        <BookingReviewModal
+          isOpen={true}
+          onClose={vi.fn()}
+          service={mockService}
+          startDate="2026-09-20"
+          endDate="2026-09-22"
+        />
+      </BrowserRouter>
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /Confirm Booking Request/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: /Pay Now/i })).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /Pay Now/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText("Gateway unreachable")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Pay Now/i })).toBeInTheDocument();
+    });
+  });
 });

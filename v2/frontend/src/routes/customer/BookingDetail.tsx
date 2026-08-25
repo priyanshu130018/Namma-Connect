@@ -26,7 +26,7 @@ import { AppImage } from "@/components/ui/image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { getBookingById, cancelBooking } from "@/services/bookingService";
-import { createPaymentOrder, verifyPayment } from "@/services/paymentService";
+import { createPaymentOrder, verifyPayment, loadRazorpayScript } from "@/services/paymentService";
 import { LeaveReviewModal } from "@/components/reviews/LeaveReviewModal";
 import { BookingItem } from "@/types";
 
@@ -82,6 +82,10 @@ export function CustomerBookingDetailPage() {
     setPaymentError(null);
 
     try {
+      // 1. Ensure Razorpay script is loaded
+      await loadRazorpayScript();
+
+      // 2. Fetch authoritative order from server
       const order = await createPaymentOrder(booking.id);
 
       const onPaymentSuccess = async (response: {
@@ -99,6 +103,7 @@ export function CustomerBookingDetailPage() {
           });
 
           setBooking((prev) => (prev ? { ...prev, status: "CONFIRMED" } : null));
+          setPaymentError(null);
         } catch (err: any) {
           setPaymentError(
             err.response?.data?.detail ||
@@ -130,12 +135,13 @@ export function CustomerBookingDetailPage() {
           modal: {
             ondismiss: () => {
               setIsPaying(false);
+              setPaymentError("Payment was not completed. You can try again.");
             },
           },
         });
         rzp.open();
-      } else {
-        // Test fallback
+      } else if (typeof import.meta !== "undefined" && import.meta.env?.MODE === "test") {
+        // Safe unit testing mock handler
         const mockPaymentId = `pay_mock_${Date.now()}`;
         const mockSignature = "mock_sig_123456";
         await onPaymentSuccess({
@@ -143,6 +149,10 @@ export function CustomerBookingDetailPage() {
           razorpay_payment_id: mockPaymentId,
           razorpay_signature: mockSignature,
         });
+      } else {
+        throw new Error(
+          "Unable to load Razorpay payment gateway checkout. Please check your internet connection or disable ad-blockers and try again."
+        );
       }
     } catch (err: any) {
       setPaymentError(

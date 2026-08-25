@@ -35,6 +35,8 @@ class ServiceResponse(BaseModel):
     location: str
     district: str
     state: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     price: float
     unit: str
     duration_hours: Optional[float] = None
@@ -43,13 +45,20 @@ class ServiceResponse(BaseModel):
     reviews_count: int
     is_verified: bool
     status: str
+    provider_id: Optional[str] = None
     provider_name: str
     provider_type: str
     provider_avatar: Optional[str] = None
+    provider_verified: Optional[bool] = None
+    provider_email: Optional[str] = None
+    provider_mobile: Optional[str] = None
     primary_image: str
     images: List[str] = Field(default_factory=list)
     inclusions: List[str] = Field(default_factory=list)
     amenities: List[str] = Field(default_factory=list)
+    rejection_reason: Optional[str] = None
+    reviewed_by: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

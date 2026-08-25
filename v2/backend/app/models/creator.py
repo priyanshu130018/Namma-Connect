@@ -28,6 +28,7 @@ class CreatorProfile(Base, TimestampMixin):
     social_links_json = Column(Text, nullable=False, default="{}")  # e.g. {"instagram": "@...", "youtube": "..."}
     portfolio_items_json = Column(Text, nullable=False, default="[]")  # List of portfolio media items
     packages_json = Column(Text, nullable=False, default="[]")  # List of fixed-price media packages
+    is_test_data = Column(Boolean, nullable=False, default=False, index=True)
 
     __table_args__ = (
         Index("idx_creator_handle", "handle"),

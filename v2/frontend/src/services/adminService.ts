@@ -12,6 +12,7 @@ import {
   ProviderBookingItem,
   PayoutItem,
 } from "@/types";
+import { PartnerApplicationData } from "./partnerApplicationService";
 
 export async function getAdminOverview(): Promise<AdminOverviewData> {
   const response = await apiClient.get<{ success: boolean; data: AdminOverviewData }>("/admin/overview");
@@ -148,5 +149,100 @@ export async function getAdminSupportTickets(): Promise<AdminSupportTicketItem[]
 
 export async function getAdminSettings(): Promise<AdminPlatformSettings> {
   const response = await apiClient.get<{ success: boolean; data: AdminPlatformSettings }>("/admin/settings");
+  return response.data.data;
+}
+
+export async function getAdminPartnerApplications(params?: {
+  status?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<PartnerApplicationData[]> {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.append("status", params.status);
+  if (params?.limit) searchParams.append("limit", params.limit.toString());
+  if (params?.offset) searchParams.append("offset", params.offset.toString());
+
+  const queryStr = searchParams.toString();
+  const url = queryStr ? `/admin/partner-applications?${queryStr}` : "/admin/partner-applications";
+  const response = await apiClient.get<{ success: boolean; data: PartnerApplicationData[] }>(url);
+  return response.data.data;
+}
+
+export async function getAdminPartnerApplicationDetail(appId: string): Promise<PartnerApplicationData> {
+  const response = await apiClient.get<{ success: boolean; data: PartnerApplicationData }>(
+    `/admin/partner-applications/${appId}`
+  );
+  return response.data.data;
+}
+
+export async function approveAdminPartnerApplication(appId: string): Promise<PartnerApplicationData> {
+  const response = await apiClient.post<{ success: boolean; data: PartnerApplicationData }>(
+    `/admin/partner-applications/${appId}/approve`
+  );
+  return response.data.data;
+}
+
+export async function rejectAdminPartnerApplication(
+  appId: string,
+  rejectionReason: string
+): Promise<PartnerApplicationData> {
+  const response = await apiClient.post<{ success: boolean; data: PartnerApplicationData }>(
+    `/admin/partner-applications/${appId}/reject`,
+    { rejection_reason: rejectionReason }
+  );
+  return response.data.data;
+}
+
+export async function getAdminServiceDetail(serviceId: string): Promise<ServiceItem> {
+  const response = await apiClient.get<{ success: boolean; data: ServiceItem }>(
+    `/admin/services/${serviceId}`
+  );
+  return response.data.data;
+}
+
+export async function approveAdminService(serviceId: string): Promise<ServiceItem> {
+  const response = await apiClient.post<{ success: boolean; data: ServiceItem }>(
+    `/admin/services/${serviceId}/approve`
+  );
+  return response.data.data;
+}
+
+export async function rejectAdminService(
+  serviceId: string,
+  rejectionReason: string
+): Promise<ServiceItem> {
+  const response = await apiClient.post<{ success: boolean; data: ServiceItem }>(
+    `/admin/services/${serviceId}/reject`,
+    { rejection_reason: rejectionReason }
+  );
+  return response.data.data;
+}
+
+export async function removeAdminService(
+  serviceId: string,
+  removalReason: string
+): Promise<ServiceItem> {
+  const response = await apiClient.post<{ success: boolean; data: ServiceItem }>(
+    `/admin/services/${serviceId}/remove`,
+    { removal_reason: removalReason }
+  );
+  return response.data.data;
+}
+
+export async function blockAdminProvider(
+  providerId: string,
+  reason: string
+): Promise<AdminUserItem> {
+  const response = await apiClient.post<{ success: boolean; data: AdminUserItem }>(
+    `/admin/providers/${providerId}/block`,
+    { reason }
+  );
+  return response.data.data;
+}
+
+export async function unblockAdminProvider(providerId: string): Promise<AdminUserItem> {
+  const response = await apiClient.post<{ success: boolean; data: AdminUserItem }>(
+    `/admin/providers/${providerId}/unblock`
+  );
   return response.data.data;
 }

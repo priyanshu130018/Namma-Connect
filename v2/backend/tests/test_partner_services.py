@@ -100,16 +100,16 @@ def test_partner_service_crud_and_isolation_workflow(
     created_service = create_resp.json()["data"]
     service_id = created_service["id"]
     assert created_service["title"] == "Coorg Spice Plantation Homestay"
-    assert created_service["status"] == "DRAFT"
+    assert created_service["status"] == "PENDING"
     assert created_service["provider_name"] == "Host Alpha"
 
-    # 2. Verify Draft service does NOT appear in public catalog
+    # 2. Verify Draft/Pending service does NOT appear in public catalog
     public_resp = client.get("/api/v2/services")
     assert public_resp.status_code == 200
     public_ids = [s["id"] for s in public_resp.json()["data"]["services"]]
     assert service_id not in public_ids
 
-    # 3. Partner A can list their services and see the draft
+    # 3. Partner A can list their services and see the pending service
     list_a_resp = client.get("/api/v2/services/partner/me", headers=auth_headers_partner_a)
     assert list_a_resp.status_code == 200
     a_services = list_a_resp.json()["data"]
@@ -156,4 +156,4 @@ def test_partner_service_crud_and_isolation_workflow(
         headers=auth_headers_partner_a,
     )
     assert submit_resp.status_code == 200
-    assert submit_resp.json()["data"]["status"] == "UNDER REVIEW"
+    assert submit_resp.json()["data"]["status"] == "PENDING"

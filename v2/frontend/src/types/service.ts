@@ -8,6 +8,8 @@ export interface MarketplaceService {
   location: string;
   district: string;
   state: string;
+  latitude?: number;
+  longitude?: number;
   price: number;
   unit: string;
   duration_hours?: number;
@@ -16,13 +18,20 @@ export interface MarketplaceService {
   reviews_count: number;
   is_verified: boolean;
   status: string;
+  provider_id?: string;
   provider_name: string;
   provider_type: string;
   provider_avatar?: string;
+  provider_verified?: boolean;
+  provider_email?: string;
+  provider_mobile?: string;
   primary_image: string;
   images: string[];
   inclusions: string[];
   amenities: string[];
+  rejection_reason?: string;
+  reviewed_by?: string;
+  reviewed_at?: string;
   specific_details?: Record<string, any>;
   created_at?: string;
 }

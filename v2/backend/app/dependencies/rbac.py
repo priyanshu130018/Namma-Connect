@@ -23,7 +23,7 @@ class RoleChecker:
         return user
 
 
-require_customer = RoleChecker(["customer", "user", "tourist"])
-require_partner = RoleChecker(["partner", "farmer", "hotel", "guide", "driver"])
-require_creator = RoleChecker(["creator"])
+require_customer = RoleChecker(["customer", "user", "tourist", "partner", "farmer", "creator", "admin"])
+require_partner = RoleChecker(["partner", "farmer", "hotel", "guide", "driver", "creator", "admin"])
+require_creator = RoleChecker(["creator", "admin"])
 require_admin = RoleChecker(["admin"])

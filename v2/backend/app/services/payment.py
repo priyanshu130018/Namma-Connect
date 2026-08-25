@@ -15,6 +15,7 @@ from app.models.booking import Booking
 from app.models.payment import Payment
 from app.repositories.booking import BookingRepository
 from app.repositories.payment import PaymentRepository
+from app.services.communication import NotificationService
 from app.schemas.payment import (
     PaymentOrderCreateRequest,
     PaymentOrderResponse,
@@ -46,7 +47,7 @@ class PaymentService:
         receipt: Optional[str] = None,
         notes: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
-        """Direct Razorpay order creation helper."""
+        """Direct Razorpay order creation helper using Razorpay SDK in test mode."""
         amount_paise = int(round(amount * 100))
         if cls.is_configured():
             try:
@@ -99,31 +100,44 @@ class PaymentService:
                 detail="Cannot initiate payment for a cancelled reservation.",
             )
 
-        if booking.status == "CONFIRMED":
+        if booking.status in ["CONFIRMED", "COMPLETED"]:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="This reservation is already paid and confirmed.",
             )
 
-        # 2. Authoritative amount calculation
+        # 2. Authoritative amount calculation in INR and paise
         amount_inr = float(booking.total_amount)
         amount_paise = int(round(amount_inr * 100))
 
-        # 3. Idempotent check: reuse existing pending order if available
+        # 3. Create or retrieve Razorpay order
         existing_payment = PaymentRepository.get_by_booking_id(db, str(booking.id))
         if existing_payment and existing_payment.status == "PENDING":
             order_id = existing_payment.razorpay_order_id
         else:
-            order_id = cls._generate_order_id()
-            PaymentRepository.create(
-                db,
-                booking_id=booking.id,
-                customer_id=current_user.id,
-                razorpay_order_id=order_id,
+            rzp_order = cls.create_razorpay_order(
                 amount=amount_inr,
                 currency="INR",
-                status="PENDING",
+                receipt=str(booking.booking_code),
+                notes={"booking_id": str(booking.id), "customer_id": str(current_user.id)},
             )
+            order_id = rzp_order.get("id") or cls._generate_order_id()
+            
+            if existing_payment:
+                existing_payment.razorpay_order_id = order_id
+                existing_payment.amount = amount_inr
+                existing_payment.status = "PENDING"
+                db.commit()
+            else:
+                PaymentRepository.create(
+                    db,
+                    booking_id=booking.id,
+                    customer_id=current_user.id,
+                    razorpay_order_id=order_id,
+                    amount=amount_inr,
+                    currency="INR",
+                    status="PENDING",
+                )
 
         service_title = booking.service.title if booking.service else "NammaConnect Experience"
         public_key = settings.RAZORPAY_KEY_ID or "rzp_test_nammaconnect_public_key"
@@ -167,7 +181,7 @@ class PaymentService:
                 detail="You are not authorized to verify payment for this booking.",
             )
 
-        # 2. Fetch payment record
+        # 2. Fetch payment record and verify order consistency
         payment = PaymentRepository.get_by_order_id(db, req.razorpay_order_id)
         if not payment:
             payment = PaymentRepository.get_by_booking_id(db, str(booking.id))
@@ -178,7 +192,13 @@ class PaymentService:
                 detail="Payment record was not found for this order.",
             )
 
-        # 3. Idempotency: if already paid, safely return success
+        if str(payment.booking_id) != str(booking.id):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Payment order does not match the target booking.",
+            )
+
+        # 3. Idempotency: if already paid, safely return success without duplicate notifications
         if payment.status == "PAID" and booking.status == "CONFIRMED":
             return PaymentVerificationResponse(
                 success=True,
@@ -200,9 +220,14 @@ class PaymentService:
             hashlib.sha256,
         ).hexdigest()
 
-        # Check signature (allow mock bypass only if test secret & mock signature match)
-        is_mock_test = req.razorpay_signature.startswith("mock_sig_") or req.razorpay_signature == "valid_signature_hash"
-        if not is_mock_test and not hmac.compare_digest(expected_signature, req.razorpay_signature):
+        # Check signature (supports valid HMAC hash as well as test-mode mock signature)
+        is_mock_test = (
+            req.razorpay_signature.startswith("mock_sig_")
+            or req.razorpay_signature == "valid_signature_hash"
+        )
+        is_valid_hmac = hmac.compare_digest(expected_signature, req.razorpay_signature)
+
+        if not is_valid_hmac and not is_mock_test:
             payment.status = "FAILED"
             db.commit()
             raise HTTPException(
@@ -218,6 +243,35 @@ class PaymentService:
             razorpay_signature=req.razorpay_signature,
         )
         BookingRepository.update_status(db, str(booking.id), "CONFIRMED")
+
+        # 6. Dispatch payment success notifications
+        try:
+            # Customer confirmation notification
+            NotificationService.create_notification(
+                db=db,
+                user_id=current_user.id,
+                title="Payment Successful",
+                message=f"Your payment of ₹{payment.amount:,.2f} for booking {booking.booking_code} was successful. Reservation is now confirmed.",
+                type="payment",
+                resource_type="booking",
+                resource_id=str(booking.id),
+            )
+
+            # Provider alert notification if provider exists
+            provider_id = booking.provider_id or (booking.service.provider_id if booking.service else None)
+            if provider_id:
+                service_name = booking.service.title if booking.service else "Experience"
+                NotificationService.create_notification(
+                    db=db,
+                    user_id=provider_id,
+                    title="Reservation Paid & Confirmed",
+                    message=f"Booking {booking.booking_code} for '{service_name}' has been paid by guest {current_user.full_name or 'customer'}.",
+                    type="booking",
+                    resource_type="booking",
+                    resource_id=str(booking.id),
+                )
+        except Exception:
+            pass
 
         return PaymentVerificationResponse(
             success=True,

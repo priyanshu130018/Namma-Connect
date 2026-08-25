@@ -1,7 +1,7 @@
-﻿"""Partner Application model for progressive host onboarding and verification."""
+"""Partner Application model for progressive host onboarding and verification."""
 
 import uuid
-from sqlalchemy import Column, String, Text, Integer, Float, DateTime, ForeignKey, text
+from sqlalchemy import Column, String, Text, Integer, Float, DateTime, ForeignKey, Boolean, text
 from sqlalchemy.orm import relationship
 
 from app.models.base import Base, GUID, TimestampMixin
@@ -49,6 +49,8 @@ class PartnerApplication(Base, TimestampMixin):
     rejection_reason = Column(Text, nullable=True)
     reviewed_by = Column(GUID(), nullable=True)
     reviewed_at = Column(DateTime, nullable=True)
+    is_test_data = Column(Boolean, nullable=False, default=False, index=True)
 
     # Relationship to user
     user = relationship("User", backref="partner_applications", lazy="joined")
+

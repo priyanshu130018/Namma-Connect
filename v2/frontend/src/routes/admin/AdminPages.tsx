@@ -20,22 +20,32 @@ import {
   Check,
   X,
   ShieldCheck,
+  ShieldAlert,
+  Eye,
+  Ban,
+  Trash2,
+  MapPin,
 } from "lucide-react";
 import {
   getAdminOverview,
   getAdminUsers,
   getAdminPartners,
-  getAdminVerificationQueue,
-  verifyAdminPartner,
   getAdminServices,
-  updateAdminServiceStatus,
+  approveAdminService,
+  rejectAdminService,
+  removeAdminService,
+  blockAdminProvider,
   getAdminBookings,
   getAdminPayments,
   getAdminPayouts,
   updateAdminPayoutStatus,
   getAdminSupportTickets,
   getAdminSettings,
+  getAdminPartnerApplications,
+  approveAdminPartnerApplication,
+  rejectAdminPartnerApplication,
 } from "@/services/adminService";
+import { PartnerApplicationData } from "@/services/partnerApplicationService";
 import {
   AdminOverviewData,
   AdminUserItem,
@@ -411,55 +421,139 @@ export function AdminPartnersPage() {
 // ==========================================
 // 4. ADMIN PARTNER VERIFICATION QUEUE
 // ==========================================
+// ==========================================
+// 4. ADMIN PARTNER VERIFICATION QUEUE
+// ==========================================
 export function AdminVerificationPage() {
-  const [queue, setQueue] = useState<AdminUserItem[]>([]);
+  const [applications, setApplications] = useState<PartnerApplicationData[]>([]);
+  const [statusFilter, setStatusFilter] = useState<string>("PENDING");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const fetchQueue = useCallback(async () => {
+  // Modal inspection states
+  const [selectedApp, setSelectedApp] = useState<PartnerApplicationData | null>(null);
+  const [rejectingApp, setRejectingApp] = useState<PartnerApplicationData | null>(null);
+  const [rejectionReasonInput, setRejectionReasonInput] = useState<string>("");
+  const [rejectionError, setRejectionError] = useState<string | null>(null);
+
+  const fetchApplications = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await getAdminVerificationQueue();
-      setQueue(res);
+      const res = await getAdminPartnerApplications({
+        status: statusFilter === "ALL" ? undefined : statusFilter,
+      });
+      setApplications(res || []);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Failed to load verification queue");
+      setError(err instanceof Error ? err.message : "Failed to load partner applications queue.");
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [statusFilter]);
 
   useEffect(() => {
-    fetchQueue();
-  }, [fetchQueue]);
+    fetchApplications();
+  }, [fetchApplications]);
 
-  const handleVerificationAction = async (userId: string, action: "APPROVE" | "REJECT") => {
-    setActionLoadingId(userId);
+  const handleApprove = async (app: PartnerApplicationData) => {
+    setActionLoadingId(app.id);
     setError(null);
     setSuccessMsg(null);
     try {
-      await verifyAdminPartner(userId, {
-        action,
-        notes: action === "APPROVE" ? "Approved by Admin Operations" : "Verification rejected",
-      });
-      setSuccessMsg(`Partner successfully ${action === "APPROVE" ? "approved and verified" : "rejected"}.`);
-      fetchQueue();
+      await approveAdminPartnerApplication(app.id);
+      setSuccessMsg(`Application #${app.application_code} for ${app.full_name} (${app.business_name}) has been approved!`);
+      if (selectedApp?.id === app.id) setSelectedApp(null);
+      fetchApplications();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : `Failed to ${action.toLowerCase()} partner.`);
+      setError(err instanceof Error ? err.message : "Failed to approve partner application.");
     } finally {
       setActionLoadingId(null);
     }
   };
 
+  const handleConfirmReject = async () => {
+    if (!rejectingApp) return;
+    if (!rejectionReasonInput.trim()) {
+      setRejectionError("Please provide a valid explanation for why this application requires changes.");
+      return;
+    }
+    setActionLoadingId(rejectingApp.id);
+    setRejectionError(null);
+    setError(null);
+    setSuccessMsg(null);
+    try {
+      await rejectAdminPartnerApplication(rejectingApp.id, rejectionReasonInput.trim());
+      setSuccessMsg(`Application #${rejectingApp.application_code} was rejected with feedback.`);
+      setRejectingApp(null);
+      setRejectionReasonInput("");
+      if (selectedApp?.id === rejectingApp.id) setSelectedApp(null);
+      fetchApplications();
+    } catch (err: unknown) {
+      setRejectionError(err instanceof Error ? err.message : "Failed to reject partner application.");
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const getStatusBadge = (st: string) => {
+    switch (st.toUpperCase()) {
+      case "APPROVED":
+        return <Badge className="bg-emerald-600 text-white border-0">Approved</Badge>;
+      case "REJECTED":
+        return <Badge variant="destructive">Needs Changes</Badge>;
+      default:
+        return <Badge className="bg-amber-500 text-white border-0">Pending Verification</Badge>;
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <PageHeader title="Host KYC Verification Queue" subtitle="Inspect partner accounts awaiting verification review." />
+      <PageHeader
+        title="Host KYC Verification Queue"
+        subtitle="Inspect agricultural hosts, rural guides, and accommodations awaiting platform verification."
+      />
+
+      {/* Filter Tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-900 border border-slate-800 rounded-xl">
+          {[
+            { id: "PENDING", label: "Pending Review" },
+            { id: "APPROVED", label: "Approved" },
+            { id: "REJECTED", label: "Rejected" },
+            { id: "ALL", label: "All Applications" },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setStatusFilter(tab.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                statusFilter === tab.id
+                  ? "bg-emerald-600 text-white shadow-sm"
+                  : "text-slate-400 hover:text-white hover:bg-slate-800/60"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={fetchApplications}
+          disabled={isLoading}
+          className="border-slate-700 text-slate-300 gap-1.5"
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
+          <span>Refresh Queue</span>
+        </Button>
+      </div>
 
       {successMsg && (
         <div className="p-4 rounded-xl bg-emerald-950/40 border border-emerald-800 text-emerald-300 text-xs flex items-center gap-2">
-          <CheckCircle2 className="h-4 w-4" />
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
           <span>{successMsg}</span>
         </div>
       )}
@@ -467,7 +561,7 @@ export function AdminVerificationPage() {
       {error && (
         <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 text-xs flex justify-between items-center">
           <span>{error}</span>
-          <Button size="sm" variant="outline" onClick={fetchQueue} className="border-rose-700 text-rose-200">
+          <Button size="sm" variant="outline" onClick={fetchApplications} className="border-rose-700 text-rose-200">
             Retry
           </Button>
         </div>
@@ -478,9 +572,11 @@ export function AdminVerificationPage() {
           <table className="w-full text-left text-xs text-slate-300">
             <thead className="border-b border-slate-800 bg-slate-950/50 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               <tr>
-                <th className="px-6 py-4">Host Name</th>
-                <th className="px-6 py-4">Email</th>
-                <th className="px-6 py-4">Type</th>
+                <th className="px-6 py-4">App Code</th>
+                <th className="px-6 py-4">Applicant</th>
+                <th className="px-6 py-4">Business / Farm</th>
+                <th className="px-6 py-4">Host Role</th>
+                <th className="px-6 py-4">Location</th>
                 <th className="px-6 py-4">Status</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
@@ -488,49 +584,79 @@ export function AdminVerificationPage() {
             <tbody className="divide-y divide-slate-800">
               {isLoading ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-slate-500">Loading verification queue...</td>
+                  <td colSpan={7} className="py-8 text-center text-slate-500">
+                    Loading partner verification queue...
+                  </td>
                 </tr>
-              ) : queue.length === 0 ? (
+              ) : applications.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-8 text-center text-emerald-400">
+                  <td colSpan={7} className="py-8 text-center text-emerald-400">
                     <div className="flex flex-col items-center justify-center gap-1">
                       <ShieldCheck className="h-6 w-6" />
-                      <span className="font-bold">Queue is clear! All host profiles verified.</span>
+                      <span className="font-bold">No applications found in this queue.</span>
                     </div>
                   </td>
                 </tr>
               ) : (
-                queue.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-800/40 transition-colors">
-                    <td className="px-6 py-4 font-bold text-white">{p.full_name}</td>
-                    <td className="px-6 py-4 text-slate-400">{p.email}</td>
+                applications.map((app) => (
+                  <tr key={app.id} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="px-6 py-4 font-mono font-bold text-emerald-400">
+                      {app.application_code}
+                    </td>
                     <td className="px-6 py-4">
-                      <Badge variant="outline" className="capitalize border-slate-700 bg-slate-800 text-slate-300">
-                        {p.role}
+                      <p className="font-bold text-white">{app.full_name}</p>
+                      <p className="text-[11px] text-slate-400">{app.email} &bull; {app.mobile}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="font-bold text-slate-200">{app.business_name}</p>
+                      <p className="text-[11px] text-slate-400">{app.experience_years} yrs exp</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant="outline" className="capitalize border-slate-700 bg-slate-800 text-slate-200 font-bold">
+                        {app.role_type}
                       </Badge>
                     </td>
+                    <td className="px-6 py-4 text-slate-300">
+                      {app.district}, {app.state}
+                    </td>
                     <td className="px-6 py-4">
-                      <Badge variant="warning">Awaiting Review</Badge>
+                      {getStatusBadge(app.status)}
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
+                      <div className="flex items-center justify-end gap-1.5">
                         <Button
                           size="sm"
-                          disabled={actionLoadingId === p.id}
-                          onClick={() => handleVerificationAction(p.id, "APPROVE")}
-                          className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-7 px-2.5 text-xs rounded-lg"
+                          variant="outline"
+                          onClick={() => setSelectedApp(app)}
+                          className="h-7 px-2.5 text-xs rounded-lg border-slate-700 hover:bg-slate-800 text-slate-200"
                         >
-                          <Check className="h-3.5 w-3.5 mr-1" /> Approve
+                          View Details
                         </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          disabled={actionLoadingId === p.id}
-                          onClick={() => handleVerificationAction(p.id, "REJECT")}
-                          className="h-7 px-2.5 text-xs rounded-lg"
-                        >
-                          <X className="h-3.5 w-3.5 mr-1" /> Reject
-                        </Button>
+                        {app.status === "PENDING" && (
+                          <>
+                            <Button
+                              size="sm"
+                              disabled={actionLoadingId === app.id}
+                              onClick={() => handleApprove(app)}
+                              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-7 px-2.5 text-xs rounded-lg"
+                            >
+                              <Check className="h-3.5 w-3.5 mr-1" /> Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              disabled={actionLoadingId === app.id}
+                              onClick={() => {
+                                setRejectingApp(app);
+                                setRejectionReasonInput("");
+                                setRejectionError(null);
+                              }}
+                              className="h-7 px-2.5 text-xs rounded-lg"
+                            >
+                              <X className="h-3.5 w-3.5 mr-1" /> Reject
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -540,6 +666,237 @@ export function AdminVerificationPage() {
           </table>
         </div>
       </Card>
+
+      {/* ========================================== */}
+      {/* APPLICATION DETAIL INSPECTION MODAL */}
+      {/* ========================================== */}
+      {selectedApp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 text-slate-100 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-6">
+            <div className="flex items-start justify-between border-b border-slate-800 pb-4">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-black text-white">Application #{selectedApp.application_code}</h3>
+                  {getStatusBadge(selectedApp.status)}
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Submitted: {new Date(selectedApp.created_at).toLocaleString("en-IN")}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedApp(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Rejection notice if previously rejected */}
+            {selectedApp.rejection_reason && (
+              <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800 text-xs text-rose-300">
+                <span className="font-bold">Rejection Feedback: </span>
+                {selectedApp.rejection_reason}
+              </div>
+            )}
+
+            {/* Grid Sections */}
+            <div className="space-y-4 text-xs">
+              {/* 1. Personal & Contact */}
+              <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-800/80 space-y-2">
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Personal &amp; Contact</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <span className="text-slate-500">Applicant:</span>
+                    <p className="font-bold text-white">{selectedApp.full_name}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Mobile:</span>
+                    <p className="font-bold text-white">{selectedApp.mobile}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Email:</span>
+                    <p className="font-bold text-white">{selectedApp.email}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Location:</span>
+                    <p className="font-bold text-white">{selectedApp.address}, {selectedApp.district}, {selectedApp.state}</p>
+                    {selectedApp.latitude && selectedApp.longitude && (
+                      <p className="text-[10px] text-emerald-400 mt-0.5">GPS: {selectedApp.latitude}, {selectedApp.longitude}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Professional & Business */}
+              <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-800/80 space-y-2">
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Professional Profile</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <span className="text-slate-500">Host Role:</span>
+                    <p className="font-bold text-white capitalize">{selectedApp.role_type}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Business / Farm Name:</span>
+                    <p className="font-bold text-white">{selectedApp.business_name}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Experience:</span>
+                    <p className="font-bold text-white">{selectedApp.experience_years} Years</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Languages:</span>
+                    <p className="font-bold text-white">{selectedApp.languages || "None specified"}</p>
+                  </div>
+                  {selectedApp.bio && (
+                    <div className="sm:col-span-2">
+                      <span className="text-slate-500">Bio &amp; Story:</span>
+                      <p className="text-slate-300 mt-0.5 leading-relaxed bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+                        {selectedApp.bio}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 3. Services & Activities */}
+              <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-800/80 space-y-3">
+                <div>
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1.5">
+                    Offered Services ({selectedApp.services?.length || 0})
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedApp.services?.map((s, i) => (
+                      <Badge key={i} className="bg-emerald-950 text-emerald-300 border border-emerald-800 text-[11px]">
+                        {s}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider block mb-1.5">
+                    Offered Activities ({selectedApp.activities?.length || 0})
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {selectedApp.activities?.map((a, i) => (
+                      <Badge key={i} variant="outline" className="text-teal-300 border-teal-800 text-[11px]">
+                        {a}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. KYC & Verification Document */}
+              <div className="bg-slate-950/60 rounded-2xl p-4 border border-slate-800/80 space-y-2">
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Identity &amp; KYC Verification</span>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1">
+                  <div>
+                    <span className="text-slate-500">Document Type &amp; Number:</span>
+                    <p className="font-bold text-white">{selectedApp.id_type} &bull; <span className="font-mono text-emerald-400">{selectedApp.id_number}</span></p>
+                  </div>
+                  <div>
+                    {selectedApp.document_url ? (
+                      <a
+                        href={selectedApp.document_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm transition-colors"
+                      >
+                        <span>View Uploaded Document</span>
+                      </a>
+                    ) : (
+                      <span className="text-slate-500 italic text-xs">No file uploaded</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-between pt-4 border-t border-slate-800">
+              <Button
+                variant="outline"
+                onClick={() => setSelectedApp(null)}
+                className="border-slate-700 text-slate-300"
+              >
+                Close
+              </Button>
+              {selectedApp.status === "PENDING" && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      setRejectingApp(selectedApp);
+                      setRejectionReasonInput("");
+                      setRejectionError(null);
+                    }}
+                    className="font-bold"
+                  >
+                    Reject with Feedback
+                  </Button>
+                  <Button
+                    onClick={() => handleApprove(selectedApp)}
+                    disabled={actionLoadingId === selectedApp.id}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
+                  >
+                    Approve Application
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================== */}
+      {/* REJECTION REASON PROMPT DIALOG */}
+      {/* ========================================== */}
+      {rejectingApp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-slate-900 border border-slate-800 text-slate-100 rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <h3 className="text-base font-black text-white">Reject Partner Application</h3>
+            <p className="text-xs text-slate-400">
+              Provide feedback for <strong>{rejectingApp.full_name}</strong>. This message will be sent to the applicant and displayed on their reapplication dashboard.
+            </p>
+
+            {rejectionError && (
+              <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 text-xs">
+                {rejectionError}
+              </div>
+            )}
+
+            <div>
+              <label className="text-xs font-bold text-slate-300 block mb-1.5">Reason for changes / rejection *</label>
+              <textarea
+                rows={4}
+                value={rejectionReasonInput}
+                onChange={(e) => setRejectionReasonInput(e.target.value)}
+                placeholder="e.g. Please upload a clearer copy of your RTC / Land record showing owner name matching applicant..."
+                className="w-full rounded-xl border border-slate-700 bg-slate-800 p-3 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+              <Button
+                variant="outline"
+                onClick={() => setRejectingApp(null)}
+                className="border-slate-700 text-slate-300"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={handleConfirmReject}
+                disabled={actionLoadingId === rejectingApp.id}
+                className="font-bold"
+              >
+                Confirm Rejection
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -549,16 +906,27 @@ export function AdminVerificationPage() {
 // ==========================================
 export function AdminServicesPage() {
   const [services, setServices] = useState<ServiceItem[]>([]);
-  const [statusFilter, setStatusFilter] = useState<string>("");
+  const [statusFilter, setStatusFilter] = useState<string>("PENDING");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
+
+  // Modals state
+  const [selectedService, setSelectedService] = useState<ServiceItem | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState<boolean>(false);
+  const [rejectingService, setRejectingService] = useState<ServiceItem | null>(null);
+  const [rejectionReason, setRejectionReason] = useState<string>("");
+  const [removingService, setRemovingService] = useState<ServiceItem | null>(null);
+  const [removalReason, setRemovalReason] = useState<string>("");
+  const [blockingProvider, setBlockingProvider] = useState<{ providerId: string; providerName: string } | null>(null);
+  const [blockReason, setBlockReason] = useState<string>("");
 
   const fetchServices = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
-      const res = await getAdminServices({ status: statusFilter || undefined });
+      const filterParam = statusFilter === "ALL" ? undefined : statusFilter;
+      const res = await getAdminServices({ status: filterParam });
       setServices(res);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load marketplace listings");
@@ -571,45 +939,130 @@ export function AdminServicesPage() {
     fetchServices();
   }, [fetchServices]);
 
-  const handleStatusChange = async (serviceId: string, status: "PUBLISHED" | "REJECTED" | "ARCHIVED") => {
-    setActionLoadingId(serviceId);
+  const handleApprove = async (service: ServiceItem) => {
+    setActionLoadingId(service.id);
     try {
-      await updateAdminServiceStatus(serviceId, { status });
+      await approveAdminService(service.id);
+      setIsDetailOpen(false);
+      setSelectedService(null);
       fetchServices();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : `Failed to update status to ${status}`);
+      setError(err instanceof Error ? err.message : `Failed to approve service '${service.title}'`);
     } finally {
       setActionLoadingId(null);
     }
   };
 
+  const handleRejectConfirm = async () => {
+    if (!rejectingService) return;
+    if (!rejectionReason.trim() || rejectionReason.trim().length < 3) {
+      setError("Please provide a valid rejection reason (minimum 3 characters).");
+      return;
+    }
+    setActionLoadingId(rejectingService.id);
+    try {
+      await rejectAdminService(rejectingService.id, rejectionReason.trim());
+      setRejectingService(null);
+      setRejectionReason("");
+      setIsDetailOpen(false);
+      setSelectedService(null);
+      fetchServices();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : `Failed to reject service '${rejectingService.title}'`);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleRemoveConfirm = async () => {
+    if (!removingService) return;
+    if (!removalReason.trim() || removalReason.trim().length < 3) {
+      setError("Please provide a valid removal reason (minimum 3 characters).");
+      return;
+    }
+    setActionLoadingId(removingService.id);
+    try {
+      await removeAdminService(removingService.id, removalReason.trim());
+      setRemovingService(null);
+      setRemovalReason("");
+      setIsDetailOpen(false);
+      setSelectedService(null);
+      fetchServices();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : `Failed to remove service '${removingService.title}'`);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleBlockProviderConfirm = async () => {
+    if (!blockingProvider) return;
+    if (!blockReason.trim() || blockReason.trim().length < 3) {
+      setError("Please provide a valid provider suspension reason (minimum 3 characters).");
+      return;
+    }
+    setActionLoadingId(blockingProvider.providerId);
+    try {
+      await blockAdminProvider(blockingProvider.providerId, blockReason.trim());
+      setBlockingProvider(null);
+      setBlockReason("");
+      setIsDetailOpen(false);
+      setSelectedService(null);
+      fetchServices();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : `Failed to block provider '${blockingProvider.providerName}'`);
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const openDetail = (s: ServiceItem) => {
+    setSelectedService(s);
+    setIsDetailOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <PageHeader title="Service Listing Moderation" subtitle="Approve and moderate farm listings and experience packages." />
+        <PageHeader
+          title="Service Listing Moderation"
+          subtitle="Audit, approve, reject, or remove farm stays and agro-experience listings."
+        />
         <div className="flex items-center gap-2">
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="rounded-xl bg-slate-900 border border-slate-800 py-2 px-3 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-rose-500"
-          >
-            <option value="">All Statuses</option>
-            <option value="PUBLISHED">Published</option>
-            <option value="DRAFT">Draft</option>
-            <option value="REJECTED">Rejected</option>
-            <option value="ARCHIVED">Archived</option>
-          </select>
           <Button variant="outline" size="sm" onClick={fetchServices} className="border-slate-800 bg-slate-900 text-slate-300">
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? "animate-spin" : ""}`} /> Refresh
           </Button>
         </div>
       </div>
 
+      {/* Filter Tabs */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 border-b border-slate-800 text-xs">
+        {[
+          { key: "PENDING", label: "Pending Review" },
+          { key: "PUBLISHED", label: "Published" },
+          { key: "REJECTED", label: "Rejected" },
+          { key: "REMOVED", label: "Removed / Suspended" },
+          { key: "ALL", label: "All Listings" },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setStatusFilter(tab.key)}
+            className={`px-4 py-2 rounded-xl font-medium transition-all ${
+              statusFilter === tab.key
+                ? "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                : "text-slate-400 hover:text-slate-200 hover:bg-slate-900"
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
       {error && (
         <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800 text-rose-300 text-xs flex justify-between items-center">
           <span>{error}</span>
-          <Button size="sm" variant="outline" onClick={fetchServices} className="border-rose-700 text-rose-200">
-            Retry
+          <Button size="sm" variant="outline" onClick={() => setError(null)} className="border-rose-700 text-rose-200">
+            Dismiss
           </Button>
         </div>
       )}
@@ -624,32 +1077,54 @@ export function AdminServicesPage() {
                 <th className="px-6 py-4">Category</th>
                 <th className="px-6 py-4">Price</th>
                 <th className="px-6 py-4">Status</th>
-                <th className="px-6 py-4 text-right">Moderation</th>
+                <th className="px-6 py-4 text-right">Moderation Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-500">Loading listings...</td>
+                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                    <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-rose-400" />
+                    Loading listings for moderation queue...
+                  </td>
                 </tr>
               ) : services.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-8 text-center text-slate-500">No listings found matching filter.</td>
+                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                    No listings found matching filter '{statusFilter}'.
+                  </td>
                 </tr>
               ) : (
                 services.map((s) => (
                   <tr key={s.id} className="hover:bg-slate-800/40 transition-colors">
                     <td className="px-6 py-4">
-                      <div className="font-bold text-white">{s.title}</div>
-                      <div className="text-slate-400">{s.location}, {s.district}</div>
+                      <div className="font-bold text-white text-sm">{s.title}</div>
+                      <div className="text-slate-400 flex items-center gap-1 mt-0.5">
+                        <MapPin className="h-3 w-3 text-slate-500" /> {s.location}, {s.district}
+                      </div>
                     </td>
-                    <td className="px-6 py-4 font-medium text-slate-300">{s.provider_name}</td>
+                    <td className="px-6 py-4">
+                      <div className="font-medium text-slate-200">{s.provider_name}</div>
+                      <div className="flex items-center gap-1 mt-1">
+                        {s.provider_verified ? (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] text-emerald-400 bg-emerald-950/60 border border-emerald-800 px-1.5 py-0.5 rounded">
+                            <ShieldCheck className="h-3 w-3" /> Verified Partner
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-0.5 text-[10px] text-amber-400 bg-amber-950/60 border border-amber-800 px-1.5 py-0.5 rounded">
+                            <ShieldAlert className="h-3 w-3" /> Unverified
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-6 py-4">
                       <Badge variant="outline" className="border-slate-700 bg-slate-800 text-slate-300">
                         {s.category}
                       </Badge>
                     </td>
-                    <td className="px-6 py-4 font-bold text-emerald-400">₹{s.price.toLocaleString()} / {s.unit}</td>
+                    <td className="px-6 py-4 font-bold text-emerald-400">
+                      ₹{s.price.toLocaleString()} / {s.unit}
+                    </td>
                     <td className="px-6 py-4">
                       <Badge
                         variant={
@@ -657,34 +1132,94 @@ export function AdminServicesPage() {
                             ? "default"
                             : s.status === "REJECTED"
                             ? "destructive"
+                            : s.status === "REMOVED"
+                            ? "destructive"
                             : "outline"
                         }
-                        className={s.status === "PUBLISHED" ? "bg-emerald-600 text-white" : ""}
+                        className={
+                          s.status === "PUBLISHED"
+                            ? "bg-emerald-600 text-white font-bold"
+                            : s.status === "PENDING"
+                            ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                            : s.status === "REMOVED"
+                            ? "bg-rose-950 text-rose-300 border border-rose-800"
+                            : ""
+                        }
                       >
                         {s.status}
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        {s.status !== "PUBLISHED" && (
-                          <Button
-                            size="sm"
-                            disabled={actionLoadingId === s.id}
-                            onClick={() => handleStatusChange(s.id, "PUBLISHED")}
-                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-7 px-2 text-xs rounded-lg"
-                          >
-                            Publish
-                          </Button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openDetail(s)}
+                          className="h-8 px-2.5 text-xs rounded-lg border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700"
+                          title="Inspect Full Listing Details"
+                        >
+                          <Eye className="h-3.5 w-3.5 mr-1" /> View
+                        </Button>
+
+                        {s.status === "PENDING" && (
+                          <>
+                            <Button
+                              size="sm"
+                              disabled={actionLoadingId === s.id}
+                              onClick={() => handleApprove(s)}
+                              className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-8 px-2.5 text-xs rounded-lg shadow-sm"
+                              title="Approve & Publish Listing"
+                            >
+                              <Check className="h-3.5 w-3.5 mr-1" /> Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              disabled={actionLoadingId === s.id}
+                              onClick={() => {
+                                setRejectingService(s);
+                                setRejectionReason("");
+                              }}
+                              className="h-8 px-2.5 text-xs rounded-lg"
+                              title="Reject Listing with Reason"
+                            >
+                              <X className="h-3.5 w-3.5 mr-1" /> Reject
+                            </Button>
+                          </>
                         )}
-                        {s.status !== "REJECTED" && (
+
+                        {s.status === "PUBLISHED" && (
                           <Button
                             size="sm"
                             variant="destructive"
                             disabled={actionLoadingId === s.id}
-                            onClick={() => handleStatusChange(s.id, "REJECTED")}
-                            className="h-7 px-2 text-xs rounded-lg"
+                            onClick={() => {
+                              setRemovingService(s);
+                              setRemovalReason("");
+                            }}
+                            className="bg-rose-900/80 hover:bg-rose-800 text-rose-200 border border-rose-700 h-8 px-2.5 text-xs rounded-lg"
+                            title="Remove Service from Marketplace"
                           >
-                            Reject
+                            <Trash2 className="h-3.5 w-3.5 mr-1" /> Remove
+                          </Button>
+                        )}
+
+                        {s.provider_id && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={actionLoadingId === s.provider_id}
+                            onClick={() => {
+                              setBlockingProvider({
+                                providerId: s.provider_id!,
+                                providerName: s.provider_name,
+                              });
+                              setBlockReason("");
+                            }}
+                            className="h-8 px-2 text-xs rounded-lg border-amber-800/60 bg-amber-950/40 text-amber-300 hover:bg-amber-900/50"
+                            title="Suspend/Block Provider Account"
+                          >
+                            <Ban className="h-3.5 w-3.5" />
                           </Button>
                         )}
                       </div>
@@ -696,6 +1231,324 @@ export function AdminServicesPage() {
           </table>
         </div>
       </Card>
+
+      {/* SERVICE DETAIL INSPECTION MODAL */}
+      {isDetailOpen && selectedService && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm overflow-y-auto">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl text-slate-200">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-800 flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-lg font-bold text-white">{selectedService.title}</h3>
+                  <Badge
+                    variant={
+                      selectedService.status === "PUBLISHED"
+                        ? "default"
+                        : selectedService.status === "REJECTED"
+                        ? "destructive"
+                        : "outline"
+                    }
+                    className={
+                      selectedService.status === "PUBLISHED"
+                        ? "bg-emerald-600 text-white"
+                        : selectedService.status === "PENDING"
+                        ? "bg-amber-500/20 text-amber-300 border-amber-500/30"
+                        : ""
+                    }
+                  >
+                    {selectedService.status}
+                  </Badge>
+                </div>
+                <p className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+                  <MapPin className="h-3.5 w-3.5 text-slate-500" />
+                  {selectedService.location}, {selectedService.district}, {selectedService.state}
+                </p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsDetailOpen(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </Button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="p-6 overflow-y-auto space-y-6 flex-1 text-xs">
+              {/* Host / Provider Information Card */}
+              <div className="p-4 rounded-xl bg-slate-950 border border-slate-800">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
+                  <span>Host / Provider Information</span>
+                  {selectedService.provider_verified ? (
+                    <span className="inline-flex items-center gap-1 text-emerald-400 bg-emerald-950 border border-emerald-800 px-2 py-0.5 rounded text-[10px]">
+                      <ShieldCheck className="h-3.5 w-3.5" /> Verified Partner
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-amber-400 bg-amber-950 border border-amber-800 px-2 py-0.5 rounded text-[10px]">
+                      <ShieldAlert className="h-3.5 w-3.5" /> Unverified Account
+                    </span>
+                  )}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-slate-300">
+                  <div>
+                    <span className="text-slate-500">Name:</span> {selectedService.provider_name}
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Role / Type:</span> {selectedService.provider_type}
+                  </div>
+                  {selectedService.provider_email && (
+                    <div>
+                      <span className="text-slate-500">Email:</span> {selectedService.provider_email}
+                    </div>
+                  )}
+                  {selectedService.provider_mobile && (
+                    <div>
+                      <span className="text-slate-500">Mobile:</span> {selectedService.provider_mobile}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Service Details & Pricing */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <span className="text-slate-500 block text-[10px]">Category</span>
+                  <span className="font-semibold text-slate-200">{selectedService.category}</span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <span className="text-slate-500 block text-[10px]">Pricing</span>
+                  <span className="font-bold text-emerald-400 text-sm">
+                    ₹{selectedService.price.toLocaleString()} / {selectedService.unit}
+                  </span>
+                </div>
+                <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <span className="text-slate-500 block text-[10px]">Capacity & Duration</span>
+                  <span className="font-semibold text-slate-200">
+                    {selectedService.max_capacity ? `Up to ${selectedService.max_capacity} guests` : "Standard capacity"}
+                    {selectedService.duration_hours ? ` • ${selectedService.duration_hours} hrs` : ""}
+                  </span>
+                </div>
+              </div>
+
+              {/* Description */}
+              <div>
+                <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Description</h4>
+                <p className="text-slate-300 leading-relaxed bg-slate-950/40 p-3 rounded-xl border border-slate-800 whitespace-pre-wrap">
+                  {selectedService.description}
+                </p>
+              </div>
+
+              {/* Inclusions & Amenities */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {selectedService.inclusions && selectedService.inclusions.length > 0 && (
+                  <div>
+                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Inclusions</h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedService.inclusions.map((item, idx) => (
+                        <span key={idx} className="bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg text-slate-300">
+                          ✓ {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {selectedService.amenities && selectedService.amenities.length > 0 && (
+                  <div>
+                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-2">Amenities</h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {selectedService.amenities.map((item, idx) => (
+                        <span key={idx} className="bg-slate-950 border border-slate-800 px-2 py-1 rounded-lg text-slate-300">
+                          • {item}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Rejection / Removal Reason History if applicable */}
+              {selectedService.rejection_reason && (
+                <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800">
+                  <div className="text-[11px] font-bold uppercase tracking-wider text-rose-400 mb-1">
+                    Moderation Note / Reason
+                  </div>
+                  <p className="text-rose-200">{selectedService.rejection_reason}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Action Buttons */}
+            <div className="p-6 border-t border-slate-800 flex items-center justify-between bg-slate-950/50">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsDetailOpen(false)}
+                className="border-slate-800 text-slate-400"
+              >
+                Close
+              </Button>
+              <div className="flex items-center gap-2">
+                {selectedService.status === "PENDING" && (
+                  <>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        setRejectingService(selectedService);
+                        setRejectionReason("");
+                      }}
+                      className="px-4 font-semibold"
+                    >
+                      <X className="h-4 w-4 mr-1.5" /> Reject Listing
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleApprove(selectedService)}
+                      disabled={actionLoadingId === selectedService.id}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4"
+                    >
+                      <Check className="h-4 w-4 mr-1.5" /> Approve & Publish
+                    </Button>
+                  </>
+                )}
+
+                {selectedService.status === "PUBLISHED" && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => {
+                      setRemovingService(selectedService);
+                      setRemovalReason("");
+                    }}
+                    className="bg-rose-900 hover:bg-rose-800 text-rose-200 border border-rose-700 px-4 font-semibold"
+                  >
+                    <Trash2 className="h-4 w-4 mr-1.5" /> Remove from Marketplace
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REJECTION REASON DIALOG */}
+      {rejectingService && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <h3 className="text-base font-bold text-white">Reject Service Listing</h3>
+            <p className="text-xs text-slate-400">
+              Please provide a clear reason for rejecting <span className="text-white font-semibold">{rejectingService.title}</span>. This feedback will be sent to the host.
+            </p>
+            <textarea
+              rows={4}
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              placeholder="e.g. Inaccurate pricing details, photos do not meet quality guidelines, or missing required farm safety documentation."
+              className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-rose-500"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setRejectingService(null)}
+                className="border-slate-800 text-slate-400"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={actionLoadingId === rejectingService.id || !rejectionReason.trim()}
+                onClick={handleRejectConfirm}
+                className="font-bold px-4"
+              >
+                Confirm Rejection
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REMOVAL REASON DIALOG */}
+      {removingService && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <h3 className="text-base font-bold text-white">Remove Listing from Marketplace</h3>
+            <p className="text-xs text-slate-400">
+              Removing <span className="text-white font-semibold">{removingService.title}</span> will immediately hide it from public search and booking.
+            </p>
+            <textarea
+              rows={4}
+              value={removalReason}
+              onChange={(e) => setRemovalReason(e.target.value)}
+              placeholder="e.g. Policy violation, fraudulent photos, or duplicate listing."
+              className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-rose-500"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setRemovingService(null)}
+                className="border-slate-800 text-slate-400"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={actionLoadingId === removingService.id || !removalReason.trim()}
+                onClick={handleRemoveConfirm}
+                className="bg-rose-900 hover:bg-rose-800 text-rose-200 border border-rose-700 font-bold px-4"
+              >
+                Remove Listing
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* BLOCK PROVIDER CONFIRMATION DIALOG */}
+      {blockingProvider && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-md p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-2 text-rose-400">
+              <ShieldAlert className="h-5 w-5" />
+              <h3 className="text-base font-bold text-white">Suspend Provider Account</h3>
+            </div>
+            <p className="text-xs text-slate-400">
+              Blocking <span className="text-white font-semibold">{blockingProvider.providerName}</span> will suspend their account and remove all of their active and pending listings from the marketplace.
+            </p>
+            <textarea
+              rows={4}
+              value={blockReason}
+              onChange={(e) => setBlockReason(e.target.value)}
+              placeholder="e.g. Repeated violation of hosting terms, verified fraud report, or invalid KYC documents."
+              className="w-full rounded-xl bg-slate-950 border border-slate-800 p-3 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-rose-500"
+            />
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBlockingProvider(null)}
+                className="border-slate-800 text-slate-400"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
+                disabled={actionLoadingId === blockingProvider.providerId || !blockReason.trim()}
+                onClick={handleBlockProviderConfirm}
+                className="bg-rose-600 hover:bg-rose-500 text-white font-bold px-4"
+              >
+                Suspend & Remove Listings
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

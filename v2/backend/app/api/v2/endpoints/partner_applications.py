@@ -11,6 +11,7 @@ from app.schemas.common import APIResponse
 from app.schemas.partner_application import (
     PartnerApplicationCreateRequest,
     PartnerApplicationReviewRequest,
+    PartnerApplicationRejectRequest,
     PartnerApplicationResponse,
 )
 from app.services.partner_application import PartnerApplicationService
@@ -67,6 +68,61 @@ def list_partner_applications(
     )
 
 
+@admin_router.get("/{app_id}", response_model=APIResponse[PartnerApplicationResponse])
+def get_admin_partner_application(
+    app_id: str,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Admin: Get single partner application details."""
+    app = PartnerApplicationService.get_application_by_id(db, app_id)
+    return APIResponse(
+        success=True,
+        message="Partner application details retrieved successfully.",
+        data=app,
+    )
+
+
+@admin_router.post("/{app_id}/approve", response_model=APIResponse[PartnerApplicationResponse])
+def approve_partner_application(
+    app_id: str,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Admin: Approve a pending partner application."""
+    result = PartnerApplicationService.approve_application(
+        db=db,
+        app_id=app_id,
+        admin_user=current_user,
+    )
+    return APIResponse(
+        success=True,
+        message="Partner application approved successfully.",
+        data=result,
+    )
+
+
+@admin_router.post("/{app_id}/reject", response_model=APIResponse[PartnerApplicationResponse])
+def reject_partner_application(
+    app_id: str,
+    payload: PartnerApplicationRejectRequest,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Admin: Reject a pending partner application with required explanation."""
+    result = PartnerApplicationService.reject_application(
+        db=db,
+        app_id=app_id,
+        admin_user=current_user,
+        rejection_reason=payload.rejection_reason,
+    )
+    return APIResponse(
+        success=True,
+        message="Partner application rejected successfully.",
+        data=result,
+    )
+
+
 @admin_router.post("/{app_id}/review", response_model=APIResponse[PartnerApplicationResponse])
 def review_partner_application(
     app_id: str,
@@ -74,7 +130,7 @@ def review_partner_application(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """Admin: Approve or reject a partner application."""
+    """Admin: Approve or reject a partner application (generic review)."""
     result = PartnerApplicationService.review_application(
         db=db,
         app_id=app_id,
