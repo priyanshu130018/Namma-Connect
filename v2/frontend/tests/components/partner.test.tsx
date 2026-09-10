@@ -29,10 +29,10 @@ describe("Partner Application Components", () => {
         <PartnerSidebar isCollapsed={false} onToggleCollapse={() => {}} />
       </BrowserRouter>
     );
-    expect(screen.getByRole("link", { name: /Dashboard/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /My Services/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Bookings/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Earnings/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Services$/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Bookings$/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Earnings$/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Payments \/ Payouts/i })).toBeInTheDocument();
   });
 
   it("renders PartnerDashboard with KPI metrics", () => {

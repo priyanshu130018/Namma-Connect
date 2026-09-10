@@ -51,70 +51,73 @@ class SupportService:
     @classmethod
     def ensure_seeded(cls, db: Session):
         """Seed sample support tickets for admin and initial catalog if empty."""
-        count = db.query(SupportTicket).count()
-        if count > 0:
-            return
+        try:
+            count = db.query(SupportTicket).count()
+            if count > 0:
+                return
 
-        customer = db.query(User).filter(User.role == "customer").first()
-        partner = db.query(User).filter(User.role.in_(["partner", "farmer"])).first()
-        admin = db.query(User).filter(User.role == "admin").first()
+            customer = db.query(User).filter(User.role == "customer").first()
+            partner = db.query(User).filter(User.role.in_(["partner", "farmer"])).first()
+            admin = db.query(User).filter(User.role == "admin").first()
 
-        fallback_user = customer or partner or admin
-        if not fallback_user:
-            return
+            fallback_user = customer or partner or admin
+            if not fallback_user:
+                return
 
-        seed_data = [
-            {
-                "ticket_code": "NC-TICK-1001",
-                "user_id": customer.id if customer else fallback_user.id,
-                "user_name": customer.full_name if customer else "Aravind Swamy",
-                "user_email": customer.email if customer else "customer@namnaconnect.test",
-                "booking_id": "NC-BKG-9921",
-                "category": "Booking",
-                "subject": "Inquiry regarding farm tour timings and check-in",
-                "description": "Will early check-in be possible for our family at 11:00 AM instead of 1:00 PM?",
-                "status": "OPEN",
-                "priority": "MEDIUM",
-                "responses_json": json.dumps([]),
-            },
-            {
-                "ticket_code": "NC-TICK-1002",
-                "user_id": partner.id if partner else fallback_user.id,
-                "user_name": partner.full_name if partner else "Plantation Host",
-                "user_email": partner.email if partner else "partner@namnaconnect.test",
-                "booking_id": None,
-                "category": "Service",
-                "subject": "Question about weekend availability calendar settings",
-                "description": "How do I block specific slots for private harvesting events?",
-                "status": "IN_PROGRESS",
-                "priority": "LOW",
-                "responses_json": json.dumps([
-                    {
-                        "sender_name": "NammaConnect Support Agent",
-                        "sender_role": "admin",
-                        "message": "You can block specific days under Partner Services > Edit Service > Weekly Schedule.",
-                        "created_at": datetime.utcnow().isoformat(),
-                    }
-                ]),
-            },
-        ]
+            seed_data = [
+                {
+                    "ticket_code": "NC-TICK-1001",
+                    "user_id": customer.id if customer else fallback_user.id,
+                    "user_name": customer.full_name if customer else "Aravind Swamy",
+                    "user_email": customer.email if customer else "customer@namnaconnect.test",
+                    "booking_id": "NC-BKG-9921",
+                    "category": "Booking",
+                    "subject": "Inquiry regarding farm tour timings and check-in",
+                    "description": "Will early check-in be possible for our family at 11:00 AM instead of 1:00 PM?",
+                    "status": "OPEN",
+                    "priority": "MEDIUM",
+                    "responses_json": json.dumps([]),
+                },
+                {
+                    "ticket_code": "NC-TICK-1002",
+                    "user_id": partner.id if partner else fallback_user.id,
+                    "user_name": partner.full_name if partner else "Plantation Host",
+                    "user_email": partner.email if partner else "partner@namnaconnect.test",
+                    "booking_id": None,
+                    "category": "Service",
+                    "subject": "Question about weekend availability calendar settings",
+                    "description": "How do I block specific slots for private harvesting events?",
+                    "status": "IN_PROGRESS",
+                    "priority": "LOW",
+                    "responses_json": json.dumps([
+                        {
+                            "sender_name": "NammaConnect Support Agent",
+                            "sender_role": "admin",
+                            "message": "You can block specific days under Partner Services > Edit Service > Weekly Schedule.",
+                            "created_at": datetime.utcnow().isoformat(),
+                        }
+                    ]),
+                },
+            ]
 
-        for s in seed_data:
-            ticket = SupportTicket(
-                ticket_code=s["ticket_code"],
-                user_id=s["user_id"],
-                user_name=s["user_name"],
-                user_email=s["user_email"],
-                booking_id=s["booking_id"],
-                category=s["category"],
-                subject=s["subject"],
-                description=s["description"],
-                status=s["status"],
-                priority=s["priority"],
-                responses_json=s["responses_json"],
-            )
-            db.add(ticket)
-        db.commit()
+            for s in seed_data:
+                ticket = SupportTicket(
+                    ticket_code=s["ticket_code"],
+                    user_id=s["user_id"],
+                    user_name=s["user_name"],
+                    user_email=s["user_email"],
+                    booking_id=s["booking_id"],
+                    category=s["category"],
+                    subject=s["subject"],
+                    description=s["description"],
+                    status=s["status"],
+                    priority=s["priority"],
+                    responses_json=s["responses_json"],
+                )
+                db.add(ticket)
+            db.commit()
+        except Exception:
+            db.rollback()
 
     @classmethod
     def create_ticket(

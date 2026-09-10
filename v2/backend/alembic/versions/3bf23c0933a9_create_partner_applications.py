@@ -1,7 +1,7 @@
-﻿"""Create partner applications table.
+"""Create partner applications table.
 
-Revision ID: 0002_create_partner_applications
-Revises: 0001_initial_core_schema
+Revision ID: 3bf23c0933a9
+Revises: 40322496bba3
 Create Date: 2026-08-24 14:30:00.000000
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from app.models.base import GUID
 
 # revision identifiers, used by Alembic.
-revision = '0002_create_partner_applications'
-down_revision = '0001_initial_core_schema'
+revision = '3bf23c0933a9'
+down_revision = '40322496bba3'
 branch_labels = None
 depends_on = None
 

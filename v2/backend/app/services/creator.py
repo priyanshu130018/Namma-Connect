@@ -89,109 +89,111 @@ class CreatorService:
     @classmethod
     def ensure_seeded(cls, db: Session):
         """Seed featured creators if table is empty."""
-        count = db.query(CreatorProfile).count()
-        if count > 0:
-            return
+        try:
+            count = db.query(CreatorProfile).count()
+            if count > 0:
+                return
 
-        seed_data = [
-            {
-                "display_name": "Priya Sharma",
-                "handle": "@priyasharma",
-                "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80",
-                "bio": "Agro-cinematographer & visual storyteller documenting Western Ghats organic estates and farm recipes.",
-                "location": "Bangalore & Coorg, Karnataka",
-                "reach": "120K+ Followers",
-                "starting_rate": 15000.0,
-                "rating": 4.96,
-                "reviews_count": 28,
-                "is_verified": True,
-                "specialties_json": json.dumps(["Drone Cinematography", "Farm-to-Table Stories", "Reel Kits"]),
-                "social_links_json": json.dumps({"instagram": "@priyasharma", "youtube": "PriyaMalnadStories"}),
-                "portfolio_items_json": json.dumps([
-                    {
-                        "title": "Coorg Mist Blossom Drone Reel",
-                        "location": "Madikeri, Karnataka",
-                        "imageUrl": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&auto=format&fit=crop&q=80",
-                        "category": "Drone Video",
-                    },
-                    {
-                        "title": "Wayanad Tribal Honey Harvesters",
-                        "location": "Kalpetta, Kerala",
-                        "imageUrl": "https://images.unsplash.com/photo-1592417817098-8f3d6eb2252a?w=600&auto=format&fit=crop&q=80",
-                        "category": "Documentary",
-                    },
-                ]),
-                "packages_json": json.dumps([
-                    {
-                        "id": "pkg-1",
-                        "title": "Estate Harvest 4K Cinematography Package",
-                        "price": 15000.0,
-                        "deliverables": ["2x 4K Drone Reels (60s)", "15x Retouched High-Res Photos", "Audio & Drone Color Grading"],
-                        "turnaround": "5 Business Days",
-                    },
-                    {
-                        "id": "pkg-2",
-                        "title": "Farm-to-Table Culinary & Recipe Feature",
-                        "price": 20000.0,
-                        "deliverables": ["1x Long-Form YouTube Feature (8-10m)", "3x Story Snippets", "Full Commercial Usage Rights"],
-                        "turnaround": "7 Business Days",
-                    },
-                ]),
-            },
-            {
-                "display_name": "Kiran Aerials",
-                "handle": "@kiranaerials",
-                "avatar_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80",
-                "bio": "Certified FPV drone pilot specializing in high-action off-road safaris and estate landscapes.",
-                "location": "Chikmagalur, Karnataka",
-                "reach": "85K+ Followers",
-                "starting_rate": 12000.0,
-                "rating": 4.92,
-                "reviews_count": 19,
-                "is_verified": True,
-                "specialties_json": json.dumps(["FPV Drone", "Off-road Trails", "Estate Overviews"]),
-                "social_links_json": json.dumps({"instagram": "@kiranaerials"}),
-                "portfolio_items_json": json.dumps([
-                    {
-                        "title": "Chikmagalur Coffee Pod Processing",
-                        "location": "Chikmagalur, Karnataka",
-                        "imageUrl": "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=600&auto=format&fit=crop&q=80",
-                        "category": "Landscape",
-                    }
-                ]),
-                "packages_json": json.dumps([
-                    {
-                        "id": "pkg-3",
-                        "title": "FPV Trail & Safari Promo Package",
-                        "price": 12000.0,
-                        "deliverables": ["1x FPV Flythrough (90s)", "10x High-Res Action Stills"],
-                        "turnaround": "3 Business Days",
-                    }
-                ]),
-            },
-        ]
+            seed_data = [
+                {
+                    "display_name": "Priya Sharma",
+                    "handle": "@priyasharma",
+                    "avatar_url": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80",
+                    "bio": "Agro-cinematographer & visual storyteller documenting Western Ghats organic estates and farm recipes.",
+                    "location": "Bangalore & Coorg, Karnataka",
+                    "reach": "120K+ Followers",
+                    "starting_rate": 15000.0,
+                    "rating": 4.96,
+                    "reviews_count": 28,
+                    "is_verified": True,
+                    "specialties_json": json.dumps(["Drone Cinematography", "Farm-to-Table Stories", "Reel Kits"]),
+                    "social_links_json": json.dumps({"instagram": "@priyasharma", "youtube": "PriyaMalnadStories"}),
+                    "portfolio_items_json": json.dumps([
+                        {
+                            "title": "Coorg Mist Blossom Drone Reel",
+                            "location": "Madikeri, Karnataka",
+                            "imageUrl": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=600&auto=format&fit=crop&q=80",
+                            "category": "Drone Video",
+                        },
+                        {
+                            "title": "Wayanad Tribal Honey Harvesters",
+                            "location": "Kalpetta, Kerala",
+                            "imageUrl": "https://images.unsplash.com/photo-1592417817098-8f3d6eb2252a?w=600&auto=format&fit=crop&q=80",
+                            "category": "Documentary",
+                        },
+                    ]),
+                    "packages_json": json.dumps([
+                        {
+                            "id": "pkg-1",
+                            "title": "Estate Harvest 4K Cinematography Package",
+                            "price": 15000.0,
+                            "deliverables": ["2x 4K Drone Reels (60s)", "15x Retouched High-Res Photos", "Audio & Drone Color Grading"],
+                            "turnaround": "5 Business Days",
+                        },
+                        {
+                            "id": "pkg-2",
+                            "title": "Farm-to-Table Culinary & Recipe Feature",
+                            "price": 20000.0,
+                            "deliverables": ["1x Long-Form YouTube Feature (8-10m)", "3x Story Snippets", "Full Commercial Usage Rights"],
+                            "turnaround": "7 Business Days",
+                        },
+                    ]),
+                },
+                {
+                    "display_name": "Kiran Aerials",
+                    "handle": "@kiranaerials",
+                    "avatar_url": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80",
+                    "bio": "Certified FPV drone pilot specializing in high-action off-road safaris and estate landscapes.",
+                    "location": "Chikmagalur, Karnataka",
+                    "reach": "85K+ Followers",
+                    "starting_rate": 12000.0,
+                    "rating": 4.92,
+                    "reviews_count": 19,
+                    "is_verified": True,
+                    "specialties_json": json.dumps(["FPV Drone", "Off-road Trails", "Estate Overviews"]),
+                    "social_links_json": json.dumps({"instagram": "@kiranaerials"}),
+                    "portfolio_items_json": json.dumps([
+                        {
+                            "title": "Chikmagalur Coffee Pod Processing",
+                            "location": "Chikmagalur, Karnataka",
+                            "imageUrl": "https://images.unsplash.com/photo-1542601906990-b4d3fb778b09?w=600&auto=format&fit=crop&q=80",
+                            "category": "Landscape",
+                        }
+                    ]),
+                    "packages_json": json.dumps([
+                        {
+                            "id": "pkg-3",
+                            "title": "FPV Trail & Safari Promo Package",
+                            "price": 12000.0,
+                            "deliverables": ["1x FPV Flythrough (90s)", "10x High-Res Action Stills"],
+                            "turnaround": "3 Business Days",
+                        }
+                    ]),
+                },
+            ]
 
-        for s in seed_data:
-            # Create a placeholder user or standalone profile
-            profile = CreatorProfile(
-                user_id=uuid.uuid4(),
-                display_name=s["display_name"],
-                handle=s["handle"],
-                avatar_url=s["avatar_url"],
-                bio=s["bio"],
-                location=s["location"],
-                reach=s["reach"],
-                starting_rate=s["starting_rate"],
-                rating=s["rating"],
-                reviews_count=s["reviews_count"],
-                is_verified=s["is_verified"],
-                specialties_json=s["specialties_json"],
-                social_links_json=s["social_links_json"],
-                portfolio_items_json=s["portfolio_items_json"],
-                packages_json=s["packages_json"],
-            )
-            db.add(profile)
-        db.commit()
+            for s in seed_data:
+                profile = CreatorProfile(
+                    user_id=uuid.uuid4(),
+                    display_name=s["display_name"],
+                    handle=s["handle"],
+                    avatar_url=s["avatar_url"],
+                    bio=s["bio"],
+                    location=s["location"],
+                    reach=s["reach"],
+                    starting_rate=s["starting_rate"],
+                    rating=s["rating"],
+                    reviews_count=s["reviews_count"],
+                    is_verified=s["is_verified"],
+                    specialties_json=s["specialties_json"],
+                    social_links_json=s["social_links_json"],
+                    portfolio_items_json=s["portfolio_items_json"],
+                    packages_json=s["packages_json"],
+                )
+                db.add(profile)
+            db.commit()
+        except Exception:
+            db.rollback()
 
     @classmethod
     def get_or_create_creator_profile(cls, db: Session, user: User) -> CreatorProfileResponse:

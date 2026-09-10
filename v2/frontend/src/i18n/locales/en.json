@@ -227,5 +227,36 @@
     "serverError": "Something went wrong on our end. Please try again shortly.",
     "serviceUnavailable": "Service is temporarily unavailable. Please try again in a moment.",
     "networkError": "Network connection error. Please check your internet connection."
+  },
+  "messages": {
+    "title": "Host & Partner Messages",
+    "subtitle": "Chat directly with your plantation hosts, creators, and experience coordinators.",
+    "activeConversations": "Active Conversations",
+    "noConversations": "No conversations yet.",
+    "noConversationsDesc": "When you message a host or book an experience, your message threads will appear here.",
+    "selectToChat": "Select a conversation to view messages",
+    "typePlaceholder": "Type a message...",
+    "send": "Send",
+    "refresh": "Refresh",
+    "online": "Online",
+    "offline": "Offline",
+    "hostPartner": "Host Partner",
+    "messageHost": "Message Host",
+    "messageProvider": "Message Provider",
+    "sayHello": "Say hello to start the conversation!"
+  },
+  "map": {
+    "location": "Location",
+    "getDirections": "Get Directions",
+    "distance": "Distance",
+    "estimatedTime": "Estimated Time",
+    "openInMaps": "Open in Maps",
+    "currentLocation": "Current location",
+    "searchLocation": "Search location",
+    "unableToDetermineLocation": "Unable to determine location",
+    "routeUnavailable": "Route unavailable",
+    "loadingMap": "Loading map...",
+    "mapUnavailable": "Map services are temporarily unavailable."
   }
 }
+

@@ -1,7 +1,7 @@
-﻿"""Add service moderation fields.
+"""Add service moderation fields.
 
-Revision ID: 0003_add_service_moderation_fields
-Revises: 0002_create_partner_applications
+Revision ID: 90c287509883
+Revises: 3bf23c0933a9
 Create Date: 2026-08-24 22:45:00.000000
 
 """
@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from app.models.base import GUID
 
 # revision identifiers, used by Alembic.
-revision = '0003_add_service_moderation_fields'
-down_revision = '0002_create_partner_applications'
+revision = '90c287509883'
+down_revision = '3bf23c0933a9'
 branch_labels = None
 depends_on = None
 

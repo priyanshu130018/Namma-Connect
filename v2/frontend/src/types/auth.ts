@@ -13,6 +13,7 @@ export interface User {
   avatar_url?: string | null;
   location?: string | null;
   language?: string | null;
+  business_name?: string | null;
   theme_preference?: string | null;
   created_at?: string | null;
 }

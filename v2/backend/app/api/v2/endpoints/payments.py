@@ -15,11 +15,17 @@ from app.schemas.payment import (
     PaymentVerificationResponse,
 )
 from app.services.payment import PaymentService
+from app.core.rate_limiter import rate_limit
 
 router = APIRouter(prefix="/payments", tags=["Payments"])
 
 
-@router.post("/create-order", response_model=APIResponse[PaymentOrderResponse], status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/create-order",
+    response_model=APIResponse[PaymentOrderResponse],
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit(max_requests=20, window_seconds=60, key_prefix="payments:order"))],
+)
 def create_payment_order(
     req: PaymentOrderCreateRequest,
     current_user: User = Depends(get_current_user),
@@ -34,7 +40,11 @@ def create_payment_order(
     )
 
 
-@router.post("/verify", response_model=APIResponse[PaymentVerificationResponse])
+@router.post(
+    "/verify",
+    response_model=APIResponse[PaymentVerificationResponse],
+    dependencies=[Depends(rate_limit(max_requests=30, window_seconds=60, key_prefix="payments:verify"))],
+)
 def verify_payment(
     req: PaymentVerifyRequest,
     current_user: User = Depends(get_current_user),

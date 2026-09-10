@@ -10,6 +10,7 @@ export interface MarketplaceService {
   state: string;
   latitude?: number;
   longitude?: number;
+  formatted_address?: string;
   price: number;
   unit: string;
   duration_hours?: number;

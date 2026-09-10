@@ -29,12 +29,15 @@ export interface ConversationItem {
   id: string;
   participant_id: string;
   participant_name: string;
+  participant_avatar?: string | null;
+  is_online?: boolean;
   subject?: string | null;
   last_message_text?: string | null;
   last_message_at?: string | null;
   unread_count: number;
   created_at?: string | null;
 }
+
 
 export interface ConversationDetail {
   conversation: ConversationItem;

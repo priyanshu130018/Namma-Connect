@@ -37,6 +37,7 @@ class ServiceResponse(BaseModel):
     state: str
     latitude: Optional[float] = None
     longitude: Optional[float] = None
+    formatted_address: Optional[str] = None
     price: float
     unit: str
     duration_hours: Optional[float] = None
@@ -144,6 +145,9 @@ class ServiceCreatePayload(BaseModel):
     location: str
     district: Optional[str] = None
     state: Optional[str] = "Karnataka"
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    formatted_address: Optional[str] = None
     price: float
     unit: str = "night"
     duration_hours: Optional[float] = None
@@ -164,6 +168,9 @@ class ServiceUpdatePayload(BaseModel):
     location: Optional[str] = None
     district: Optional[str] = None
     state: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    formatted_address: Optional[str] = None
     price: Optional[float] = None
     unit: Optional[str] = None
     duration_hours: Optional[float] = None

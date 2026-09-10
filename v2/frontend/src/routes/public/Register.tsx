@@ -76,25 +76,25 @@ export function RegisterPage() {
   };
 
   return (
-    <Section className="py-12 bg-slate-50 min-h-screen flex items-center">
+    <Section className="py-12 bg-slate-50 dark:bg-slate-950 min-h-screen flex items-center">
       <Container size="sm">
-        <Card className="p-8 bg-white rounded-3xl border-slate-200 text-left max-w-md mx-auto space-y-6 shadow-sm">
+        <Card className="p-8 bg-white dark:bg-slate-900 rounded-3xl border-slate-200 dark:border-slate-800 text-left max-w-md mx-auto space-y-6 shadow-sm">
           {/* Header */}
           <div className="text-center space-y-2">
-            <div className="h-12 w-12 rounded-2xl bg-harvest-50 text-harvest-700 flex items-center justify-center mx-auto shadow-sm">
+            <div className="h-12 w-12 rounded-2xl bg-harvest-50 dark:bg-harvest-950/80 text-harvest-700 dark:text-harvest-400 flex items-center justify-center mx-auto shadow-sm">
               <UserPlus className="h-6 w-6" />
             </div>
             <Badge variant="default">Create Account</Badge>
-            <h2 className="text-2xl font-extrabold text-slate-900">Join Namma Connect</h2>
-            <p className="text-xs text-slate-500">
+            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">Join Namma Connect</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Create your personal account to discover authentic agricultural stays, harvest trails, and rural experiences.
             </p>
           </div>
 
           {/* Error Banner */}
           {errorMessage && (
-            <div className="rounded-2xl bg-rose-50 border border-rose-200 p-3.5 text-xs text-rose-800 flex items-start gap-2.5">
-              <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+            <div className="rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3.5 text-xs text-rose-800 dark:text-rose-300 flex items-start gap-2.5">
+              <AlertCircle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
               <span>{errorMessage}</span>
             </div>
           )}
@@ -162,10 +162,10 @@ export function RegisterPage() {
           </form>
 
           {/* Footer Sign In Link */}
-          <div className="pt-4 border-t border-slate-100 text-center">
-            <p className="text-xs text-slate-500">
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Already have an account?{" "}
-              <Link to="/login" className="font-bold text-harvest-700 hover:text-harvest-800 underline">
+              <Link to="/login" className="font-bold text-harvest-700 hover:text-harvest-800 dark:text-harvest-400 underline">
                 Sign In
               </Link>
             </p>

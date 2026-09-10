@@ -25,6 +25,12 @@ TestingSessionLocal = sessionmaker(
 @pytest.fixture(scope="session", autouse=True)
 def setup_test_db():
     Base.metadata.create_all(bind=test_engine)
+    db = TestingSessionLocal()
+    try:
+        from app.services.marketplace import MarketplaceService
+        MarketplaceService.ensure_seeded(db)
+    finally:
+        db.close()
     yield
     Base.metadata.drop_all(bind=test_engine)
 

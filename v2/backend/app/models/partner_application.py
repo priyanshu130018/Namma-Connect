@@ -40,12 +40,16 @@ class PartnerApplication(Base, TimestampMixin):
     id_number = Column(String(100), nullable=False)
     document_url = Column(String(500), nullable=True)
 
-    # Offerings (Dynamic Tags)
+    # Offerings (Dynamic Tags & Structured Data)
+    provider_details_json = Column(Text, nullable=True, default="{}")  # Role-specific structured provider metadata
+    documents_json = Column(Text, nullable=True, default="[]")  # JSON list of uploaded verification documents
+    images_json = Column(Text, nullable=True, default="[]")  # JSON list of uploaded business/location images
     services_json = Column(Text, nullable=False, default="[]")  # list of custom/standard services
     activities_json = Column(Text, nullable=False, default="[]")  # list of custom/standard activities
 
-    # Lifecycle State
-    status = Column(String(50), nullable=False, default="PENDING", index=True)  # DRAFT, PENDING, REJECTED, APPROVED
+    # Progress & Lifecycle State
+    draft_step = Column(Integer, nullable=True, default=1)  # 1 to 5 for onboarding wizard progress
+    status = Column(String(50), nullable=False, default="PENDING", index=True)  # DRAFT, PENDING, REJECTED, APPROVED, CHANGES_REQUESTED
     rejection_reason = Column(Text, nullable=True)
     reviewed_by = Column(GUID(), nullable=True)
     reviewed_at = Column(DateTime, nullable=True)

@@ -98,3 +98,73 @@ def test_search_suggestions(client: TestClient):
     assert "suggestions" in data
     assert len(data["suggestions"]) > 0
     assert "title" in data["suggestions"][0]
+
+
+def test_home_page_concurrent_requests_and_seeding(client: TestClient, db_session):
+    """Regression test for the Home page loading flow (3 concurrent GET /services requests)."""
+    import concurrent.futures
+    from app.services.marketplace import MarketplaceService
+    from app.models.user import User
+    from app.models.service import Service
+
+    # First ensure DB is seeded cleanly
+    MarketplaceService.ensure_seeded(db_session)
+
+    # 1. Test home page 3 concurrent GET requests using ThreadPoolExecutor
+    def fetch_endpoint(url):
+        return client.get(url)
+
+    urls = [
+        "/api/v2/services?limit=4&sort_by=rating",
+        "/api/v2/services?limit=4&sort_by=rating&min_rating=4.8",
+        "/api/v2/services?limit=4&sort_by=newest",
+    ]
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
+        futures = [executor.submit(fetch_endpoint, url) for url in urls]
+        responses = [f.result() for f in futures]
+
+    # Verify all 3 requests return 200 OK with correct response shape
+    for resp in responses:
+        assert resp.status_code == 200
+        json_resp = resp.json()
+        assert json_resp["success"] is True
+        assert json_resp["message"] == "Marketplace services retrieved successfully"
+        assert "data" in json_resp
+        data = json_resp["data"]
+        assert "services" in data
+        assert "total" in data
+        assert "page" in data
+        assert "limit" in data
+        assert "total_pages" in data
+        assert isinstance(data["services"], list)
+
+    # 2. Verify no duplicate seed partners were created
+    partner_count = db_session.query(User).filter(
+        User.email == "seed.partner.bopaiah@nammaconnect.test"
+    ).count()
+    assert partner_count <= 1
+
+    # 3. Verify no duplicate seed services were created
+    unique_slugs = db_session.query(Service.slug).all()
+    slug_list = [s[0] for s in unique_slugs]
+    assert len(slug_list) == len(set(slug_list))
+
+
+def test_list_services_empty_db_and_response_shape(client: TestClient, db_session):
+    """Verify GET /services returns valid empty list when DB has no published services."""
+    from app.models.service import Service
+    # Remove all services temporarily to test empty catalog
+    db_session.query(Service).delete()
+    db_session.commit()
+
+    response = client.get("/api/v2/services")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["success"] is True
+    assert data["data"]["services"] == []
+    assert data["data"]["total"] == 0
+    assert data["data"]["page"] == 1
+    assert data["data"]["limit"] == 12
+    assert data["data"]["total_pages"] == 1
+

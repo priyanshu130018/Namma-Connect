@@ -12,6 +12,9 @@ import {
   RegisterPayload,
   TokenResponse,
 } from "@/services/authService";
+import { queryClient } from "@/lib/queryClient";
+import { analytics } from "@/lib/analytics";
+import { ToastProvider } from "@/components/ui/toast";
 
 interface AuthContextType {
   user: User | null;
@@ -52,12 +55,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem("nc_refresh_token", tokens.refresh_token);
     localStorage.setItem("nc_user", JSON.stringify(tokens.user));
     setUser(tokens.user);
+    if (tokens.user?.id) {
+      analytics.identify(tokens.user.id, {
+        email: tokens.user.email,
+        role: tokens.user.role,
+        full_name: tokens.user.full_name,
+      });
+    }
   };
 
   const clearSession = () => {
     localStorage.removeItem("nc_access_token");
     localStorage.removeItem("nc_refresh_token");
     localStorage.removeItem("nc_user");
+    queryClient.clear();
+    analytics.reset();
     setUser(null);
   };
 
@@ -149,14 +161,16 @@ import { I18nProvider, useTranslation, useLanguage } from "@/i18n";
 export { useTheme, useTranslation, useLanguage };
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
-  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const VITE_GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
   return (
-    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+    <GoogleOAuthProvider clientId={VITE_GOOGLE_CLIENT_ID}>
       <AuthProvider>
         <ThemeProvider>
           <I18nProvider>
-            {children}
+            <ToastProvider>
+              {children}
+            </ToastProvider>
           </I18nProvider>
         </ThemeProvider>
       </AuthProvider>

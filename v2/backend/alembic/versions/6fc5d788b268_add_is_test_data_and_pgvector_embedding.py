@@ -1,7 +1,7 @@
 """Add is_test_data flags and pgvector embedding column.
 
-Revision ID: 0004_add_is_test_data_and_pgvector_embedding
-Revises: 0003_add_service_moderation_fields
+Revision ID: 6fc5d788b268
+Revises: 90c287509883
 Create Date: 2026-08-24 23:50:00.000000
 
 """
@@ -11,7 +11,7 @@ from pgvector.sqlalchemy import Vector
 
 # revision identifiers, used by Alembic.
 revision = '0004_add_is_test_data_and_pgvector_embedding'
-down_revision = '0003_add_service_moderation_fields'
+down_revision = '90c287509883'
 branch_labels = None
 depends_on = None
 

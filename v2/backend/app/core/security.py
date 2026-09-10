@@ -67,3 +67,24 @@ def create_refresh_token(
     return jwt.encode(
         to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM
     )
+
+
+def create_verification_token(
+    subject: Union[str, Any],
+    expires_delta: Optional[timedelta] = None,
+) -> str:
+    """Create a signed JWT verification token for email confirmation."""
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(hours=24)
+
+    to_encode = {
+        "sub": str(subject),
+        "exp": expire,
+        "type": "verification",
+    }
+    return jwt.encode(
+        to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM
+    )
+

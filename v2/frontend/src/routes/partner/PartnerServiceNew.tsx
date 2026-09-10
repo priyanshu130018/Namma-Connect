@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select } from "@/components/ui/select";
 import { createPartnerService } from "@/services/partnerService";
+import { geocodeLocation } from "@/services/locationService";
 import {
   ProviderAvailabilitySection,
   DEFAULT_AVAILABILITY_STATE,
@@ -53,6 +54,30 @@ export function PartnerServiceNewPage() {
   const [location, setLocation] = useState("Madikeri, Coorg, Karnataka");
   const [description, setDescription] = useState("");
   const [primaryImage, setPrimaryImage] = useState("/images/services/coorg-plantation.jpg");
+
+  // TomTom Location Geocoding State
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+  const [formattedAddress, setFormattedAddress] = useState<string>("");
+  const [isGeocoding, setIsGeocoding] = useState<boolean>(false);
+  const [geocodeMessage, setGeocodeMessage] = useState<string | null>(null);
+
+  const handleGeocodeLocation = async () => {
+    if (!location.trim()) return;
+    setIsGeocoding(true);
+    setGeocodeMessage(null);
+    try {
+      const geo = await geocodeLocation(location);
+      setLatitude(geo.lat);
+      setLongitude(geo.lon);
+      setFormattedAddress(geo.formatted_address || geo.display_name);
+      setGeocodeMessage(`Verified: (${geo.lat}, ${geo.lon}) — ${geo.formatted_address}`);
+    } catch {
+      setGeocodeMessage("Unable to verify address with TomTom. Default regional location will be used.");
+    } finally {
+      setIsGeocoding(false);
+    }
+  };
 
   // Availability State
   const [availability, setAvailability] = useState<ServiceAvailabilityState>(DEFAULT_AVAILABILITY_STATE);
@@ -163,6 +188,9 @@ export function PartnerServiceNewPage() {
         price: Number(price) || 2500,
         unit,
         location,
+        latitude: latitude ?? undefined,
+        longitude: longitude ?? undefined,
+        formatted_address: formattedAddress || undefined,
         description: description || `${title} located in ${location}`,
         max_capacity: availability.capacity || 10,
         capacity: availability.capacity || 10,
@@ -290,13 +318,35 @@ export function PartnerServiceNewPage() {
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                 />
-                <Input
-                  label="Location (Town, District, State)"
-                  placeholder="e.g. Madikeri, Coorg, Karnataka"
-                  required
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
-                />
+                <div>
+                  <Input
+                    label="Location (Town, District, State)"
+                    placeholder="e.g. Madikeri, Coorg, Karnataka"
+                    required
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                  />
+                  <div className="mt-1.5 flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={handleGeocodeLocation}
+                      disabled={isGeocoding || !location.trim()}
+                      className="text-[11px] font-bold text-emerald-700 hover:text-emerald-800 dark:text-emerald-400 underline flex items-center gap-1"
+                    >
+                      {isGeocoding ? "Verifying..." : "Verify with TomTom Geocoding"}
+                    </button>
+                    {latitude !== null && longitude !== null && (
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                        GPS Verified
+                      </span>
+                    )}
+                  </div>
+                  {geocodeMessage && (
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                      {geocodeMessage}
+                    </p>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <Input
                     label="Price (₹ INR)"

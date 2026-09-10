@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { CustomerNavbar } from "@/components/layout/CustomerNavbar";
+import { DashboardNavbar } from "@/components/layout/DashboardNavbar";
 import { CustomerSidebar } from "@/components/layout/CustomerSidebar";
 import { TravelAIFloating } from "@/components/customer/TravelAIFloating";
 import { SupportModal } from "@/components/customer/SupportModal";
@@ -13,13 +13,13 @@ export function CustomerLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
-      {/* Top Navbar */}
-      <CustomerNavbar
+      {/* Top Navbar (Fixed) */}
+      <DashboardNavbar
         onOpenSupport={() => setIsSupportOpen(true)}
-        onToggleSidebar={() => setIsMobileOpen(true)}
+        onToggleMobileSidebar={() => setIsMobileOpen(true)}
       />
 
-      <div className="flex flex-1 relative">
+      <div className="flex flex-1 relative pt-16">
         {/* Collapsible Left Sidebar */}
         <CustomerSidebar
           isCollapsed={isCollapsed}

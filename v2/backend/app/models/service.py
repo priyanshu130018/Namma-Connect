@@ -25,6 +25,7 @@ class Service(Base, TimestampMixin):
     state = Column(String(100), nullable=False, default="Karnataka")
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
+    formatted_address = Column(String(500), nullable=True)
 
     price = Column(Float, nullable=False)  # Starting price in INR
     unit = Column(String(50), nullable=False, default="night")  # night, person, tour, session

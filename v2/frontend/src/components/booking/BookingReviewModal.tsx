@@ -20,6 +20,7 @@ import { formatCurrency } from "@/lib/utils";
 import { createBooking } from "@/services/bookingService";
 import { createPaymentOrder, verifyPayment, loadRazorpayScript } from "@/services/paymentService";
 import { MarketplaceService, TimeSlot, BookingItem, PaymentVerificationResult } from "@/types";
+import { useAuth } from "@/app/providers";
 
 declare global {
   interface Window {
@@ -45,6 +46,8 @@ export function BookingReviewModal({
   selectedSlot,
 }: BookingReviewModalProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
 
   const [guestCount, setGuestCount] = useState<number>(1);
   const [specialRequests, setSpecialRequests] = useState<string>("");
@@ -92,6 +95,12 @@ export function BookingReviewModal({
   };
 
   const handleConfirmBooking = async () => {
+    // Verification Gate: Check that customer is verified
+    if (user && !user.is_verified && !user.phone_verified) {
+      setErrorMessage("Please verify your email or mobile number before booking.");
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMessage(null);
 
@@ -124,8 +133,16 @@ export function BookingReviewModal({
 
   const handleInitiatePayment = async () => {
     if (!createdBooking) return;
+
+    // Verification Gate: Check before paying
+    if (user && !user.is_verified && !user.phone_verified) {
+      setPaymentError("Please verify your email or mobile number before making a payment.");
+      return;
+    }
+
     setIsPaying(true);
     setPaymentError(null);
+
 
     try {
       // 1. Ensure Razorpay checkout script is loaded
@@ -178,6 +195,10 @@ export function BookingReviewModal({
           theme: {
             color: "#166534",
           },
+          retry: {
+            enabled: true,
+            max_count: 3,
+          },
           handler: onPaymentSuccess,
           modal: {
             ondismiss: () => {
@@ -186,7 +207,20 @@ export function BookingReviewModal({
             },
           },
         });
-        rzp.open();
+
+        rzp.on("payment.failed", (failureResponse: any) => {
+          setIsPaying(false);
+          const desc = failureResponse?.error?.description || failureResponse?.error?.reason || "Transaction was declined or interrupted.";
+          setPaymentError(`Payment failed: ${desc}. Your reservation has not been charged.`);
+        });
+
+        try {
+          rzp.open();
+        } catch (openErr: any) {
+          console.warn("Razorpay checkout failed to open:", openErr?.message);
+          setIsPaying(false);
+          setPaymentError("Unable to open payment checkout. Your booking has not been charged. Please try again.");
+        }
       } else if (typeof import.meta !== "undefined" && import.meta.env?.MODE === "test") {
         // Safe unit testing mock handler
         const mockPaymentId = `pay_mock_${Date.now()}`;
@@ -205,7 +239,7 @@ export function BookingReviewModal({
       setPaymentError(
         err.response?.data?.detail ||
           err.message ||
-          "Unable to initialize payment gateway. Please try again."
+          "Unable to open payment checkout. Your booking has not been charged. Please try again."
       );
       setIsPaying(false);
     }

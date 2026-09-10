@@ -22,8 +22,10 @@ import { ServiceCardSkeleton } from "@/components/cards/ServiceCardSkeleton";
 import { getMarketplaceServices, getSearchSuggestions } from "@/services/marketplaceService";
 import { MarketplaceService, SearchSuggestion } from "@/types";
 import { EXPLORE_CATEGORIES } from "@/features/customer/data/customerData";
+import { AccountVerificationStatus } from "@/components/auth/AccountVerificationStatus";
 
 export function CustomerHomePage() {
+
   const navigate = useNavigate();
   const [place, setPlace] = useState("");
   const [date, setDate] = useState("");
@@ -35,8 +37,10 @@ export function CustomerHomePage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  // Recommended services state
-  const [services, setServices] = useState<MarketplaceService[]>([]);
+  // 3 Section states: Recommended, Top Rated, Most Visited
+  const [recommendedServices, setRecommendedServices] = useState<MarketplaceService[]>([]);
+  const [topRatedServices, setTopRatedServices] = useState<MarketplaceService[]>([]);
+  const [mostVisitedServices, setMostVisitedServices] = useState<MarketplaceService[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -79,28 +83,34 @@ export function CustomerHomePage() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const loadRecommendedServices = async () => {
+  const loadHomeServices = async () => {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const data = await getMarketplaceServices({ limit: 6, sort_by: "rating" });
-      setServices(data.services);
+      const [recData, topData, mostData] = await Promise.all([
+        getMarketplaceServices({ limit: 4, sort_by: "rating" }),
+        getMarketplaceServices({ limit: 4, sort_by: "rating", min_rating: 4.8 }),
+        getMarketplaceServices({ limit: 4, sort_by: "newest" }),
+      ]);
+      setRecommendedServices(recData.services || []);
+      setTopRatedServices(topData.services || []);
+      setMostVisitedServices(mostData.services || []);
     } catch (err: any) {
-      setLoadError("Unable to load recommended services at this moment.");
+      setLoadError("Unable to load home showcase services at this moment.");
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    loadRecommendedServices();
+    loadHomeServices();
   }, []);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSearching(true);
     const params = new URLSearchParams();
-    if (place.trim()) params.append("place", place.trim());
+    if (place.trim()) params.append("q", place.trim());
     if (date) params.append("date", date);
     if (category !== "all") params.append("category", category);
     navigate(`/app/explore?${params.toString()}`);
@@ -116,7 +126,7 @@ export function CustomerHomePage() {
     <div className="space-y-10 pb-12">
       {/* ── 1. Header Greeting ── */}
       <div className="space-y-2">
-        <div className="inline-flex items-center gap-2 rounded-full border border-harvest-200 bg-harvest-50 px-3 py-1 text-xs font-bold text-harvest-800 shadow-sm">
+        <div className="inline-flex items-center gap-2 rounded-full border border-harvest-200 dark:border-harvest-800 bg-harvest-50 dark:bg-harvest-950/60 px-3 py-1 text-xs font-bold text-harvest-800 dark:text-harvest-300 shadow-sm">
           <Sparkles className="h-3.5 w-3.5 text-harvest-700 dark:text-harvest-400" />
           <span>Agricultural Tourism Marketplace</span>
         </div>
@@ -127,6 +137,9 @@ export function CustomerHomePage() {
           Discover verified farm stays, guided botanical trails, harvest workshops, and regional creators across India.
         </p>
       </div>
+
+      {/* ── 1.1 Account Verification Status Banner ── */}
+      <AccountVerificationStatus onVerifyPhoneClick={() => navigate("/app/settings")} />
 
       {/* ── 2. Advanced Search Bar (Main Content Area) ── */}
       <div ref={searchContainerRef} className="relative rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 shadow-card">
@@ -222,7 +235,7 @@ export function CustomerHomePage() {
           </div>
           <Link
             to="/app/explore"
-            className="inline-flex items-center gap-1 text-xs font-bold text-harvest-700 hover:text-harvest-800 hover:underline"
+            className="inline-flex items-center gap-1 text-xs font-bold text-harvest-700 hover:text-harvest-800 dark:text-harvest-400 hover:underline"
           >
             <span>View All</span>
             <ArrowRight className="h-3.5 w-3.5" />
@@ -234,11 +247,11 @@ export function CustomerHomePage() {
             const Icon = categoryIcons[cat.iconName] || Wheat;
             return (
               <Link key={cat.id} to={`/app/explore?category=${cat.slug}`}>
-                <Card hover className="p-4 text-center group h-full flex flex-col items-center justify-center">
-                  <div className="h-11 w-11 rounded-2xl bg-harvest-50 text-harvest-700 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                <Card hover className="p-4 text-center group h-full flex flex-col items-center justify-center bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
+                  <div className="h-11 w-11 rounded-2xl bg-harvest-50 dark:bg-harvest-950/60 text-harvest-700 dark:text-harvest-300 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                     <Icon className="h-5 w-5" />
                   </div>
-                  <h3 className="text-xs font-bold text-slate-900 group-hover:text-harvest-700 transition-colors">
+                  <h3 className="text-xs font-bold text-slate-900 dark:text-slate-100 group-hover:text-harvest-700 dark:group-hover:text-harvest-400 transition-colors">
                     {cat.name}
                   </h3>
                   <span className="text-[10px] text-slate-400 mt-0.5 font-medium">
@@ -251,49 +264,119 @@ export function CustomerHomePage() {
         </div>
       </div>
 
-      {/* ── 4. Recommended for You ── */}
+      {/* Error Banner if any */}
+      {!isLoading && loadError && (
+        <div className="rounded-3xl border border-rose-200 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 p-6 text-center space-y-3">
+          <AlertCircle className="h-6 w-6 text-rose-600 dark:text-rose-400 mx-auto" />
+          <p className="text-xs text-rose-800 dark:text-rose-300 font-semibold">{loadError}</p>
+          <Button size="sm" variant="outline" onClick={loadHomeServices} className="gap-1.5 font-bold">
+            <RefreshCw className="h-3.5 w-3.5" />
+            <span>Retry Loading Services</span>
+          </Button>
+        </div>
+      )}
+
+      {/* ── Section 1: Recommended for You ── */}
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-900 tracking-tight">Recommended for You</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Verified stays and top-rated agro-experiences</p>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Recommended for You</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Verified stays and tailored agro-experiences</p>
           </div>
           <Link
             to="/app/explore"
-            className="inline-flex items-center gap-1 text-xs font-bold text-harvest-700 hover:text-harvest-800 hover:underline"
+            className="inline-flex items-center gap-1 text-xs font-bold text-harvest-700 hover:text-harvest-800 dark:text-harvest-400 hover:underline"
           >
-            <span>See more</span>
+            <span>More</span>
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
 
-        {/* Loading Skeletons */}
-        {isLoading && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => (
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
               <ServiceCardSkeleton key={i} />
             ))}
           </div>
-        )}
-
-        {/* Error State */}
-        {!isLoading && loadError && (
-          <div className="rounded-3xl border border-rose-200 bg-rose-50 p-6 text-center space-y-3">
-            <AlertCircle className="h-6 w-6 text-rose-600 mx-auto" />
-            <p className="text-xs text-rose-800 font-semibold">{loadError}</p>
-            <Button size="sm" variant="outline" onClick={loadRecommendedServices} className="gap-1.5 font-bold">
-              <RefreshCw className="h-3.5 w-3.5" />
-              <span>Retry</span>
-            </Button>
-          </div>
-        )}
-
-        {/* Real Services Grid */}
-        {!isLoading && !loadError && services.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {services.map((service) => (
+        ) : recommendedServices.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {recommendedServices.map((service) => (
               <ServiceCard key={service.id} service={service} />
             ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-center text-xs text-slate-500 dark:text-slate-400">
+            No recommended services found currently. Explore full offerings in the catalog.
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 2: Top Rated ── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Top Rated</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Highest rated by travelers and community guests</p>
+          </div>
+          <Link
+            to="/app/explore?sort_by=rating"
+            className="inline-flex items-center gap-1 text-xs font-bold text-harvest-700 hover:text-harvest-800 dark:text-harvest-400 hover:underline"
+          >
+            <span>More</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <ServiceCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : topRatedServices.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {topRatedServices.map((service) => (
+              <ServiceCard key={service.id} service={service} />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-center text-xs text-slate-500 dark:text-slate-400">
+            No top rated listings available matching threshold.
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 3: Most Visited / Frequently Booked ── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Most Visited</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Popular destinations and trending experiences</p>
+          </div>
+          <Link
+            to="/app/explore?sort_by=newest"
+            className="inline-flex items-center gap-1 text-xs font-bold text-harvest-700 hover:text-harvest-800 dark:text-harvest-400 hover:underline"
+          >
+            <span>More</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <ServiceCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : mostVisitedServices.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {mostVisitedServices.map((service) => (
+              <ServiceCard key={service.id} service={service} />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-center text-xs text-slate-500 dark:text-slate-400">
+            No trending listings found.
           </div>
         )}
       </div>

@@ -30,13 +30,14 @@ class RedisService:
         return cls._client
 
     @classmethod
-    def set(cls, key: str, value: Any, expire_seconds: int = 3600) -> bool:
+    def set(cls, key: str, value: Any, expire_seconds: int = 3600, ttl: Optional[int] = None) -> bool:
         """Set key in Redis or in-memory fallback."""
+        exp = ttl if ttl is not None else expire_seconds
         val_str = json.dumps(value) if not isinstance(value, str) else value
         client = cls.get_client()
         if client:
             try:
-                client.setex(key, expire_seconds, val_str)
+                client.setex(key, exp, val_str)
                 return True
             except Exception:
                 pass
@@ -76,3 +77,16 @@ class RedisService:
                 pass
         cls._memory_fallback.pop(key, None)
         return True
+
+    @classmethod
+    def publish(cls, channel: str, message: Any) -> bool:
+        """Publish real-time message event via Redis pub/sub or broadcast bus."""
+        val_str = json.dumps(message) if not isinstance(message, str) else message
+        client = cls.get_client()
+        if client:
+            try:
+                client.publish(channel, val_str)
+                return True
+            except Exception as e:
+                logger.debug(f"Redis publish failed: {e}")
+        return True

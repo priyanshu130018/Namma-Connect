@@ -1,13 +1,15 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Send,
   CheckCheck,
-  User,
   RefreshCw,
   AlertCircle,
   MessageSquare,
   ArrowLeft,
 } from "lucide-react";
+import { useTranslation } from "@/i18n";
+
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,7 +23,12 @@ import {
 import { ConversationItem, ChatMessage } from "@/types";
 
 export function CustomerMessagesPage() {
+  const { t } = useTranslation();
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const providerIdParam = searchParams.get("provider_id");
+  const subjectParam = searchParams.get("subject");
+
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -35,6 +42,7 @@ export function CustomerMessagesPage() {
   // Mobile view toggle (null or thread id)
   const [mobileShowThread, setMobileShowThread] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -45,9 +53,19 @@ export function CustomerMessagesPage() {
     setError(null);
     try {
       const data = await getConversations();
-      setConversations(data || []);
-      if (data && data.length > 0 && !activeThreadId) {
-        setActiveThreadId(data[0].id);
+      const list = data || [];
+      setConversations(list);
+
+      // If provider_id param passed, select or target thread with that provider
+      if (providerIdParam) {
+        const existing = list.find((c) => c.participant_id === providerIdParam);
+        if (existing) {
+          setActiveThreadId(existing.id);
+        } else if (list.length > 0 && !activeThreadId) {
+          setActiveThreadId(list[0].id);
+        }
+      } else if (list.length > 0 && !activeThreadId) {
+        setActiveThreadId(list[0].id);
       }
     } catch (err: unknown) {
       console.error("Failed to load conversations:", err);
@@ -55,11 +73,73 @@ export function CustomerMessagesPage() {
     } finally {
       setIsLoadingConversations(false);
     }
-  }, [activeThreadId]);
+  }, [activeThreadId, providerIdParam]);
 
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
+
+  // Establish WebSocket connection for real-time messages & presence
+  useEffect(() => {
+    const token = localStorage.getItem("nc_access_token");
+    if (!token) return;
+
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const host = window.location.host;
+    const wsUrl = `${protocol}//${host}/api/v2/messages/ws?token=${encodeURIComponent(token)}`;
+
+    let socket: WebSocket | null = null;
+    let heartbeatInterval: any = null;
+
+    try {
+      socket = new WebSocket(wsUrl);
+      wsRef.current = socket;
+
+      socket.onopen = () => {
+        heartbeatInterval = setInterval(() => {
+          if (socket?.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ type: "ping" }));
+          }
+        }, 30000);
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "new_message" && data.message) {
+            const incomingMsg: ChatMessage = data.message;
+            if (incomingMsg.conversation_id === activeThreadId) {
+              setMessages((prev) => [...prev, incomingMsg]);
+            }
+            // Update conversation list item
+            setConversations((prev) =>
+              prev.map((c) =>
+                c.id === incomingMsg.conversation_id
+                  ? {
+                      ...c,
+                      last_message_text: incomingMsg.content,
+                      last_message_at: incomingMsg.created_at,
+                      unread_count: c.id === activeThreadId ? 0 : c.unread_count + 1,
+                    }
+                  : c
+              )
+            );
+          }
+        } catch {
+          // ignore parsing error
+        }
+      };
+    } catch {
+      // WebSocket gracefully falls back to polling/refresh
+    }
+
+    return () => {
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.close();
+      }
+    };
+  }, [activeThreadId]);
 
   const loadThread = useCallback(async (threadId: string) => {
     setIsLoadingMessages(true);
@@ -94,27 +174,43 @@ export function CustomerMessagesPage() {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!messageInput.trim() || !activeThreadId || isSending) return;
+    if (!messageInput.trim() || isSending) return;
 
     const content = messageInput.trim();
     setMessageInput("");
     setIsSending(true);
 
     try {
-      const newMsg = await sendMessage({
-        conversation_id: activeThreadId,
-        content,
-      });
+      let newMsg: ChatMessage;
+      if (activeThreadId) {
+        newMsg = await sendMessage({
+          conversation_id: activeThreadId,
+          content,
+        });
+      } else if (providerIdParam) {
+        newMsg = await sendMessage({
+          recipient_id: providerIdParam,
+          subject: subjectParam || undefined,
+          content,
+        });
+        await loadConversations();
+      } else {
+        setIsSending(false);
+        return;
+      }
+
       setMessages((prev) => [...prev, newMsg]);
 
       // Update conversation list preview
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === activeThreadId
-            ? { ...c, last_message_text: content, last_message_at: new Date().toISOString() }
-            : c
-        )
-      );
+      if (activeThreadId) {
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === activeThreadId
+              ? { ...c, last_message_text: content, last_message_at: new Date().toISOString() }
+              : c
+          )
+        );
+      }
     } catch (err: unknown) {
       console.error("Failed to send message:", err);
     } finally {
@@ -129,6 +225,7 @@ export function CustomerMessagesPage() {
     const date = new Date(dateStr);
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
+
 
   return (
     <div className="space-y-6 pb-12">
@@ -170,7 +267,7 @@ export function CustomerMessagesPage() {
             }`}
           >
             <p className="px-3 text-[10px] uppercase font-bold text-slate-400 mb-2">
-              Active Conversations ({conversations.length})
+              {t("messages.activeConversations")} ({conversations.length})
             </p>
 
             {isLoadingConversations && (
@@ -184,43 +281,67 @@ export function CustomerMessagesPage() {
             {!isLoadingConversations && conversations.length === 0 && (
               <div className="p-8 text-center space-y-2">
                 <MessageSquare className="h-8 w-8 text-slate-300 mx-auto" />
-                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No conversations yet.</p>
+                <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                  {t("messages.noConversations")}
+                </p>
                 <p className="text-[11px] text-slate-400">
-                  When you book a retreat or reach out to a host, your message threads will appear here.
+                  {t("messages.noConversationsDesc")}
                 </p>
               </div>
             )}
 
-            {conversations.map((t) => (
+
+            {conversations.map((tItem) => (
               <div
-                key={t.id}
-                onClick={() => handleSelectThread(t.id)}
+                key={tItem.id}
+                onClick={() => handleSelectThread(tItem.id)}
                 className={`p-3 rounded-2xl cursor-pointer transition-all ${
-                  activeThreadId === t.id
+                  activeThreadId === tItem.id
                     ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-950 dark:text-emerald-200 border border-emerald-200/60 dark:border-emerald-800/60 shadow-sm"
                     : "hover:bg-slate-50 dark:hover:bg-slate-800/60 border border-transparent"
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
-                    {t.participant_name}
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-medium">
-                    {formatTime(t.last_message_at)}
+                  <div className="flex items-center gap-2 truncate">
+                    <div className="relative">
+                      {tItem.participant_avatar ? (
+                        <img
+                          src={tItem.participant_avatar}
+                          alt={tItem.participant_name}
+                          className="h-7 w-7 rounded-full object-cover border border-slate-200"
+                        />
+                      ) : (
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400 text-[11px] font-bold">
+                          {tItem.participant_name.charAt(0)}
+                        </div>
+                      )}
+                      <span
+                        className={`absolute bottom-0 right-0 h-2 w-2 rounded-full border border-white dark:border-slate-900 ${
+                          tItem.is_online ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"
+                        }`}
+                        title={tItem.is_online ? "Online" : "Offline"}
+                      />
+                    </div>
+                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                      {tItem.participant_name}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-medium shrink-0">
+                    {formatTime(tItem.last_message_at)}
                   </span>
                 </div>
-                {t.subject && (
-                  <p className="text-[11px] text-emerald-800 dark:text-emerald-400 font-medium truncate mt-0.5">
-                    {t.subject}
+                {tItem.subject && (
+                  <p className="text-[11px] text-emerald-800 dark:text-emerald-400 font-medium truncate mt-1 pl-9">
+                    {tItem.subject}
                   </p>
                 )}
-                <div className="flex items-center justify-between mt-1 gap-2">
+                <div className="flex items-center justify-between mt-1 gap-2 pl-9">
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate flex-1">
-                    {t.last_message_text || "No messages yet"}
+                    {tItem.last_message_text || "No messages yet"}
                   </p>
-                  {t.unread_count > 0 && (
+                  {tItem.unread_count > 0 && (
                     <Badge variant="default" className="h-4 px-1.5 text-[9px] bg-emerald-600">
-                      {t.unread_count}
+                      {tItem.unread_count}
                     </Badge>
                   )}
                 </div>
@@ -247,13 +368,34 @@ export function CustomerMessagesPage() {
                     >
                       <ArrowLeft className="h-4 w-4" />
                     </button>
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400 text-xs font-bold">
-                      <User className="h-4 w-4" />
+                    <div className="relative">
+                      {currentConv.participant_avatar ? (
+                        <img
+                          src={currentConv.participant_avatar}
+                          alt={currentConv.participant_name}
+                          className="h-9 w-9 rounded-full object-cover border border-slate-200"
+                        />
+                      ) : (
+                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-400 text-xs font-bold">
+                          {currentConv.participant_name.charAt(0)}
+                        </div>
+                      )}
+                      <span
+                        className={`absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-slate-900 ${
+                          currentConv.is_online ? "bg-emerald-500" : "bg-slate-300 dark:bg-slate-600"
+                        }`}
+                        title={currentConv.is_online ? "Online" : "Offline"}
+                      />
                     </div>
                     <div>
-                      <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">
-                        {currentConv.participant_name}
-                      </h4>
+                      <div className="flex items-center gap-2">
+                        <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100">
+                          {currentConv.participant_name}
+                        </h4>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          {currentConv.is_online ? "• Online" : "• Offline"}
+                        </span>
+                      </div>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400">
                         {currentConv.subject || "Verified Host Conversation"}
                       </p>
@@ -263,6 +405,7 @@ export function CustomerMessagesPage() {
                     Host Partner
                   </Badge>
                 </div>
+
 
                 {/* Messages Feed */}
                 <div className="flex-1 overflow-y-auto py-4 space-y-3 min-h-[340px] max-h-[460px]">
@@ -317,7 +460,7 @@ export function CustomerMessagesPage() {
                 >
                   <input
                     type="text"
-                    placeholder="Type a message to your host..."
+                    placeholder={t("messages.typePlaceholder")}
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
                     disabled={isSending}
@@ -330,16 +473,18 @@ export function CustomerMessagesPage() {
                     className="h-10 px-4 font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
                   >
                     <Send className="h-4 w-4" />
-                    <span className="hidden sm:inline">Send</span>
+                    <span className="hidden sm:inline">{t("messages.send")}</span>
                   </Button>
                 </form>
               </>
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-center space-y-2 text-slate-400">
                 <MessageSquare className="h-10 w-10 text-slate-300" />
-                <p className="text-xs font-semibold">Select a conversation to view messages</p>
+                <p className="text-xs font-semibold">{t("messages.selectToChat")}</p>
               </div>
             )}
+
+
           </div>
         </div>
       </Card>

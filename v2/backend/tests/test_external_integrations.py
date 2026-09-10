@@ -234,8 +234,8 @@ def test_travel_ai_endpoint_chat(client: TestClient):
     assert conv_resp.status_code == 200
 
 
-def test_location_osm_service():
-    """Verify OpenStreetMap geocoding and Karnataka cluster lookups."""
+def test_location_tomtom_service():
+    """Verify TomTom geocoding and Karnataka cluster lookups."""
     coorg_loc = LocationService.geocode_location("Madikeri Coorg Homestay")
     assert coorg_loc["lat"] == 12.3375
     assert "Coorg" in coorg_loc["display_name"]

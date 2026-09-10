@@ -1,9 +1,8 @@
-"""Authentication endpoints."""
-
+from typing import Optional
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, get_current_user_optional
 from app.dependencies.database import get_db
 from app.models.user import User
 from app.schemas.auth import (
@@ -18,11 +17,16 @@ from app.schemas.auth import (
     UserResponse,
     VerifyEmailRequest,
     VerifyPhoneRequest,
+    ResendVerificationRequest,
 )
 from app.schemas.common import MessageResponse
 from app.services.auth import AuthService
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
+
+
+
+from app.core.rate_limiter import rate_limit
 
 
 @router.get("/status", response_model=MessageResponse)
@@ -34,25 +38,42 @@ async def auth_status():
     )
 
 
-@router.post("/register", response_model=TokenResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    response_model=TokenResponse,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(rate_limit(max_requests=20, window_seconds=60, key_prefix="auth:register"))],
+)
 async def register(req: UserRegisterRequest, db: Session = Depends(get_db)):
     """Register a new user account."""
     return AuthService.register(db, req)
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    dependencies=[Depends(rate_limit(max_requests=30, window_seconds=60, key_prefix="auth:login"))],
+)
 async def login(req: UserLoginRequest, db: Session = Depends(get_db)):
     """Authenticate with email/mobile and password."""
     return AuthService.login(db, req)
 
 
-@router.post("/refresh", response_model=TokenResponse)
+@router.post(
+    "/refresh",
+    response_model=TokenResponse,
+    dependencies=[Depends(rate_limit(max_requests=60, window_seconds=60, key_prefix="auth:refresh"))],
+)
 async def refresh_token(req: RefreshTokenRequest, db: Session = Depends(get_db)):
     """Exchange a valid refresh token for a new access token."""
     return AuthService.refresh(db, req)
 
 
-@router.post("/google", response_model=TokenResponse)
+@router.post(
+    "/google",
+    response_model=TokenResponse,
+    dependencies=[Depends(rate_limit(max_requests=30, window_seconds=60, key_prefix="auth:google"))],
+)
 async def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
     """Authenticate using Google OAuth credential."""
     return AuthService.google_auth(db, req)
@@ -125,3 +146,18 @@ async def verify_phone(req: VerifyPhoneRequest, db: Session = Depends(get_db)):
     """Verify user phone number via OTP."""
     AuthService.verify_phone(db, req)
     return MessageResponse(success=True, message="Phone number successfully verified.")
+
+
+@router.post("/resend-verification", response_model=MessageResponse)
+async def resend_verification(
+    req: ResendVerificationRequest,
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    db: Session = Depends(get_db),
+):
+    """Re-dispatch email verification link to current user or requested email."""
+    AuthService.resend_verification(db, current_user=current_user, email=req.email)
+    return MessageResponse(
+        success=True,
+        message="If this account is eligible, a new verification link has been dispatched.",
+    )
+

@@ -217,9 +217,12 @@ export async function getAdminPartnerApplicationDetail(appId: string): Promise<P
   return response.data.data;
 }
 
-export async function approveAdminPartnerApplication(appId: string): Promise<PartnerApplicationData> {
+export async function approveAdminPartnerApplication(
+  appId: string,
+  approveServicesTogether: boolean = false
+): Promise<PartnerApplicationData> {
   const response = await apiClient.post<{ success: boolean; data: PartnerApplicationData }>(
-    `/admin/partner-applications/${appId}/approve`
+    `/admin/partner-applications/${appId}/approve?approve_services_together=${approveServicesTogether}`
   );
   return response.data.data;
 }

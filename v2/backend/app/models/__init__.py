@@ -15,6 +15,7 @@ from app.models.refund import Refund
 from app.models.saved_service import SavedService
 from app.models.partner_application import PartnerApplication
 from app.models.setting import PlatformSetting
+from app.models.email_log import EmailLog
 
 __all__ = [
     "Base",
@@ -36,4 +37,5 @@ __all__ = [
     "SavedService",
     "PartnerApplication",
     "PlatformSetting",
+    "EmailLog",
 ]

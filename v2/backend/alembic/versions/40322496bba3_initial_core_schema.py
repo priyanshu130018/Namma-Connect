@@ -1,6 +1,6 @@
 """Initial core schema migration for NammaConnect V2.
 
-Revision ID: 0001_initial_core_schema
+Revision ID: 40322496bba3
 Revises: 
 Create Date: 2026-08-24 00:00:00.000000
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from app.models.base import GUID
 
 # revision identifiers, used by Alembic.
-revision = '0001_initial_core_schema'
+revision = '40322496bba3'
 down_revision = None
 branch_labels = None
 depends_on = None

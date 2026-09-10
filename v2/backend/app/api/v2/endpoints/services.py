@@ -29,6 +29,7 @@ router = APIRouter(prefix="/services", tags=["Services"])
 def list_services(
     category: Optional[str] = Query(None, description="Category filter (e.g. stay, experiences, guides-tours)"),
     location: Optional[str] = Query(None, description="Location search term (e.g. Coorg, Wayanad)"),
+    q: Optional[str] = Query(None, description="Search query across title, description, location, and provider"),
     min_price: Optional[float] = Query(None, description="Minimum starting price in INR"),
     max_price: Optional[float] = Query(None, description="Maximum starting price in INR"),
     min_rating: Optional[float] = Query(None, description="Minimum rating filter (e.g. 4.5)"),
@@ -48,6 +49,7 @@ def list_services(
         sort_by=sort_by,
         page=page,
         limit=limit,
+        q=q,
     )
     return APIResponse(
         success=True,

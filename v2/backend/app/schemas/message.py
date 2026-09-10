@@ -21,6 +21,8 @@ class ConversationResponse(BaseModel):
     id: str
     participant_id: str
     participant_name: str
+    participant_avatar: Optional[str] = None
+    is_online: bool = False
     subject: Optional[str] = None
     last_message_text: Optional[str] = None
     last_message_at: Optional[datetime] = None
@@ -28,6 +30,7 @@ class ConversationResponse(BaseModel):
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
 
 
 class ConversationDetailResponse(BaseModel):

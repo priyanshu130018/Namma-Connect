@@ -91,10 +91,15 @@ export function CustomerNotificationsPage() {
         return CreditCard;
       case "collaboration":
         return Sparkles;
+      case "trip_reminder":
+        return Calendar;
+      case "partner":
+        return ShieldCheck;
       default:
         return ShieldCheck;
     }
   };
+
 
   const formatTime = (dateStr?: string | null) => {
     if (!dateStr) return "Just now";

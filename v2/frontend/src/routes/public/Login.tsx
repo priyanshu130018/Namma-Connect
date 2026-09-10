@@ -101,25 +101,25 @@ export function LoginPage() {
   };
 
   return (
-    <Section className="py-12 bg-slate-50 min-h-screen flex items-center">
+    <Section className="py-12 bg-slate-50 dark:bg-slate-950 min-h-screen flex items-center">
       <Container size="sm">
-        <Card className="p-8 bg-white rounded-3xl border-slate-200 text-left max-w-md mx-auto space-y-6 shadow-sm">
+        <Card className="p-8 bg-white dark:bg-slate-900 rounded-3xl border-slate-200 dark:border-slate-800 text-left max-w-md mx-auto space-y-6 shadow-sm">
           {/* Header */}
           <div className="text-center space-y-2">
-            <div className="h-12 w-12 rounded-2xl bg-harvest-50 text-harvest-700 flex items-center justify-center mx-auto shadow-sm">
+            <div className="h-12 w-12 rounded-2xl bg-harvest-50 dark:bg-harvest-950/80 text-harvest-700 dark:text-harvest-400 flex items-center justify-center mx-auto shadow-sm">
               <Lock className="h-6 w-6" />
             </div>
             <Badge variant="default">Unified Access</Badge>
-            <h2 className="text-2xl font-extrabold text-slate-900">Sign In to Namma Connect</h2>
-            <p className="text-xs text-slate-500">
+            <h2 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100">Sign In to Namma Connect</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Access your Traveler Account, Farm Host Studio, or Creator Workspace.
             </p>
           </div>
 
           {/* Error Banner */}
           {errorMessage && (
-            <div className="rounded-2xl bg-rose-50 border border-rose-200 p-3.5 text-xs text-rose-800 flex items-start gap-2.5">
-              <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
+            <div className="rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 p-3.5 text-xs text-rose-800 dark:text-rose-300 flex items-start gap-2.5">
+              <AlertCircle className="h-4 w-4 text-rose-600 dark:text-rose-400 shrink-0 mt-0.5" />
               <span>{errorMessage}</span>
             </div>
           )}
@@ -149,7 +149,7 @@ export function LoginPage() {
               <div className="flex justify-end pt-1">
                 <Link
                   to="/forgot-password"
-                  className="text-xs font-semibold text-harvest-700 hover:text-harvest-800"
+                  className="text-xs font-semibold text-harvest-700 hover:text-harvest-800 dark:text-harvest-400 dark:hover:text-harvest-300"
                 >
                   Forgot password?
                 </Link>
@@ -170,11 +170,11 @@ export function LoginPage() {
 
           {/* Social Auth Divider */}
           <div className="relative flex py-2 items-center">
-            <div className="flex-grow border-t border-slate-200" />
-            <span className="flex-shrink mx-4 text-[10px] uppercase font-bold text-slate-400">
+            <div className="flex-grow border-t border-slate-200 dark:border-slate-800" />
+            <span className="flex-shrink mx-4 text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">
               Or continue with
             </span>
-            <div className="flex-grow border-t border-slate-200" />
+            <div className="flex-grow border-t border-slate-200 dark:border-slate-800" />
           </div>
 
           {/* Google OAuth Button */}
@@ -186,10 +186,10 @@ export function LoginPage() {
           />
 
           {/* Footer Registration Link */}
-          <div className="pt-4 border-t border-slate-100 text-center">
-            <p className="text-xs text-slate-500">
+          <div className="pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Don't have an account?{" "}
-              <Link to="/register" className="font-bold text-harvest-700 hover:text-harvest-800 underline">
+              <Link to="/register" className="font-bold text-harvest-700 hover:text-harvest-800 dark:text-harvest-400 underline">
                 Create Account
               </Link>
             </p>

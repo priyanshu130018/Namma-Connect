@@ -19,26 +19,54 @@ import {
   SAMPLE_EARNINGS_DATA,
 } from "@/features/partner/data/partnerData";
 
+import { useAuth } from "@/app/providers";
+
 export function PartnerDashboardPage() {
+  const { user } = useAuth();
   const publishedServices = SAMPLE_PARTNER_SERVICES.filter((s) => s.status === "PUBLISHED");
   const upcomingBookings = SAMPLE_PARTNER_BOOKINGS.filter((b) => b.status === "upcoming");
   const earnings30d = SAMPLE_EARNINGS_DATA["30 Days"];
 
+  const roleLabelMap: Record<string, string> = {
+    farmer: "Farmer & Plantation Host",
+    hotel: "Homestay & Accommodation Host",
+    food: "Culinary & Local Food Host",
+    guide: "Rural Tour & Heritage Guide",
+    travel: "Mobility & Transport Partner",
+    creator: "Content Creator Partner",
+    artisan: "Craft & Artisan Partner",
+    partner: "Verified Partner Host",
+  };
+  const roleTitle = roleLabelMap[user?.role || ""] || "NammaConnect Partner";
+  const displayName = user?.business_name || user?.full_name || "Partner Operations";
+
   return (
     <div className="space-y-8 pb-12">
       {/* Header & Quick Action */}
-      <PageHeader
-        title="Host Operations Dashboard"
-        subtitle="Manage your agricultural stays, upcoming guest arrivals, and monthly earnings."
-        actions={
-          <Link to="/partner/services/new">
-            <Button size="sm" className="gap-2 font-bold bg-harvest-600 hover:bg-harvest-700 text-white shadow-sm">
-              <PlusCircle className="h-4 w-4" />
-              <span>Add New Service</span>
-            </Button>
-          </Link>
-        }
-      />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <Badge variant="outline" className="border-harvest-600/40 bg-harvest-50 dark:bg-harvest-950/40 text-harvest-700 dark:text-harvest-300 text-xs font-bold">
+              {roleTitle}
+            </Badge>
+            {user?.is_verified && (
+              <Badge className="bg-emerald-600 text-white text-[10px] font-bold">
+                KYC Verified
+              </Badge>
+            )}
+          </div>
+          <PageHeader
+            title="Host Operations Dashboard"
+            subtitle={`Welcome, ${displayName}. Manage your listed services, guest bookings, collaboration proposals, and payouts.`}
+          />
+        </div>
+        <Link to="/partner/services/new">
+          <Button size="sm" className="gap-2 font-bold bg-harvest-600 hover:bg-harvest-700 text-white shadow-sm shrink-0">
+            <PlusCircle className="h-4 w-4" />
+            <span>Add New Service</span>
+          </Button>
+        </Link>
+      </div>
 
       {/* Primary KPI Overview (Services, Bookings, Earnings ONLY) */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

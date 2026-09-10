@@ -36,8 +36,9 @@ class ServiceRepository:
         page: int = 1,
         limit: int = 12,
         status: str = "PUBLISHED",
+        q: Optional[str] = None,
     ) -> Tuple[List[Service], int]:
-        """List discoverable services with SQL-level filters and pagination."""
+        """List discoverable services with SQL-level filters, keyword search, and pagination."""
         query = db.query(Service).filter(Service.status == status)
 
         # Provider verification filter: only show services from active, verified providers or seed services (provider_id is null)
@@ -50,14 +51,83 @@ class ServiceRepository:
             )
         )
 
-        if category and category.lower() != "all":
-            cat_clean = category.lower().strip()
+        if q and q.strip():
+            term = f"%{q.strip()}%"
             query = query.filter(
                 or_(
-                    Service.category_slug == cat_clean,
-                    Service.category.ilike(f"%{cat_clean}%"),
+                    Service.title.ilike(term),
+                    Service.description.ilike(term),
+                    Service.location.ilike(term),
+                    Service.district.ilike(term),
+                    Service.state.ilike(term),
+                    Service.provider_name.ilike(term),
                 )
             )
+
+        if category and category.lower() != "all":
+            cat_clean = category.lower().strip()
+            # Category synonym normalization
+            if cat_clean in ["farm", "farms", "agriculture", "farm stays", "farms & agriculture"]:
+                query = query.filter(
+                    or_(
+                        Service.category_slug.in_(["stay", "experiences"]),
+                        Service.category.ilike("%farm%"),
+                        Service.category.ilike("%agricultur%"),
+                    )
+                )
+            elif cat_clean in ["stays", "stay", "homestay", "farmstay", "farm stay"]:
+                query = query.filter(
+                    or_(
+                        Service.category_slug == "stay",
+                        Service.category.ilike("%stay%"),
+                    )
+                )
+            elif cat_clean in ["food", "dining", "food & dining"]:
+                query = query.filter(
+                    or_(
+                        Service.category_slug == "food",
+                        Service.category.ilike("%food%"),
+                        Service.category.ilike("%dining%"),
+                    )
+                )
+            elif cat_clean in ["events", "event", "events & festivals", "festivals"]:
+                query = query.filter(
+                    or_(
+                        Service.category_slug == "events",
+                        Service.category.ilike("%event%"),
+                        Service.category.ilike("%festival%"),
+                    )
+                )
+            elif cat_clean in ["guides", "tours", "guides-tours", "guides & tours"]:
+                query = query.filter(
+                    or_(
+                        Service.category_slug == "guides-tours",
+                        Service.category.ilike("%guide%"),
+                        Service.category.ilike("%tour%"),
+                    )
+                )
+            elif cat_clean in ["travel", "travel-services", "travel services"]:
+                query = query.filter(
+                    or_(
+                        Service.category_slug == "travel-services",
+                        Service.category.ilike("%travel%"),
+                    )
+                )
+            elif cat_clean in ["experiences", "experience", "activities", "activity"]:
+                query = query.filter(
+                    or_(
+                        Service.category_slug.in_(["experiences", "guides-tours"]),
+                        Service.category.ilike("%experience%"),
+                        Service.category.ilike("%activit%"),
+                    )
+                )
+            else:
+                query = query.filter(
+                    or_(
+                        Service.category_slug == cat_clean,
+                        Service.category.ilike(f"%{cat_clean}%"),
+                    )
+                )
 
         if location:
             loc_clean = location.strip()

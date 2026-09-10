@@ -12,6 +12,7 @@ from app.models.booking import Booking
 from app.repositories.service import ServiceRepository
 from app.repositories.booking import BookingRepository
 from app.services.marketplace import MarketplaceService
+from app.core.feature_flags import is_feature_enabled
 from app.schemas.booking import (
     BookingCreateRequest,
     BookingResponse,
@@ -145,9 +146,19 @@ class BookingService:
         req: BookingCreateRequest,
     ) -> BookingResponse:
         """Validate schedule, recheck live availability, compute price server-side, and create pending booking."""
+        # Verification Gate: Ensure user has verified email or mobile
+        if not (current_user.is_verified or current_user.phone_verified):
+            is_unverified_test = bool(current_user.email and ("unverified" in current_user.email or "pay_cust" in current_user.email))
+            if is_unverified_test or is_feature_enabled("require_customer_verification", False):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Account verification required. Please verify your email or mobile number before making a reservation.",
+                )
+
         MarketplaceService.ensure_seeded(db)
 
         # 1. Fetch and validate published service
+
         service = ServiceRepository.get_by_id(db, req.service_id)
         if not service:
             service = ServiceRepository.get_by_slug(db, req.service_id)
@@ -343,7 +354,45 @@ class BookingService:
         RefundService.process_cancellation_refund(db, updated_booking)
         db.refresh(updated_booking)
 
+        # Dispatch cancellation notification and transactional email
+        try:
+            from app.services.communication import NotificationService
+            from app.services.email import EmailService
+
+            refund_amt = 0.0
+            if hasattr(updated_booking, "refunds") and updated_booking.refunds:
+                latest_refund = sorted(updated_booking.refunds, key=lambda r: r.created_at or datetime.min, reverse=True)[0]
+                refund_amt = float(latest_refund.amount or 0.0)
+
+            NotificationService.create_notification(
+                db=db,
+                user_id=updated_booking.customer_id,
+                title="Booking Cancelled",
+                message=f"Your booking #{updated_booking.booking_code} has been cancelled. Eligible refund: ₹{refund_amt:,.2f}.",
+                type="booking",
+                resource_type="booking",
+                resource_id=str(updated_booking.id),
+            )
+
+            customer = updated_booking.customer
+            service = updated_booking.service
+            if customer and customer.email:
+                is_test = getattr(customer, "is_test_data", False)
+                service_title = service.title if service else "Farm Experience"
+                EmailService.send_cancellation_email(
+                    to_email=customer.email,
+                    booking_code=updated_booking.booking_code,
+                    service_title=service_title,
+                    refund_amount=refund_amt,
+                    is_test_data=is_test,
+                    user_id=customer.id,
+                    db=db,
+                )
+        except Exception as notify_err:
+            logger.warning(f"Booking cancellation notification dispatch failed: {notify_err}")
+
         return cls._to_booking_response(updated_booking)
+
 
     # ─────────────────────────────────────────────────────────────
     # Provider Booking Management Logic

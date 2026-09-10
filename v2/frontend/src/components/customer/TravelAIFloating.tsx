@@ -211,14 +211,24 @@ export function TravelAIFloating() {
       }
     } catch (err: any) {
       const statusCode = err?.response?.status;
-      let errorText = t("chat.offlineNotice");
+      let errorText = "Unable to process request. Please try again.";
 
       if (statusCode === 401) {
-        errorText = t("errors.unauthorized");
-      } else if (statusCode === 503) {
-        errorText = t("errors.serviceUnavailable");
+        errorText = "Authentication required. Please sign in to continue using Namma AI.";
+      } else if (statusCode === 403) {
+        errorText = "Access restricted. You do not have permission to access Namma AI.";
       } else if (statusCode === 404) {
-        errorText = t("errors.notFound");
+        errorText = "AI endpoint not found (404). Please verify backend router registration.";
+      } else if (statusCode === 422) {
+        errorText = "Invalid request format (422). Please rephrase your query.";
+      } else if (statusCode === 429) {
+        errorText = "Too many requests (429). Please wait a moment before sending another prompt.";
+      } else if (statusCode === 503) {
+        errorText = "Gemini service is temporarily unavailable (503). Platform search remains functional.";
+      } else if (statusCode === 500) {
+        errorText = "Backend AI service error (500). Please try again in a few moments.";
+      } else if (err?.message === "Network Error") {
+        errorText = "Network error. Please check your internet connection.";
       }
 
       setMessages((prev) => [

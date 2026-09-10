@@ -58,11 +58,11 @@ describe("App Routing & Public / Protected Shells", () => {
     expect(screen.getByRole("heading", { name: /Settings & Preferences/i })).toBeInTheDocument();
   });
 
-  it("renders Become a Partner onboarding flow", () => {
+  it("renders Become a Partner onboarding flow", async () => {
     localStorage.setItem("nc_access_token", "valid_test_token");
     window.history.pushState({}, "Become Partner", "/app/become-partner");
     render(<App />);
-    expect(screen.getByRole("heading", { name: /Become a NammaConnect Partner/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Farmer \/ Agriculture Host/i })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /Become a NammaConnect Partner/i })).toBeInTheDocument();
+    expect(screen.getByText(/Section 01: Personal Information/i)).toBeInTheDocument();
   });
 });

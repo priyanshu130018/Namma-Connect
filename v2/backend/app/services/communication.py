@@ -160,16 +160,30 @@ class MessagingService:
     """Business logic for Conversations, Multi-Party Threads, and Messages."""
 
     @classmethod
-    def _to_conversation_response(cls, conv: Conversation, user_id: uuid.UUID) -> ConversationResponse:
+    def _to_conversation_response(cls, conv: Conversation, user_id: uuid.UUID, db: Optional[Session] = None) -> ConversationResponse:
         is_p1 = conv.participant1_id == user_id
         other_id = str(conv.participant2_id if is_p1 else conv.participant1_id)
         other_name = conv.participant2_name if is_p1 else conv.participant1_name
         unread = conv.unread_count_p1 if is_p1 else conv.unread_count_p2
 
+        # Check online status via Redis presence cache
+        from app.services.redis_service import RedisService
+        presence = RedisService.get(f"presence:{other_id}")
+        is_online = bool(presence)
+
+        # Retrieve participant avatar if db available
+        avatar_url = None
+        if db:
+            other_user = db.query(User).filter(User.id == other_id).first()
+            if other_user:
+                avatar_url = other_user.avatar_url
+
         return ConversationResponse(
             id=str(conv.id),
             participant_id=other_id,
             participant_name=other_name,
+            participant_avatar=avatar_url,
+            is_online=is_online,
             subject=conv.subject,
             last_message_text=conv.last_message_text,
             last_message_at=conv.last_message_at,
@@ -198,8 +212,35 @@ class MessagingService:
         if count > 0:
             return
 
-        partner_id = uuid.uuid4()
-        partner_name = "Somanna (Kodagu Organics Host)"
+        # Query an existing partner or host in the database to satisfy the Foreign Key constraint
+        partner = (
+            db.query(User)
+            .filter(
+                User.role.in_(["partner", "farmer", "creator"]),
+                User.id != user.id,
+                User.is_active == True,
+            )
+            .first()
+        )
+
+        if not partner:
+            # Create a dedicated verified seed partner so Foreign Key constraints are always satisfied
+            from app.core.security import get_password_hash
+            partner = User(
+                email="somanna.kodagu@nammaconnect.test",
+                hashed_password=get_password_hash("PartnerPass123!"),
+                full_name="Somanna (Kodagu Organics Host)",
+                role="partner",
+                is_active=True,
+                is_verified=True,
+                auth_provider="local",
+            )
+            db.add(partner)
+            db.flush()
+
+
+        partner_id = partner.id
+        partner_name = partner.full_name
 
         conv = Conversation(
             participant1_id=user.id,
@@ -251,7 +292,8 @@ class MessagingService:
             .order_by(Conversation.last_message_at.desc())
             .all()
         )
-        return [cls._to_conversation_response(c, user.id) for c in convs]
+        return [cls._to_conversation_response(c, user.id, db) for c in convs]
+
 
     @classmethod
     def get_conversation_thread(cls, db: Session, user: User, conversation_id: str) -> ConversationDetailResponse:
@@ -355,6 +397,7 @@ class MessagingService:
         # Update conversation meta
         conv.last_message_text = payload.content
         conv.last_message_at = datetime.utcnow()
+        recipient_id = conv.participant2_id if conv.participant1_id == user.id else conv.participant1_id
         if conv.participant1_id == user.id:
             conv.unread_count_p2 += 1
         else:
@@ -362,4 +405,42 @@ class MessagingService:
 
         db.commit()
         db.refresh(msg)
-        return cls._to_message_response(msg)
+
+        msg_resp = cls._to_message_response(msg)
+
+        # Real-time event broadcast via Redis pub/sub
+        try:
+            from app.services.redis_service import RedisService
+            channel_payload = {
+                "type": "new_message",
+                "conversation_id": str(conv.id),
+                "message": {
+                    "id": str(msg.id),
+                    "conversation_id": str(msg.conversation_id),
+                    "sender_id": str(msg.sender_id),
+                    "sender_name": msg.sender_name,
+                    "content": msg.content,
+                    "is_read": msg.is_read,
+                    "created_at": msg.created_at.isoformat() if msg.created_at else None,
+                },
+            }
+            RedisService.publish(f"chat:{recipient_id}", channel_payload)
+        except Exception:
+            pass
+
+        # Dispatch an in-app notification to the recipient
+        try:
+            NotificationService.create_notification(
+                db=db,
+                user_id=recipient_id,
+                title=f"New message from {user.full_name}",
+                message=payload.content[:120],
+                type="system",
+                resource_type="service",
+                resource_id=str(conv.id),
+            )
+        except Exception:
+            pass
+
+        return msg_resp
+

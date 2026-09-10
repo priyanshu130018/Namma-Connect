@@ -95,6 +95,44 @@ class AuthService:
                 phone_verified=False,
                 auth_provider="local",
             )
+
+            # Generate signed verification token and dispatch emails + notifications
+            try:
+                from app.core.security import create_verification_token
+                from app.services.email import EmailService
+                from app.services.communication import NotificationService
+
+                verification_token = create_verification_token(subject=str(user.id))
+                is_test = getattr(user, "is_test_data", False)
+
+                # Send welcome email and verification email
+                EmailService.send_welcome_email(
+                    to_email=user.email,
+                    full_name=user.full_name,
+                    is_test_data=is_test,
+                    user_id=user.id,
+                    db=db,
+                )
+                EmailService.send_verification_email(
+                    to_email=user.email,
+                    verification_token=verification_token,
+                    full_name=user.full_name,
+                    is_test_data=is_test,
+                    user_id=user.id,
+                    db=db,
+                )
+
+                # Create in-app notifications
+                NotificationService.create_notification(
+                    db=db,
+                    user_id=user.id,
+                    title="Welcome to NammaConnect",
+                    message=f"Welcome {user.full_name}! Please verify your email address to unlock reservations and online payments.",
+                    type="system",
+                )
+            except Exception as notify_err:
+                logger.warning("Post-registration email/notification dispatch failed: %s", notify_err)
+
             return cls._build_token_response(user)
         except HTTPException:
             raise
@@ -104,6 +142,7 @@ class AuthService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail="Unable to complete registration. Please try again.",
             )
+
 
     @classmethod
     def login(cls, db: Session, req: UserLoginRequest) -> TokenResponse:
@@ -355,25 +394,63 @@ class AuthService:
 
     @classmethod
     def verify_email(cls, db: Session, req: VerifyEmailRequest) -> None:
-        """Mark email as verified from signed verification token."""
+        """Mark email as verified from signed verification token with validation and confirmation."""
         try:
             payload = jwt.decode(
                 req.token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM]
             )
             user_id = payload.get("sub")
+            token_type = payload.get("type")
+            if token_type != "verification" or not user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid verification token type or missing identity.",
+                )
         except JWTError:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Verification link has expired or is invalid",
+                detail="Verification link has expired or is invalid.",
             )
 
         user = UserRepository.get_by_id(db, user_id)
-        if user:
-            UserRepository.update(db, user, is_verified=True)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User associated with verification link was not found.",
+            )
+
+        # Idempotency check: if already verified, do not duplicate confirmation email or error
+        if user.is_verified:
+            return
+
+        UserRepository.update(db, user, is_verified=True)
+
+        # Dispatch confirmation email and notification
+        try:
+            from app.services.email import EmailService
+            from app.services.communication import NotificationService
+
+            is_test = getattr(user, "is_test_data", False)
+            EmailService.send_email_verified_confirmation(
+                to_email=user.email,
+                full_name=user.full_name,
+                is_test_data=is_test,
+                user_id=user.id,
+                db=db,
+            )
+            NotificationService.create_notification(
+                db=db,
+                user_id=user.id,
+                title="Email Verified",
+                message="Your email has been successfully verified.",
+                type="system",
+            )
+        except Exception as notify_err:
+            logger.warning("Post-email-verification notification failed: %s", notify_err)
 
     @classmethod
     def verify_phone(cls, db: Session, req: VerifyPhoneRequest) -> None:
-        """Verify phone with OTP."""
+        """Verify phone with OTP, update status, send confirmation and notification."""
         user = UserRepository.get_by_mobile(db, req.phone)
         if not user:
             raise HTTPException(
@@ -383,8 +460,78 @@ class AuthService:
         # OTP verification validation (6-digit check)
         if len(req.otp) == 6:
             UserRepository.update(db, user, phone_verified=True)
+
+            try:
+                from app.services.email import EmailService
+                from app.services.communication import NotificationService
+
+                is_test = getattr(user, "is_test_data", False)
+                if user.email:
+                    EmailService.send_mobile_verified_confirmation(
+                        to_email=user.email,
+                        mobile=user.mobile,
+                        full_name=user.full_name,
+                        is_test_data=is_test,
+                        user_id=user.id,
+                        db=db,
+                    )
+                NotificationService.create_notification(
+                    db=db,
+                    user_id=user.id,
+                    title="Mobile Number Verified",
+                    message=f"Your mobile number {user.mobile} has been verified successfully.",
+                    type="system",
+                )
+            except Exception as notify_err:
+                logger.warning("Post-mobile-verification notification failed: %s", notify_err)
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid OTP verification code",
             )
+
+    @classmethod
+    def resend_verification(
+        cls,
+        db: Session,
+        current_user: Optional[User] = None,
+        email: Optional[str] = None,
+    ) -> None:
+        """Re-generate and dispatch a fresh email verification link."""
+        target_user = current_user
+        if not target_user and email:
+            target_user = UserRepository.get_by_email(db, email.strip())
+
+        if not target_user:
+            # Generic safe return to prevent account enumeration
+            return
+
+        if target_user.is_verified:
+            return
+
+        try:
+            from app.core.security import create_verification_token
+            from app.services.email import EmailService
+            from app.services.communication import NotificationService
+
+            token = create_verification_token(subject=str(target_user.id))
+            is_test = getattr(target_user, "is_test_data", False)
+
+            EmailService.send_verification_email(
+                to_email=target_user.email,
+                verification_token=token,
+                full_name=target_user.full_name,
+                is_test_data=is_test,
+                user_id=target_user.id,
+                db=db,
+            )
+            NotificationService.create_notification(
+                db=db,
+                user_id=target_user.id,
+                title="Verification Email Resent",
+                message="A new verification link has been dispatched to your email address.",
+                type="system",
+            )
+        except Exception as err:
+            logger.warning("Resend verification failed: %s", err)
+

@@ -257,7 +257,7 @@ describe("Admin Operations Component Suite", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Approve$/i }));
 
     await waitFor(() => {
-      expect(approveSpy).toHaveBeenCalledWith("app-queue-01");
+      expect(approveSpy).toHaveBeenCalledWith("app-queue-01", true);
     });
   });
 

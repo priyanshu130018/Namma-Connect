@@ -1,7 +1,7 @@
 """API endpoints for Partner Application workflows and status."""
 
 from typing import Optional, List
-from fastapi import APIRouter, Depends, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.dependencies.database import get_db
@@ -10,6 +10,7 @@ from app.models.user import User
 from app.schemas.common import APIResponse
 from app.schemas.partner_application import (
     PartnerApplicationCreateRequest,
+    PartnerApplicationDraftRequest,
     PartnerApplicationReviewRequest,
     PartnerApplicationRejectRequest,
     PartnerApplicationResponse,
@@ -31,6 +32,21 @@ def get_my_partner_application(
         success=True,
         message="Partner application retrieved successfully." if app else "No partner application found.",
         data=app,
+    )
+
+
+@router.post("/draft", response_model=APIResponse[PartnerApplicationResponse])
+def save_partner_application_draft(
+    payload: PartnerApplicationDraftRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Save progressive partner application draft state."""
+    result = PartnerApplicationService.save_draft(db, current_user, payload)
+    return APIResponse(
+        success=True,
+        message="Application draft saved successfully.",
+        data=result,
     )
 
 
@@ -86,6 +102,7 @@ def get_admin_partner_application(
 @admin_router.post("/{app_id}/approve", response_model=APIResponse[PartnerApplicationResponse])
 def approve_partner_application(
     app_id: str,
+    approve_services: bool = Query(True, description="Whether to also approve attached pending onboarding services"),
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
@@ -94,6 +111,7 @@ def approve_partner_application(
         db=db,
         app_id=app_id,
         admin_user=current_user,
+        approve_services_together=approve_services,
     )
     return APIResponse(
         success=True,
@@ -137,6 +155,7 @@ def review_partner_application(
         admin_user=current_user,
         approved=payload.approved,
         rejection_reason=payload.rejection_reason,
+        approve_services_together=payload.approve_services_together if payload.approve_services_together is not None else True,
     )
     return APIResponse(
         success=True,

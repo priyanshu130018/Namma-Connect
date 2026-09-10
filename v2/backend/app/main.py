@@ -1,24 +1,45 @@
 """FastAPI main application entry point for Namma Connect V2."""
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 from app.core.config import settings
 from app.core.logging import logger, setup_logging
 from app.api.health import router as health_router
 from app.api.v2.router import api_v2_router
+from app.middleware import (
+    RequestContextMiddleware,
+    SecurityHeadersMiddleware,
+    setup_cors_middleware,
+    register_exception_handlers,
+)
 
+# Initialize structured logging
 setup_logging()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION} [{settings.ENV}]")
+    """Application lifecycle management."""
+    logger.info("Starting %s v%s [%s]", settings.PROJECT_NAME, settings.VERSION, settings.ENV)
+    try:
+        import app.models
+        from app.core.database import Base, engine, SessionLocal
+        Base.metadata.create_all(bind=engine)
+
+        # Deterministic startup database seeding
+        db = SessionLocal()
+        try:
+            from app.services.marketplace import MarketplaceService
+            MarketplaceService.ensure_seeded(db)
+        finally:
+            db.close()
+    except Exception as e:
+        logger.warning("Database schema initialization warning: %s", e)
     yield
-    logger.info(f"Shutting down {settings.PROJECT_NAME}")
+    logger.info("Shutting down %s", settings.PROJECT_NAME)
 
 
+# Create monolithic FastAPI application instance
 app = FastAPI(
     title=f"{settings.PROJECT_NAME} V2",
     version=settings.VERSION,
@@ -29,31 +50,16 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS Middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# 1. Register Request Context & Security Middleware
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestContextMiddleware)
 
+# 2. Register Centralized CORS Configuration
+setup_cors_middleware(app)
 
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
-    logger.error(f"Unhandled error on {request.method} {request.url.path}: {str(exc)}")
-    return JSONResponse(
-        status_code=500,
-        content={
-            "success": False,
-            "message": "An internal server error occurred.",
-            "error_detail": str(exc) if settings.DEBUG else None,
-        },
-    )
+# 3. Register Global Exception Handlers
+register_exception_handlers(app)
 
-
-# Mount health check at root /health
+# 4. Mount API Routers
 app.include_router(health_router)
-
-# Mount root API V2 router at /api/v2
 app.include_router(api_v2_router, prefix=settings.API_V2_PREFIX)

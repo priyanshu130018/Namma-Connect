@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   Star,
   MapPin,
@@ -16,7 +16,9 @@ import {
   ChevronRight,
   Calendar as CalendarIcon,
   RefreshCw,
+  MessageSquare,
 } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -29,9 +31,12 @@ import { ServiceDetailData, ServiceAvailabilityData, TimeSlot } from "@/types";
 import { AvailabilityCalendar } from "@/components/availability/AvailabilityCalendar";
 import { TimeSlotSelector } from "@/components/availability/TimeSlotSelector";
 import { BookingReviewModal } from "@/components/booking/BookingReviewModal";
+import { TomTomMap, RouteInfo } from "@/components/map/TomTomMap";
+import { calculateRoute, geocodeLocation } from "@/services/locationService";
 
 export function CustomerServiceDetailPage() {
   const { service_id } = useParams<{ service_id: string }>();
+  const navigate = useNavigate();
 
   // Service Detail State
   const [detail, setDetail] = useState<ServiceDetailData | null>(null);
@@ -39,6 +44,13 @@ export function CustomerServiceDetailPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [selectedImageIdx, setSelectedImageIdx] = useState<number>(0);
+
+  const handleMessageHost = () => {
+    if (!detail?.service) return;
+    const { provider_id, title } = detail.service;
+    navigate(`/app/messages?provider_id=${provider_id}&subject=${encodeURIComponent(title)}`);
+  };
+
 
   // Availability Workflow State
   const [showAvailability, setShowAvailability] = useState<boolean>(false);
@@ -51,6 +63,82 @@ export function CustomerServiceDetailPage() {
   const [selectedEndDate, setSelectedEndDate] = useState<string>("");
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState<boolean>(false);
+
+  // Map & Directions State
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [isRouting, setIsRouting] = useState<boolean>(false);
+  const [routingError, setRoutingError] = useState<string | null>(null);
+  const [manualOrigin, setManualOrigin] = useState<string>("");
+  const [showManualInput, setShowManualInput] = useState<boolean>(false);
+
+  const handleGetDirections = async () => {
+    if (!detail?.service) return;
+    const destLat = detail.service.latitude || 12.3375;
+    const destLon = detail.service.longitude || 75.8069;
+
+    if (!navigator.geolocation) {
+      setShowManualInput(true);
+      setRoutingError("Geolocation is not supported by your browser. Please enter your starting location.");
+      return;
+    }
+
+    setIsRouting(true);
+    setRoutingError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await calculateRoute(
+            pos.coords.latitude,
+            pos.coords.longitude,
+            destLat,
+            destLon
+          );
+          setRouteInfo({
+            distanceText: res.distance_text,
+            durationText: res.duration_text,
+            routePoints: res.route_points,
+          });
+        } catch {
+          setRoutingError("Unable to calculate route. Enter your starting location manually.");
+          setShowManualInput(true);
+        } finally {
+          setIsRouting(false);
+        }
+      },
+      () => {
+        setIsRouting(false);
+        setShowManualInput(true);
+        setRoutingError("Location permission was denied. Enter your starting location below.");
+      },
+      { timeout: 8000 }
+    );
+  };
+
+  const handleManualRouteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualOrigin.trim() || !detail?.service) return;
+
+    const destLat = detail.service.latitude || 12.3375;
+    const destLon = detail.service.longitude || 75.8069;
+
+    setIsRouting(true);
+    setRoutingError(null);
+
+    try {
+      const originLoc = await geocodeLocation(manualOrigin);
+      const res = await calculateRoute(originLoc.lat, originLoc.lon, destLat, destLon);
+      setRouteInfo({
+        distanceText: res.distance_text,
+        durationText: res.duration_text,
+        routePoints: res.route_points,
+      });
+    } catch {
+      setRoutingError("Unable to calculate directions for the specified starting location.");
+    } finally {
+      setIsRouting(false);
+    }
+  };
 
   useEffect(() => {
     if (!service_id) return;
@@ -312,11 +400,23 @@ export function CustomerServiceDetailPage() {
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{service.provider_type}</p>
               </div>
             </div>
-            <div className="hidden sm:flex items-center gap-2 rounded-2xl bg-emerald-50 dark:bg-emerald-950/80 px-3.5 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-              <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              <span>Aadhaar & Land Verified</span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleMessageHost}
+                className="gap-1.5 font-bold border-harvest-200 text-harvest-800 hover:bg-harvest-50 dark:border-harvest-800 dark:text-harvest-300 dark:hover:bg-harvest-950/60 rounded-xl"
+              >
+                <MessageSquare className="h-4 w-4 text-harvest-600 dark:text-harvest-400" />
+                <span>Message Host</span>
+              </Button>
+              <div className="hidden sm:flex items-center gap-2 rounded-2xl bg-emerald-50 dark:bg-emerald-950/80 px-3.5 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <span>Aadhaar & Land Verified</span>
+              </div>
             </div>
           </Card>
+
 
           {/* About Experience */}
           <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
@@ -359,6 +459,70 @@ export function CustomerServiceDetailPage() {
               </div>
             </Card>
           )}
+
+          {/* TomTom Service Location & Navigation Card */}
+          <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                  <MapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Service Location & Map</span>
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  {service.formatted_address || service.location}
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGetDirections}
+                disabled={isRouting}
+                className="gap-1.5 font-bold border-emerald-300 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-950/60 rounded-xl"
+              >
+                <ChevronRight className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                <span>{isRouting ? "Calculating..." : "Get Directions"}</span>
+              </Button>
+            </div>
+
+            {/* Manual starting location input fallback */}
+            {showManualInput && (
+              <form onSubmit={handleManualRouteSubmit} className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 space-y-2 text-xs">
+                <p className="font-semibold text-amber-900 dark:text-amber-300">
+                  {routingError || "Enter your starting city or location to calculate directions:"}
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={manualOrigin}
+                    onChange={(e) => setManualOrigin(e.target.value)}
+                    placeholder="e.g. Indiranagar Bengaluru"
+                    className="flex-1 rounded-xl border border-amber-300 dark:border-amber-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  />
+                  <Button type="submit" size="sm" disabled={isRouting || !manualOrigin.trim()} className="font-bold text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-xl">
+                    Calculate
+                  </Button>
+                </div>
+              </form>
+            )}
+
+            <TomTomMap
+              center={{ lat: service.latitude || 12.3375, lon: service.longitude || 75.8069 }}
+              zoom={13}
+              markers={[
+                {
+                  id: service.id,
+                  lat: service.latitude || 12.3375,
+                  lon: service.longitude || 75.8069,
+                  title: "Service Location",
+                  subtitle: service.location,
+                },
+              ]}
+              route={routeInfo || undefined}
+              privacyProtected={true}
+              onDirectionsClick={handleGetDirections}
+              height="340px"
+            />
+          </Card>
 
           {/* Amenities & Farm Features */}
           {service.amenities && service.amenities.length > 0 && (

@@ -9,11 +9,13 @@ import { AppImage } from "@/components/ui/image";
 import { formatCurrency } from "@/lib/utils";
 import { getPublicCreators, getPublicCreatorById } from "@/services/creatorService";
 import { CreatorProfile } from "@/types";
+import { CollaborationModal } from "@/components/creator/CollaborationModal";
 
 export function CustomerCreatorsPage() {
   const [creators, setCreators] = useState<CreatorProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedCreatorForCollab, setSelectedCreatorForCollab] = useState<CreatorProfile | null>(null);
 
   const loadCreators = useCallback(async () => {
     setIsLoading(true);
@@ -123,22 +125,42 @@ export function CustomerCreatorsPage() {
               </div>
 
               {/* Action Footer */}
-              <div className="border-t border-slate-100 dark:border-slate-800 p-4 bg-slate-50/60 dark:bg-slate-950/40 flex items-center justify-between">
+              <div className="border-t border-slate-100 dark:border-slate-800 p-4 bg-slate-50/60 dark:bg-slate-950/40 flex items-center justify-between gap-2">
                 <div>
                   <span className="text-[10px] uppercase font-bold text-slate-400 block">Starting at</span>
                   <span className="text-sm font-extrabold text-slate-900 dark:text-slate-100">
                     {formatCurrency(creator.starting_rate)}
                   </span>
                 </div>
-                <Link to={`/app/creators/${creator.id}`}>
-                  <Button size="sm" className="font-bold text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-xl">
-                    View Portfolio
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedCreatorForCollab(creator)}
+                    className="font-bold text-xs border-purple-300 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950 rounded-xl"
+                  >
+                    <Sparkles className="h-3.5 w-3.5 mr-1 text-purple-500" />
+                    Collaborate
                   </Button>
-                </Link>
+                  <Link to={`/app/creators/${creator.id}`}>
+                    <Button size="sm" className="font-bold text-xs bg-purple-600 hover:bg-purple-700 text-white rounded-xl">
+                      Portfolio
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </Card>
           ))}
         </div>
+      )}
+
+      {/* Collaboration Booking Modal */}
+      {selectedCreatorForCollab && (
+        <CollaborationModal
+          isOpen={!!selectedCreatorForCollab}
+          onClose={() => setSelectedCreatorForCollab(null)}
+          creator={selectedCreatorForCollab}
+        />
       )}
     </div>
   );
@@ -149,6 +171,7 @@ export function CustomerCreatorDetailPage() {
   const [creator, setCreator] = useState<CreatorProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isCollabModalOpen, setIsCollabModalOpen] = useState(false);
 
   const loadCreator = useCallback(async () => {
     if (!creator_id) return;
@@ -265,18 +288,18 @@ export function CustomerCreatorDetailPage() {
         {/* Media Packages */}
         {creator.packages.length > 0 && (
           <div className="space-y-3 pt-2">
-            <h3 className="text-sm font-bold text-slate-900">Available Production Packages</h3>
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Available Production Packages</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {creator.packages.map((pkg, idx) => (
-                <div key={idx} className="p-4 rounded-2xl border border-purple-100 bg-purple-50/50 space-y-2">
+                <div key={idx} className="p-4 rounded-2xl border border-purple-200/80 dark:border-purple-800/80 bg-purple-50/70 dark:bg-purple-950/40 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-900">{pkg.title}</span>
-                    <span className="text-xs font-extrabold text-purple-900">{formatCurrency(pkg.price)}</span>
+                    <span className="text-xs font-bold text-slate-900 dark:text-slate-100">{pkg.title}</span>
+                    <span className="text-xs font-extrabold text-purple-900 dark:text-purple-300">{formatCurrency(pkg.price)}</span>
                   </div>
-                  <ul className="space-y-1 text-[11px] text-slate-600">
+                  <ul className="space-y-1 text-[11px] text-slate-600 dark:text-slate-300">
                     {pkg.deliverables.map((d, i) => (
                       <li key={i} className="flex items-center gap-1">
-                        <CheckCircle2 className="h-3 w-3 text-emerald-600 shrink-0" />
+                        <CheckCircle2 className="h-3 w-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
                         <span>{d}</span>
                       </li>
                     ))}
@@ -287,18 +310,28 @@ export function CustomerCreatorDetailPage() {
           </div>
         )}
 
-        <div className="rounded-2xl bg-purple-50 p-5 border border-purple-200 flex items-center justify-between">
+        <div className="rounded-2xl bg-purple-50/80 dark:bg-purple-950/60 p-5 border border-purple-200/80 dark:border-purple-800/80 flex items-center justify-between">
           <div>
-            <span className="text-xs font-bold text-purple-950 block">Collaboration Campaign Package</span>
-            <span className="text-sm font-extrabold text-purple-900 mt-0.5 block">{formatCurrency(creator.starting_rate)} / project</span>
+            <span className="text-xs font-bold text-purple-950 dark:text-purple-200 block">Collaboration Campaign Package</span>
+            <span className="text-sm font-extrabold text-purple-900 dark:text-purple-300 mt-0.5 block">{formatCurrency(creator.starting_rate)} / project</span>
           </div>
-          <Link to="/partner/collaborations">
-            <Button className="bg-purple-600 hover:bg-purple-700 text-white font-bold gap-2 shadow-sm">
-              <Sparkles className="h-4 w-4" /> Send Campaign Proposal
-            </Button>
-          </Link>
+          <Button
+            onClick={() => setIsCollabModalOpen(true)}
+            className="bg-purple-600 hover:bg-purple-700 text-white font-bold gap-2 shadow-sm"
+          >
+            <Sparkles className="h-4 w-4" /> Send Campaign Proposal
+          </Button>
         </div>
       </Card>
+
+      {/* Collaboration Booking Modal */}
+      {creator && (
+        <CollaborationModal
+          isOpen={isCollabModalOpen}
+          onClose={() => setIsCollabModalOpen(false)}
+          creator={creator}
+        />
+      )}
     </div>
   );
 }

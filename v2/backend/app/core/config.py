@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     ENV: str = "development"
     DEBUG: bool = True
     API_V2_PREFIX: str = "/api/v2"
+    FRONTEND_URL: str = "http://localhost:5173"
 
     # ==========================================================================
     # CORS
@@ -59,83 +60,33 @@ class Settings(BaseSettings):
     # Database Credentials & Connection URLs
     # ==========================================================================
 
-    POSTGRES_USER: str = "postgres"
+    POSTGRES_USER: str = ""
     POSTGRES_PASSWORD: str = ""
-    POSTGRES_DB: str = "namma_connect_db"
-    POSTGRES_HOST: str = "localhost"
-    POSTGRES_PORT: str = "5432"
+    POSTGRES_DB: str = ""
+    POSTGRES_HOST: str = ""
+    POSTGRES_PORT: str = ""
 
     DATABASE_URL: str = ""
     DATABASE_SYNC_URL: str = ""
 
-    @field_validator("DATABASE_SYNC_URL", mode="before")
-    @classmethod
-    def resolve_database_sync_url(cls, value, values):
-        import os
-        from urllib.parse import quote_plus
-        
-        user = os.getenv("POSTGRES_USER", "postgres")
-        raw_pw = os.getenv("POSTGRES_PASSWORD", "")
-        # If password is provided, ensure it's properly url-encoded if it contains special characters
-        encoded_pw = raw_pw if "%" in raw_pw else quote_plus(raw_pw)
-        db_name = os.getenv("POSTGRES_DB", "namma_connect_db")
-        host = os.getenv("POSTGRES_HOST", "localhost")
-        port = os.getenv("POSTGRES_PORT", "5432")
-
-        if not value or not isinstance(value, str) or not value.strip():
-            pw_part = f":{encoded_pw}" if encoded_pw else ""
-            return f"postgresql://{user}{pw_part}@{host}:{port}/{db_name}"
-
-        url = value.strip()
-        # Replace template placeholders if they exist in the env string
-        url = url.replace("POSTGRES_USER", user)
-        if "POSTGRES_PASSWORD" in url:
-            url = url.replace("POSTGRES_PASSWORD", encoded_pw)
-        if "POSTGRES_DB" in url:
-            url = url.replace("POSTGRES_DB", db_name)
-        return url
-
-    @field_validator("DATABASE_URL", mode="before")
-    @classmethod
-    def resolve_database_async_url(cls, value, values):
-        import os
-        from urllib.parse import quote_plus
-
-        user = os.getenv("POSTGRES_USER", "postgres")
-        raw_pw = os.getenv("POSTGRES_PASSWORD", "")
-        encoded_pw = raw_pw if "%" in raw_pw else quote_plus(raw_pw)
-        db_name = os.getenv("POSTGRES_DB", "namma_connect_db")
-        host = os.getenv("POSTGRES_HOST", "localhost")
-        port = os.getenv("POSTGRES_PORT", "5432")
-
-        if not value or not isinstance(value, str) or not value.strip():
-            pw_part = f":{encoded_pw}" if encoded_pw else ""
-            return f"postgresql+asyncpg://{user}{pw_part}@{host}:{port}/{db_name}"
-
-        url = value.strip()
-        url = url.replace("POSTGRES_USER", user)
-        if "POSTGRES_PASSWORD" in url:
-            url = url.replace("POSTGRES_PASSWORD", encoded_pw)
-        if "POSTGRES_DB" in url:
-            url = url.replace("POSTGRES_DB", db_name)
-        return url
+    
 
     # ==========================================================================
     # Redis
     # ==========================================================================
 
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_URL: str = ""
 
     # ==========================================================================
     # Security / JWT
     # ==========================================================================
 
     JWT_SECRET: str = (
-        "namma_connect_v2_development_jwt_secret_key_"
-        "change_in_production_32b"
+        ""
+        ""
     )
 
-    JWT_ALGORITHM: str = "HS256"
+    JWT_ALGORITHM: str = ""
 
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
@@ -189,6 +140,26 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str = ""
 
     # ==========================================================================
+    # TomTom Maps & Location Services
+    # ==========================================================================
+
+    TOMTOM_API_KEY: str = ""
+    TOMTOM_BASE_URL: str = "https://api.tomtom.com"
+
+    # ==========================================================================
+    # Recommendation & Vector Search Settings
+    # ==========================================================================
+
+    RECOMMENDATION_CANDIDATE_K: int = 20
+    RECOMMENDATION_FINAL_K: int = 5
+    MIN_RECOMMENDATION_SIMILARITY: float = 0.16
+    RECOMMENDATION_SEMANTIC_WEIGHT: float = 0.70
+    RECOMMENDATION_CATEGORY_WEIGHT: float = 0.10
+    RECOMMENDATION_LOCATION_WEIGHT: float = 0.10
+    RECOMMENDATION_AVAILABILITY_WEIGHT: float = 0.05
+    RECOMMENDATION_RATING_WEIGHT: float = 0.05
+
+    # ==========================================================================
     # Pydantic Settings
     # ==========================================================================
 
@@ -231,6 +202,8 @@ class Settings(BaseSettings):
             "resend": bool(self.RESEND_API_KEY),
 
             "gemini": bool(self.GEMINI_API_KEY),
+
+            "tomtom": bool(self.TOMTOM_API_KEY),
         }
 
 

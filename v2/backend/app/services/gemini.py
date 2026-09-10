@@ -20,6 +20,141 @@ class GeminiService:
         return bool(settings.GEMINI_API_KEY)
 
     @classmethod
+    def detect_input_language(cls, prompt: str, explicit_language: Optional[str] = None) -> str:
+        """
+        Detect user language from script and Romanized markers, or fall back to explicit param.
+        Returns 'kn' for Kannada, 'hi' for Hindi, and 'en' for English.
+        """
+        import re
+        if not prompt or not prompt.strip():
+            return (explicit_language or "en").lower().strip()
+
+        # 1. Check Unicode script
+        if re.search(r'[\u0C80-\u0CFF]', prompt):
+            return "kn"
+        if re.search(r'[\u0900-\u097F]', prompt):
+            return "hi"
+
+        # 2. Check Romanized Kannada & Hindi vocabulary
+        p_lower = prompt.lower()
+        words = set(re.findall(r'[a-z]+', p_lower))
+
+        roman_kannada = {
+            "nanage", "namage", "beku", "alli", "thota", "thotada", "oota", "yaavudu",
+            "hege", "yelli", "nodabekenta", "madona", "kannada", "namaskara", "kodagu"
+        }
+        if words & roman_kannada:
+            return "kn"
+
+        roman_hindi = {
+            "mujhe", "chahiye", "humein", "kripya", "karna", "kaunsa", "kaha", "bataiye",
+            "namaste", "dost", "kaise", "apka", "mera", "hoga"
+        }
+        if words & roman_hindi or ("mein" in words and any(w in words for w in ["coffee", "farm", "stay", "experience", "trip", "tour"])):
+            return "hi"
+
+        # 3. Explicit language param
+        if explicit_language:
+            exp = explicit_language.lower().strip()
+            if exp in ["kn", "kannada"]:
+                return "kn"
+            if exp in ["hi", "hindi"]:
+                return "hi"
+
+        return "en"
+
+    @classmethod
+    def has_recommendation_intent(
+        cls,
+        prompt: str,
+        destination: Optional[str] = None,
+        category: Optional[str] = None,
+    ) -> bool:
+        """
+        Lightweight recommendation-intent decision before running service retrieval.
+        Returns False for conversational messages such as greetings, pleasantries, gratitude,
+        and general small talk that do not ask to discover/recommend/search/book services.
+        Returns True when the user clearly asks for recommendations, search, activities, stays, or events.
+        """
+        if not prompt or not prompt.strip():
+            return False
+
+        # If explicit destination or category filters were supplied in the request payload
+        if destination or category:
+            return True
+
+        p_lower = prompt.lower().strip()
+        import re
+
+        words = set(re.findall(r'[\w\u0C80-\u0CFF\u0900-\u097F]+', p_lower))
+        if not words:
+            return False
+
+        # Explicit recommendation, search, discovery, and booking action words
+        DISCOVERY_KEYWORDS = {
+            "recommend", "recommendation", "recommendations", "suggest", "suggestion", "suggestions",
+            "find", "search", "show", "options", "list", "explore", "discover", "book", "booking",
+            "reserve", "reserving", "cost", "price", "budget", "rates",
+            # Lodging / Stays
+            "stay", "stays", "homestay", "homestays", "farmstay", "farmstays", "resort", "resorts",
+            "cottage", "cottages", "bungalow", "bungalows", "tent", "tents", "camp", "camping",
+            # Farm / Agriculture
+            "farm", "farms", "farming", "plantation", "plantations", "estate", "estates", "orchard",
+            "orchards", "agriculture", "agro", "agritourism",
+            # Crops & Produce
+            "coffee", "tea", "spice", "spices", "pepper", "cardamom", "areca", "arecanut", "paddy",
+            "rice", "sugarcane", "jaggery", "vanilla", "honey", "bee", "beekeeping", "organic", "harvest",
+            # Activities & Events
+            "pottery", "clay", "workshop", "workshops", "experience", "experiences", "activity", "activities",
+            "fair", "fairs", "festival", "festivals", "mela", "jatre", "jatra", "habba", "sante",
+            "event", "events", "celebration", "exhibition",
+            # Tours & Trails
+            "tour", "tours", "guide", "guides", "guided", "trail", "trails", "trek", "treks",
+            "safari", "walk", "walks", "cupping", "roasting",
+            # Food & Culinary
+            "food", "dining", "cuisine", "feast", "kitchen", "cook", "cooking", "meal", "lunch",
+            "dinner", "breakfast", "thali", "oota",
+            # Travel & Packages
+            "itinerary", "package", "trip", "packages",
+            # Multilingual Kannada terms
+            "ತೋಟ", "ತೋಟದ", "ತೋಟಗಳು", "ಕಾಫಿ", "ಚಹಾ", "ಕೃಷಿ", "ವಾಸ್ತವ್ಯ", "ಪ್ರವಾಸ", "ಕೊಯ್ಲು", "ಜೇನು",
+            "ಕುಂಬಾರಿಕೆ", "ಮಣ್ಣಿನ", "ಊಟ", "ಜಾತ್ರೆ", "ಸಂತೆ", "ಹಬ್ಬ", "ಹೋಮ್‌ಸ್ಟೇ", "ಬೇಕಿದೆ", "ಬೇಕು",
+            "ಎಲ್ಲಿ", "ತಾಣಗಳು", "ನೋಡಲು", "ವಾಸ", "ಸ್ಟೇ", "ಆಹಾರ", "ಕಾರ್ಯಾಗಾರ",
+            # Romanized Kannada terms
+            "thota", "thotada", "beku", "nodabekenta", "yelli", "jaatre", "sante", "madona", "krishi",
+            # Multilingual Hindi terms
+            "फार्म", "खेत", "खेती", "कॉफी", "चाय", "स्टे", "सफर", "कटाई", "शहद", "मेला", "त्योहार",
+            "चाहिए", "कहाँ", "कहा", "घूमने", "जगह", "पर्यटन", "कार्यशाला",
+            # Romanized Hindi terms
+            "chahiye", "kaunsa", "kaha", "bataiye", "ghoomne", "jagah",
+        }
+
+        # Multi-word intent phrases
+        INTENT_PHRASES = [
+            "near me", "places to visit", "places to go", "where can i", "where to", "things to do",
+            "what to see", "how to book", "plan a trip", "plan my trip", "day trip", "weekend trip",
+            "look for", "looking for", "under ₹", "under rs", "below ₹", "below rs"
+        ]
+
+        if any(phrase in p_lower for phrase in INTENT_PHRASES):
+            return True
+
+        # Region/destinations in Karnataka (inquiry about destination)
+        REGIONS = [
+            "coorg", "kodagu", "wayanad", "chikmagalur", "chikkamagaluru", "mandya", "mysore", "mysuru",
+            "hampi", "kabini", "sakleshpur", "uttara kannada", "sirsi", "dakshina kannada", "mangalore",
+            "mangaluru", "shimoga", "shivamogga", "udupi", "gokarna", "dandeli"
+        ]
+        if any(reg in p_lower for reg in REGIONS):
+            return True
+
+        # Check single keyword intersection
+        if words & DISCOVERY_KEYWORDS:
+            return True
+
+        return False
+
+    @classmethod
     def generate_travel_plan(
         cls,
         db: Session,
@@ -37,7 +172,7 @@ class GeminiService:
         session_data = cls._conversations[conv_id]
         accumulated = session_data["accumulated_context"]
 
-        lang_code = (language or "en").lower().strip()
+        lang_code = cls.detect_input_language(prompt, language)
         logger.info(
             f"AI request received | conversation_id={conv_id} | language={lang_code} | message_length={len(prompt)}"
         )
@@ -45,7 +180,7 @@ class GeminiService:
         prompt_lower = prompt.lower().strip()
 
         # Extract & accumulate context across turns
-        for region in ["coorg", "kodagu", "wayanad", "chikmagalur", "chikkamagaluru", "mandya", "mysore", "mysuru", "hampi", "kabini", "sakleshpur"]:
+        for region in ["coorg", "kodagu", "wayanad", "chikmagalur", "chikkamagaluru", "mandya", "mysore", "mysuru", "hampi", "kabini", "sakleshpur", "uttara kannada", "sirsi", "dakshina kannada", "mangalore", "mangaluru", "shimoga", "shivamogga", "udupi"]:
             if region in prompt_lower:
                 accumulated["destination"] = region.title()
                 break
@@ -73,17 +208,149 @@ class GeminiService:
         effective_cat = category or accumulated.get("category")
         effective_budget = accumulated.get("max_budget")
 
+        # Critical behavior: skip recommendation retrieval for conversational messages
+        if not cls.has_recommendation_intent(prompt, effective_dest, effective_cat):
+            logger.info(f"Conversational message without recommendation intent: '{prompt}'")
+            session_data["history"].append({"user": prompt})
+
+            is_greeting = any(g in prompt_lower for g in ["hello", "hi", "hey", "namaskara", "namaste", "namaskar", "greetings", "good morning", "good evening", "good afternoon"])
+            is_thanks = any(t in prompt_lower for t in ["thank", "thanks", "dhanyavada", "dhanyavadagalu", "shukriya"])
+            is_how_are_you = any(h in prompt_lower for h in ["how are you", "how r u", "how do you do"])
+
+            if is_greeting:
+                if lang_code == "kn":
+                    reply = (
+                        "ನಮಸ್ಕಾರ! ನಾನು ನಿಮ್ಮ ನಮ್ಮ AI (Namma AI) ಪ್ರಯಾಣ ಸಹಾಯಕ. "
+                        "ಕೊಡಗಿನ ಕಾಫಿ ತೋಟಗಳು, ಮಂಡ್ಯದ ಕೃಷಿ ಕಾರ್ಯಾಗಾರಗಳು ಅಥವಾ ಪಶ್ಚಿಮ ಘಟ್ಟಗಳ ರಮಣೀಯ ತಾಣಗಳ ಪ್ರವಾಸವನ್ನು ಯೋಜಿಸಲು ನಾನು ನಿಮಗೆ ಹೇಗೆ ಸಹಾಯ ಮಾಡಲಿ?"
+                    )
+                elif lang_code == "hi":
+                    reply = (
+                        "नमस्ते! मैं आपका Namma AI यात्रा सहायक हूँ। "
+                        "कूर्ग में कॉफी एस्टेट स्टे, मांड्या में कृषि कार्यशालाओं, या सप्ताहांत पर्यटन की योजना बनाने में मैं आपकी क्या मदद कर सकता हूँ?"
+                    )
+                else:
+                    reply = (
+                        "Namaskara! I am Namma AI, your personal Karnataka travel assistant. "
+                        "I can help you discover certified coffee plantation stays, organic harvest workshops, or customized itineraries across Karnataka. Where would you like to explore?"
+                    )
+            elif is_thanks:
+                if lang_code == "kn":
+                    reply = "ಧನ್ಯವಾದಗಳು! ಕರ್ನಾಟಕದ ಕೃಷಿ ಪ್ರವಾಸೋದ್ಯಮ ಮತ್ತು ಗ್ರಾಮೀಣ ಅನುಭವಗಳ ಬಗ್ಗೆ ನೀವು ಯಾವಾಗ ಬೇಕಾದರೂ ನನ್ನನ್ನು ಕೇಳಬಹುದು."
+                elif lang_code == "hi":
+                    reply = "आपका स्वागत है! जब भी आप कर्नाटक के कृषि पर्यटन या ग्रामीण अनुभवों को खोजना चाहें, बेझिझक पूछें।"
+                else:
+                    reply = "You're welcome! Let me know whenever you would like to explore farm stays, agro-tours, or rural experiences across Karnataka."
+            elif is_how_are_you:
+                if lang_code == "kn":
+                    reply = "ನಾನು ಚೆನ್ನಾಗಿದ್ದೇನೆ, ಧನ್ಯವಾದಗಳು! ಕರ್ನಾಟಕದ ಗ್ರಾಮೀಣ ತಾಣಗಳು ಮತ್ತು ಕೃಷಿ ಪ್ರವಾಸಗಳನ್ನು ಅನ್ವೇಷಿಸಲು ನೀವು ಸಿದ್ಧರಿದ್ದೀರಾ?"
+                elif lang_code == "hi":
+                    reply = "मैं ठीक हूँ, पूछने के लिए धन्यवाद! कर्नाटक के फार्म स्टे और ग्रामीण पर्यटन को खोजने के लिए क्या आप तैयार हैं?"
+                else:
+                    reply = "I'm doing great, thank you! I am ready to help you plan farm stays, harvest experiences, and rural tours across Karnataka. What would you like to explore?"
+            else:
+                if lang_code == "kn":
+                    reply = (
+                        "ನಾನು ನಮ್ಮ AI, ನಿಮ್ಮ ಕರ್ನಾಟಕ ಗ್ರಾಮೀಣ ಪ್ರವಾಸ ಸಹಾಯಕ. "
+                        "ಕಾಫಿ ತೋಟದ ವಾಸ್ತವ್ಯ, ಸಾವಯವ ಕೃಷಿ ಕಾರ್ಯಾಗಾರ ಅಥವಾ ಸ್ಥಳೀಯ ಹಳ್ಳಿಯ ಸಂತೆಯಂತಹ ಅನುಭವಗಳನ್ನು ಹುಡುಕಲು ನೀವು ನನ್ನನ್ನು ಕೇಳಬಹುದು."
+                    )
+                elif lang_code == "hi":
+                    reply = (
+                        "मैं Namma AI हूँ, आपका कर्नाटक ग्रामीण यात्रा सहायक। "
+                        "कॉफी बागान स्टे, जैविक फार्म कार्यशाला या ग्रामीण मेलों के अनुभव खोजने के लिए आप मुझसे पूछ सकते हैं।"
+                    )
+                else:
+                    reply = (
+                        "I am Namma AI, your Karnataka rural travel and agro-tourism assistant. "
+                        "You can ask me to discover coffee plantation stays, tea farm experiences, seasonal harvest fairs, or rural workshops across Karnataka!"
+                    )
+
+            if cls.is_configured():
+                try:
+                    lang_instruction = "Respond in English."
+                    if lang_code == "kn":
+                        lang_instruction = "Respond strictly in Kannada (ಕನ್ನಡ)."
+                    elif lang_code == "hi":
+                        lang_instruction = "Respond strictly in Hindi (हिन्दी)."
+
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={settings.GEMINI_API_KEY}"
+                    system_instruction = (
+                        f"You are Namma AI, a friendly personal Karnataka travel assistant. {lang_instruction} "
+                        "Respond politely and conversationally to the user's greeting or message. "
+                        "Briefly introduce your capability to help explore and book rural Karnataka farm stays, plantation tours, organic workshops, and local experiences. "
+                        "Do NOT list specific services or invent listings unless the user asks for recommendations."
+                    )
+                    req_body = {
+                        "contents": [
+                            {"parts": [{"text": f"{system_instruction}\n\nUser Message: {prompt}"}]}
+                        ]
+                    }
+                    headers = {"Content-Type": "application/json"}
+                    req = urllib.request.Request(
+                        url,
+                        data=json.dumps(req_body).encode("utf-8"),
+                        headers=headers,
+                        method="POST",
+                    )
+                    with urllib.request.urlopen(req, timeout=3) as resp:
+                        data = json.loads(resp.read().decode("utf-8"))
+                        reply = data["candidates"][0]["content"]["parts"][0]["text"]
+                except Exception:
+                    pass
+
+            session_data["history"][-1]["ai"] = reply
+            return {
+                "reply": reply,
+                "recommended_services": [],
+                "source": "grounded_catalog",
+                "diagnostics": {
+                    "intent": "conversational",
+                    "candidate_count": 0,
+                    "final_count": 0,
+                    "results": [],
+                },
+            }
+
         from app.services.search import SemanticSearchService
 
-        published_services, _ = SemanticSearchService.semantic_search(
+        candidate_k = getattr(settings, "RECOMMENDATION_CANDIDATE_K", 20)
+        final_k = getattr(settings, "RECOMMENDATION_FINAL_K", 5)
+        min_sim = getattr(settings, "MIN_RECOMMENDATION_SIMILARITY", 0.16)
+
+        recommended_entities, diagnostics = SemanticSearchService.recommend_services(
             db,
             query=prompt,
+            destination=effective_dest,
             category=effective_cat,
-            location=effective_dest,
-            max_price=effective_budget,
-            limit=20,
-            status="PUBLISHED",
+            max_budget=effective_budget,
+            candidate_k=candidate_k,
+            final_k=final_k,
+            min_similarity=min_sim,
         )
+
+        # If no services match the relevance threshold, return explicit no-match
+        if not recommended_entities:
+            if lang_code == "kn":
+                no_match_msg = (
+                    "ಕ್ಷಮಿಸಿ, ಲಭ್ಯವಿರುವ ಕರ್ನಾಟಕದ ಕೃಷಿ ಮತ್ತು ಗ್ರಾಮೀಣ ಪ್ರವಾಸೋದ್ಯಮ ಪಟ್ಟಿಯಲ್ಲಿ ನಿಮ್ಮ ಕೋರಿಕೆಗೆ ಹೊಂದಿಕೆಯಾಗುವ ಯಾವುದೇ ಅನುಭವ ದೊರೆಯಲಿಲ್ಲ. "
+                    "ದಯವಿಟ್ಟು ಕೊಡಗಿನ ಕಾಫಿ ತೋಟಗಳು, ಚಿಕ್ಕಮಗಳೂರಿನ ಚಹಾ ಎಸ್ಟೇಟ್‌ಗಳು ಅಥವಾ ಮಂಡ್ಯದ ಸಾವಯವ ಕೃಷಿ ಕಾರ್ಯಾಗಾರಗಳಂತಹ ನಮ್ಮ ಪರಿಶೀಲಿಸಿದ ಪಟ್ಟಿಗಳನ್ನು ಹುಡುಕಿ ನೋಡಿ."
+                )
+            elif lang_code == "hi":
+                no_match_msg = (
+                    "क्षमा करें, उपलब्ध कर्नाटक कृषि और ग्रामीण पर्यटन सूची में आपके अनुरोध से मेल खाने वाला कोई अनुभव नहीं मिला। "
+                    "कृपया कूर्ग के कॉफी एस्टेट, चिकमगलूर के होमस्टे या मांड्या की जैविक फार्म कार्यशालाओं जैसी सत्यापित सूचियों को खोजें।"
+                )
+            else:
+                no_match_msg = (
+                    "I couldn't find a matching experience in the available listings across Karnataka. "
+                    "You can explore verified coffee estate stays in Coorg, tea plantations in Chikmagalur, or organic farming workshops in Mandya."
+                )
+            return {
+                "reply": no_match_msg,
+                "recommended_services": [],
+                "source": "grounded_catalog",
+                "diagnostics": diagnostics,
+            }
+
         service_catalog = [
             {
                 "id": str(s.id),
@@ -96,7 +363,7 @@ class GeminiService:
                 "unit": s.unit,
                 "rating": float(s.rating),
             }
-            for s in published_services
+            for s in recommended_entities
         ]
 
         # Recommendation diversity & de-duplication
@@ -118,7 +385,7 @@ class GeminiService:
                 repeat_candidates.append(s)
 
         diversified_catalog = unseen_candidates + repeat_candidates
-        selected_candidates = diversified_catalog[:4] if diversified_catalog else service_catalog[:4]
+        selected_candidates = diversified_catalog[:final_k] if diversified_catalog else service_catalog[:final_k]
 
         # Record recommended IDs in session
         for s in selected_candidates:
@@ -138,8 +405,10 @@ class GeminiService:
                     url = f"https://generativelanguage.googleapis.com/v1beta/{model_name}:generateContent?key={settings.GEMINI_API_KEY}"
                     system_instruction = (
                         f"You are Namma AI, your personal Karnataka travel assistant. {lang_instruction} "
-                        "Recommend only verified agritourism services from the provided catalog. "
-                        "Never invent prices, locations, ratings, or services; always use the exact details from the catalog. "
+                        "Recommend ONLY from the provided verified service catalog. "
+                        "Only recommend services supplied in the retrieved service context. "
+                        "Never invent prices, locations, ratings, or service IDs; always use the exact details from the catalog. "
+                        "If the retrieved services do not satisfy the user's request, say that no suitable matching service was found. "
                         "Direct users to the Booking button for reserving."
                     )
                     req_body = {
@@ -174,6 +443,7 @@ class GeminiService:
                             "reply": text_reply,
                             "recommended_services": selected_candidates,
                             "source": "gemini_api",
+                            "diagnostics": diagnostics,
                         }
                 except Exception as e:
                     logger.warning(f"Model {model_name} call failed: {e}. Trying next...")
@@ -201,7 +471,7 @@ class GeminiService:
                     "Namaskara! I am Namma AI, your personal Karnataka travel assistant. "
                     "I can help you discover certified coffee plantation stays, organic harvest workshops, or customized itineraries across Karnataka. Where would you like to explore?"
                 )
-            return {"reply": reply, "recommended_services": selected, "source": "grounded_catalog"}
+            return {"reply": reply, "recommended_services": selected, "source": "grounded_catalog", "diagnostics": diagnostics}
 
         if is_weather:
             if lang_code == "kn":
@@ -228,7 +498,7 @@ class GeminiService:
             lines = [reply, ""]
             for s in selected:
                 lines.append(f"- **{s['title']}** in {s['location']} &bull; ₹{s['price']:,.0f}/{s['unit']}")
-            return {"reply": "\n".join(lines), "recommended_services": selected, "source": "grounded_catalog"}
+            return {"reply": "\n".join(lines), "recommended_services": selected, "source": "grounded_catalog", "diagnostics": diagnostics}
 
         if is_itinerary and accumulated.get("duration_days"):
             days = accumulated["duration_days"]
@@ -266,7 +536,7 @@ class GeminiService:
 
             for s in selected:
                 lines.append(f"- **{s['title']}** in {s['location']} &bull; ₹{s['price']:,.0f}/{s['unit']}")
-            return {"reply": "\n".join(lines), "recommended_services": selected, "source": "grounded_catalog"}
+            return {"reply": "\n".join(lines), "recommended_services": selected, "source": "grounded_catalog", "diagnostics": diagnostics}
 
         if lang_code == "kn" or "kannada" in lang_code:
             reply_lines = [
@@ -301,13 +571,14 @@ class GeminiService:
                 )
             reply_lines.append("")
             reply_lines.append(
-                "You can view real-time availability and reserve any of these directly through the marketplace."
+                "You can view listing details and reserve any of these directly through the marketplace."
             )
 
         return {
             "reply": "\n".join(reply_lines),
             "recommended_services": selected,
             "source": "grounded_catalog",
+            "diagnostics": diagnostics,
         }
 
     @classmethod

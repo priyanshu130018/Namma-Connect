@@ -148,3 +148,10 @@ class VerifyPhoneRequest(BaseModel):
 
     phone: str
     otp: str
+
+
+class ResendVerificationRequest(BaseModel):
+    """Payload for requesting verification email re-dispatch."""
+
+    email: Optional[EmailStr] = None
+

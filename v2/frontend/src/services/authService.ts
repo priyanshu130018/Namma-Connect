@@ -102,3 +102,11 @@ export async function verifyPhone(phone: string, otp: string): Promise<MessageRe
   });
   return response.data;
 }
+
+export async function resendVerification(email?: string): Promise<MessageResponse> {
+  const response = await apiClient.post<MessageResponse>("/auth/resend-verification", {
+    email: email || undefined,
+  });
+  return response.data;
+}
+

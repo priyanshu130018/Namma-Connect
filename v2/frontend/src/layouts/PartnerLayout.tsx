@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { PartnerNavbar } from "@/components/layout/PartnerNavbar";
+import { DashboardNavbar } from "@/components/layout/DashboardNavbar";
 import { PartnerSidebar } from "@/components/layout/PartnerSidebar";
 import { cn } from "@/lib/utils";
 
@@ -9,13 +9,13 @@ export function PartnerLayout() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
       {/* Top Navbar */}
-      <PartnerNavbar
+      <DashboardNavbar
         onToggleMobileSidebar={() => setIsMobileOpen(true)}
       />
 
-      <div className="flex flex-1 relative">
+      <div className="flex flex-1 relative pt-16">
         {/* Collapsible Left Sidebar */}
         <PartnerSidebar
           isCollapsed={isCollapsed}

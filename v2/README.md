@@ -614,10 +614,10 @@ erDiagram
 
 ### Alembic Migrations
 Migrations are managed in `backend/alembic/versions/`:
-1. `0001_initial_core_schema.py`: Establishes users, services, bookings, payments, payouts, creators, collaborations, messages, notifications.
-2. `0002_create_partner_applications.py`: Adds KYC partner application tables.
-3. `0003_add_service_moderation_fields.py`: Introduces service review status and moderation audit logs.
-4. `0004_add_is_test_data_and_pgvector_embedding.py`: Adds `is_test_data` flags and 768-dimensional `pgvector` embedding columns.
+1. `40322496bba3_initial_core_schema.py`: Establishes users, services, bookings, payments, payouts, creators, collaborations, messages, notifications.
+2. `3bf23c0933a9_create_partner_applications.py`: Adds KYC partner application tables.
+3. `90c287509883_add_service_moderation_fields.py`: Introduces service review status and moderation audit logs.
+4. `6fc5d788b268_add_is_test_data_and_pgvector_embedding.py`: Adds `is_test_data` flags and 768-dimensional `pgvector` embedding columns.
 
 ---
 

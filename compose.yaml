@@ -5,13 +5,16 @@
 services:
   # ── 1. Authoritative Relational Database (PostgreSQL 16) ──
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: nammaconnect-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
+
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_SYNC_URL: ${DATABASE_SYNC_URL}
     ports:
       - "5432:5432"
     volumes:
@@ -57,8 +60,10 @@ services:
       ENV: development
       DEBUG: "True"
       API_V2_PREFIX: /api/v2
-      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
-      DATABASE_SYNC_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_SYNC_URL: ${DATABASE_SYNC_URL}
+
       REDIS_URL: redis://redis:6379/0
       JWT_SECRET: ${JWT_SECRET}
       JWT_ALGORITHM: HS256
@@ -104,6 +109,7 @@ services:
     environment:
       VITE_API_URL: http://localhost:8000/api/v2
       VITE_API_PROXY_TARGET: http://backend:8000
+      VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
     volumes:
       - ./v2/frontend:/app
       - /app/node_modules

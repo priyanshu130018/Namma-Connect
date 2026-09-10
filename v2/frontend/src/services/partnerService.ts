@@ -11,6 +11,9 @@ export interface CreateServicePayload {
   location: string;
   district?: string;
   state?: string;
+  latitude?: number;
+  longitude?: number;
+  formatted_address?: string;
   description: string;
   duration_hours?: number;
   max_capacity?: number;
@@ -32,6 +35,9 @@ export interface UpdateServicePayload {
   location?: string;
   district?: string;
   state?: string;
+  latitude?: number;
+  longitude?: number;
+  formatted_address?: string;
   description?: string;
   duration_hours?: number;
   max_capacity?: number;

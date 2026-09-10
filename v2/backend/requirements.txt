@@ -21,3 +21,4 @@ python-jose
 pydantic[email]
 email-validator
 pgvector
+psycopg2-binary

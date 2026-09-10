@@ -43,6 +43,16 @@ export function loadRazorpayScript(): Promise<boolean> {
       return resolve(true);
     }
 
+    // Check if script is already in DOM
+    const existingScript = document.querySelector('script[src*="checkout.razorpay.com"]');
+    if (existingScript) {
+      if (window.Razorpay) return resolve(true);
+      existingScript.addEventListener("load", () => resolve(true));
+      existingScript.addEventListener("error", () => resolve(false));
+      setTimeout(() => resolve(Boolean(window.Razorpay)), 3000);
+      return;
+    }
+
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.async = true;
@@ -53,6 +63,6 @@ export function loadRazorpayScript(): Promise<boolean> {
     // Safety timeout for network resilience
     setTimeout(() => {
       resolve(Boolean(window.Razorpay));
-    }, 3000);
+    }, 4000);
   });
 }

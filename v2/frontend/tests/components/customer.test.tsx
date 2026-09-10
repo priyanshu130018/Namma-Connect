@@ -57,10 +57,10 @@ describe("Customer Application Components", () => {
         <CustomerSidebar isCollapsed={false} onToggleCollapse={onToggle} />
       </BrowserRouter>
     );
-    expect(screen.getByText("Explore")).toBeInTheDocument();
-    expect(screen.getByText("My Trip")).toBeInTheDocument();
-    expect(screen.getByText("Collaborations")).toBeInTheDocument();
-    expect(screen.getByText("Become a Partner")).toBeInTheDocument();
+    expect(screen.getByText(/Explore/i)).toBeInTheDocument();
+    expect(screen.getByText(/My Trip/i)).toBeInTheDocument();
+    expect(screen.getByText(/Collaboration/i)).toBeInTheDocument();
+    expect(screen.getByText(/BECOME PARTNER/i)).toBeInTheDocument();
 
     // Ensure forbidden primary sidebar items are not present as primary buttons
     expect(screen.queryByRole("link", { name: /^Profile$/i })).not.toBeInTheDocument();

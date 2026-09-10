@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   Users,
   Building2,
@@ -26,6 +27,7 @@ import {
   UserCheck,
   FileText,
   ExternalLink,
+  Copy,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -212,6 +214,9 @@ export function AdminHomePage() {
 // 2. ADMIN USERS DIRECTORY
 // ==========================================
 export function AdminUsersPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const ncIdParam = searchParams.get("ncId");
+
   const [users, setUsers] = useState<AdminUserItem[]>([]);
   const [roleFilter, setRoleFilter] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<string>("");
@@ -245,16 +250,42 @@ export function AdminUsersPage() {
         limit: 100, // Fetch up to 100 for client pagination
       });
       setUsers(res || []);
+
+      // If ncId query param is present, select that user
+      if (ncIdParam && res) {
+        const matching = res.find((u) => u.id === ncIdParam);
+        if (matching) {
+          setSelectedUser(matching);
+        }
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load user directory");
     } finally {
       setIsLoading(false);
     }
-  }, [roleFilter, statusFilter, verificationFilter, sortBy, searchQuery]);
+  }, [roleFilter, statusFilter, verificationFilter, sortBy, searchQuery, ncIdParam]);
 
   useEffect(() => {
     fetchUsers();
   }, [fetchUsers]);
+
+  // Sync selected user with URL query param
+  const handleSelectUser = (user: AdminUserItem | null) => {
+    setSelectedUser(user);
+    if (user) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("ncId", user.id);
+        return next;
+      });
+    } else {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("ncId");
+        return next;
+      });
+    }
+  };
 
   // Reset to page 1 on filter changes
   useEffect(() => {
@@ -394,6 +425,7 @@ export function AdminUsersPage() {
           <table className="w-full text-left text-xs text-slate-300">
             <thead className="border-b border-slate-800 bg-slate-950/60 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               <tr>
+                <th className="px-6 py-4">NC ID</th>
                 <th className="px-6 py-4">User</th>
                 <th className="px-6 py-4">Role</th>
                 <th className="px-6 py-4">Status</th>
@@ -405,80 +437,106 @@ export function AdminUsersPage() {
             <tbody className="divide-y divide-slate-800/80">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                  <td colSpan={7} className="py-12 text-center text-slate-500">
                     <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-rose-500" />
                     Loading user directory...
                   </td>
                 </tr>
               ) : paginatedUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                  <td colSpan={7} className="py-12 text-center text-slate-500">
                     No user accounts found matching the current filters.
                   </td>
                 </tr>
               ) : (
-                paginatedUsers.map((u) => (
-                  <tr
-                    key={u.id}
-                    onClick={() => setSelectedUser(u)}
-                    className="hover:bg-slate-800/60 transition-colors cursor-pointer"
-                  >
-                    <td className="px-6 py-4">
-                      <div className="font-bold text-white flex items-center gap-2">
-                        <span>{u.full_name}</span>
-                        {u.role === "admin" && (
-                          <Badge variant="destructive" className="text-[9px] py-0 px-1 font-mono">
-                            Admin
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="text-slate-400 text-[11px]">{u.email}</div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Badge variant="outline" className="capitalize border-slate-700 bg-slate-800 text-slate-300">
-                        {u.role}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Badge variant={u.is_active ? "default" : "destructive"}>
-                        {u.is_active ? "Active" : "Disabled"}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Badge
-                        variant={u.is_verified ? "default" : "outline"}
-                        className={u.is_verified ? "bg-emerald-600 text-white font-bold" : "border-slate-700 text-slate-400"}
-                      >
-                        {u.is_verified ? "Verified" : "Unverified"}
-                      </Badge>
-                    </td>
-                    <td className="px-6 py-4 text-slate-400">
-                      {u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"}
-                    </td>
-                    <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSelectedUser(u)}
-                          className="h-7 px-2 text-[11px] rounded-lg border-slate-700 text-slate-300 hover:bg-slate-800"
+                paginatedUsers.map((u) => {
+                  const isTestData = u.email?.includes("test") || u.email?.includes("example");
+                  return (
+                    <tr
+                      key={u.id}
+                      onClick={() => handleSelectUser(u)}
+                      className="hover:bg-slate-800/60 transition-colors cursor-pointer"
+                    >
+                      <td className="px-6 py-4 font-mono text-[11px] text-slate-400">
+                        <div className="flex items-center gap-1.5">
+                          <span title={u.id} className="text-rose-400 font-bold">
+                            {u.id.slice(0, 8)}...
+                          </span>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard?.writeText(u.id);
+                            }}
+                            className="p-1 hover:text-white text-slate-500 rounded"
+                            title="Copy full NC ID"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-white flex items-center gap-2">
+                          <span>{u.full_name}</span>
+                          {u.role === "admin" && (
+                            <Badge variant="destructive" className="text-[9px] py-0 px-1 font-mono">
+                              Admin
+                            </Badge>
+                          )}
+                          {isTestData && (
+                            <Badge variant="outline" className="text-[9px] py-0 px-1 border-amber-800/60 bg-amber-950/40 text-amber-300 font-mono">
+                              TEST DATA
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="text-slate-400 text-[11px]">{u.email}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge variant="outline" className="capitalize border-slate-700 bg-slate-800 text-slate-300">
+                          {u.role}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge variant={u.is_active ? "default" : "destructive"}>
+                          {u.is_active ? "Active" : "Disabled"}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge
+                          variant={u.is_verified ? "default" : "outline"}
+                          className={u.is_verified ? "bg-emerald-600 text-white font-bold" : "border-slate-700 text-slate-400"}
                         >
-                          <Eye className="h-3.5 w-3.5 mr-1" /> View
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant={u.is_active ? "destructive" : "default"}
-                          disabled={actionLoadingId === u.id || u.role === "admin"}
-                          onClick={() => handleToggleStatus(u)}
-                          className="h-7 px-2 text-[11px] rounded-lg font-bold"
-                          title={u.role === "admin" ? "Admin accounts cannot be deactivated" : ""}
-                        >
-                          {u.is_active ? "Disable" : "Activate"}
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                          {u.is_verified ? "Verified" : "Unverified"}
+                        </Badge>
+                      </td>
+                      <td className="px-6 py-4 text-slate-400">
+                        {u.created_at ? new Date(u.created_at).toLocaleDateString() : "—"}
+                      </td>
+                      <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleSelectUser(u)}
+                            className="h-7 px-2 text-[11px] rounded-lg border-slate-700 text-slate-300 hover:bg-slate-800"
+                          >
+                            <Eye className="h-3.5 w-3.5 mr-1" /> View
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant={u.is_active ? "destructive" : "default"}
+                            disabled={actionLoadingId === u.id || u.role === "admin"}
+                            onClick={() => handleToggleStatus(u)}
+                            className="h-7 px-2 text-[11px] rounded-lg font-bold"
+                            title={u.role === "admin" ? "Admin accounts cannot be deactivated" : ""}
+                          >
+                            {u.is_active ? "Disable" : "Activate"}
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -500,14 +558,31 @@ export function AdminUsersPage() {
       {selectedUser && (
         <AdminDetailDrawer
           isOpen={!!selectedUser}
-          onClose={() => setSelectedUser(null)}
+          onClose={() => handleSelectUser(null)}
           title={selectedUser.full_name}
-          subtitle={`Account ID: ${selectedUser.id}`}
+          subtitle={`NC ID: ${selectedUser.id}`}
           badge={{
             text: selectedUser.is_active ? "Active Account" : "Disabled / Suspended",
             variant: selectedUser.is_active ? "default" : "destructive",
           }}
           fields={[
+            {
+              label: "NC ID",
+              value: (
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-rose-400 text-xs">{selectedUser.id}</span>
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard?.writeText(selectedUser.id)}
+                    className="text-slate-400 hover:text-white"
+                    title="Copy NC ID"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ),
+              icon: Tag,
+            },
             { label: "Email Address", value: selectedUser.email, icon: Mail },
             { label: "System Role", value: <span className="capitalize font-bold">{selectedUser.role}</span>, icon: Tag },
             {
@@ -533,7 +608,7 @@ export function AdminUsersPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setSelectedUser(null)}
+                onClick={() => handleSelectUser(null)}
                 className="border-slate-700 text-slate-300"
               >
                 Close
@@ -804,13 +879,17 @@ export function AdminVerificationPage() {
     setPage(1);
   }, [statusFilter]);
 
-  const handleApprove = async (app: PartnerApplicationData) => {
+  const handleApprove = async (app: PartnerApplicationData, approveServicesTogether: boolean = false) => {
     setActionLoadingId(app.id);
     setError(null);
     setSuccessMsg(null);
     try {
-      await approveAdminPartnerApplication(app.id);
-      setSuccessMsg(`Application #${app.application_code} for ${app.full_name} (${app.business_name}) has been approved!`);
+      await approveAdminPartnerApplication(app.id, approveServicesTogether);
+      setSuccessMsg(
+        `Application #${app.application_code} for ${app.full_name} (${app.business_name}) has been approved${
+          approveServicesTogether ? " along with attached services!" : "!"
+        }`
+      );
       if (selectedApp?.id === app.id) setSelectedApp(null);
       fetchApplications();
     } catch (err: unknown) {
@@ -995,7 +1074,7 @@ export function AdminVerificationPage() {
                             <Button
                               size="sm"
                               disabled={actionLoadingId === app.id}
-                              onClick={() => handleApprove(app)}
+                              onClick={() => handleApprove(app, true)}
                               className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold h-7 px-2.5 text-xs rounded-lg"
                             >
                               <Check className="h-3.5 w-3.5 mr-1" /> Approve
@@ -1085,7 +1164,7 @@ export function AdminVerificationPage() {
                 Close
               </Button>
               {selectedApp.status === "PENDING" && (
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <Button
                     variant="destructive"
                     size="sm"
@@ -1096,15 +1175,24 @@ export function AdminVerificationPage() {
                     }}
                     className="font-bold"
                   >
-                    Reject with Feedback
+                    Request Changes
                   </Button>
                   <Button
                     size="sm"
-                    onClick={() => handleApprove(selectedApp)}
+                    variant="outline"
+                    onClick={() => handleApprove(selectedApp, false)}
+                    disabled={actionLoadingId === selectedApp.id}
+                    className="border-emerald-600 text-emerald-400 hover:bg-emerald-950 font-bold"
+                  >
+                    Approve KYC Only
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={() => handleApprove(selectedApp, true)}
                     disabled={actionLoadingId === selectedApp.id}
                     className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold"
                   >
-                    Approve Application
+                    Approve KYC + All Services
                   </Button>
                 </div>
               )}
@@ -1117,10 +1205,67 @@ export function AdminVerificationPage() {
               {selectedApp.rejection_reason}
             </div>
           )}
+
           {selectedApp.bio && (
             <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 space-y-1">
               <span className="font-bold text-slate-400 uppercase text-[10px]">Host Story & Bio</span>
               <p className="leading-relaxed">{selectedApp.bio}</p>
+            </div>
+          )}
+
+          {/* Role-Specific Work Details */}
+          {selectedApp.provider_details && Object.keys(selectedApp.provider_details).length > 0 && (
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-2">
+              <span className="font-bold text-slate-400 uppercase text-[10px]">Role Details ({selectedApp.role_type})</span>
+              <div className="grid grid-cols-2 gap-2 text-slate-300">
+                {Object.entries(selectedApp.provider_details).map(([key, val]) => (
+                  <div key={key} className="bg-slate-900/60 p-2 rounded-lg border border-slate-800">
+                    <span className="text-slate-400 capitalize block text-[10px]">{key.replace(/_/g, " ")}</span>
+                    <span className="font-bold">{typeof val === "boolean" ? (val ? "Yes" : "No") : String(val || "N/A")}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Attached KYC Documents List */}
+          {selectedApp.documents && selectedApp.documents.length > 0 && (
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-2">
+              <span className="font-bold text-slate-400 uppercase text-[10px]">Attached Verification Documents ({selectedApp.documents.length})</span>
+              <div className="space-y-1">
+                {selectedApp.documents.map((doc, idx) => (
+                  <div key={idx} className="flex items-center justify-between p-2 rounded-lg bg-slate-900 border border-slate-800">
+                    <span className="font-bold text-white">{doc.name || `Document #${idx + 1}`}</span>
+                    <a href={doc.url} target="_blank" rel="noreferrer" className="text-rose-400 hover:underline flex items-center gap-1 font-bold">
+                      <span>View</span>
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Attached Onboarding Services */}
+          {selectedApp.services_payload && selectedApp.services_payload.length > 0 && (
+            <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-slate-400 uppercase text-[10px]">Attached Initial Services ({selectedApp.services_payload.length})</span>
+                <Badge variant="outline" className="border-amber-800/60 bg-amber-950/40 text-amber-300 text-[10px]">
+                  Pending Service Approval
+                </Badge>
+              </div>
+              <div className="space-y-2">
+                {selectedApp.services_payload.map((svc, idx) => (
+                  <div key={idx} className="p-3 rounded-lg bg-slate-900 border border-slate-800 flex items-center justify-between">
+                    <div>
+                      <div className="font-bold text-white">{svc.title}</div>
+                      <div className="text-[11px] text-slate-400">{svc.category} &bull; ₹{svc.price} / {svc.unit}</div>
+                    </div>
+                    <Badge className="bg-amber-600/80 text-white text-[10px]">Pending</Badge>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </AdminDetailDrawer>
@@ -1180,6 +1325,9 @@ export function AdminVerificationPage() {
 // 5. ADMIN SERVICES MODERATION
 // ==========================================
 export function AdminServicesPage() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const serviceIdParam = searchParams.get("serviceId");
+
   const [services, setServices] = useState<ServiceItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("PENDING");
   const [searchQuery, setSearchQuery] = useState<string>("");
@@ -1205,16 +1353,40 @@ export function AdminServicesPage() {
       const filterParam = statusFilter === "ALL" ? undefined : statusFilter;
       const res = await getAdminServices({ status: filterParam, limit: 100 });
       setServices(res || []);
+
+      if (serviceIdParam && res) {
+        const matching = res.find((s) => s.id === serviceIdParam);
+        if (matching) {
+          setSelectedService(matching);
+        }
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to load marketplace listings");
     } finally {
       setIsLoading(false);
     }
-  }, [statusFilter]);
+  }, [statusFilter, serviceIdParam]);
 
   useEffect(() => {
     fetchServices();
   }, [fetchServices]);
+
+  const handleSelectService = (service: ServiceItem | null) => {
+    setSelectedService(service);
+    if (service) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.set("serviceId", service.id);
+        return next;
+      });
+    } else {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete("serviceId");
+        return next;
+      });
+    }
+  };
 
   useEffect(() => {
     setPage(1);
@@ -1346,6 +1518,7 @@ export function AdminServicesPage() {
           <table className="w-full text-left text-xs text-slate-300">
             <thead className="border-b border-slate-800 bg-slate-950/60 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               <tr>
+                <th className="px-6 py-4">Service ID</th>
                 <th className="px-6 py-4">Service</th>
                 <th className="px-6 py-4">Host / Provider</th>
                 <th className="px-6 py-4">Category</th>
@@ -1357,14 +1530,14 @@ export function AdminServicesPage() {
             <tbody className="divide-y divide-slate-800/80">
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                  <td colSpan={7} className="py-12 text-center text-slate-500">
                     <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-2 text-rose-500" />
                     Loading listings for moderation queue...
                   </td>
                 </tr>
               ) : paginatedServices.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                  <td colSpan={7} className="py-12 text-center text-slate-500">
                     No listings found matching filter '{statusFilter}'.
                   </td>
                 </tr>
@@ -1372,9 +1545,27 @@ export function AdminServicesPage() {
                 paginatedServices.map((s) => (
                   <tr
                     key={s.id}
-                    onClick={() => setSelectedService(s)}
+                    onClick={() => handleSelectService(s)}
                     className="hover:bg-slate-800/60 transition-colors cursor-pointer"
                   >
+                    <td className="px-6 py-4 font-mono text-[11px] text-slate-400">
+                      <div className="flex items-center gap-1.5">
+                        <span title={s.id} className="text-rose-400 font-bold">
+                          {s.id.slice(0, 8)}...
+                        </span>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigator.clipboard?.writeText(s.id);
+                          }}
+                          className="p-1 hover:text-white text-slate-500 rounded"
+                          title="Copy full Service ID"
+                        >
+                          <Copy className="h-3 w-3" />
+                        </button>
+                      </div>
+                    </td>
                     <td className="px-6 py-4">
                       <div className="font-bold text-white">{s.title}</div>
                       <div className="text-slate-400 text-[11px]">{s.location}</div>
@@ -1404,7 +1595,7 @@ export function AdminServicesPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setSelectedService(s)}
+                          onClick={() => handleSelectService(s)}
                           className="h-7 px-2 text-xs rounded-lg border-slate-700 text-slate-300 hover:bg-slate-800"
                         >
                           Details
@@ -1472,14 +1663,31 @@ export function AdminServicesPage() {
       {selectedService && (
         <AdminDetailDrawer
           isOpen={!!selectedService}
-          onClose={() => setSelectedService(null)}
+          onClose={() => handleSelectService(null)}
           title={selectedService.title}
-          subtitle={`Provider: ${selectedService.provider_name} (${selectedService.location})`}
+          subtitle={`Service ID: ${selectedService.id} | Host: ${selectedService.provider_name} (${selectedService.location})`}
           badge={{
             text: selectedService.status,
             variant: selectedService.status === "PUBLISHED" ? "default" : selectedService.status === "REJECTED" ? "destructive" : "outline",
           }}
           fields={[
+            {
+              label: "Service ID",
+              value: (
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-rose-400 text-xs">{selectedService.id}</span>
+                  <button
+                    type="button"
+                    onClick={() => navigator.clipboard?.writeText(selectedService.id)}
+                    className="text-slate-400 hover:text-white"
+                    title="Copy Service ID"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ),
+              icon: Tag,
+            },
             { label: "Category", value: selectedService.category, icon: Tag },
             { label: "Price / Rate", value: `₹${selectedService.price.toLocaleString()} / ${selectedService.unit || "unit"}`, icon: DollarSign },
             { label: "Location", value: selectedService.location, icon: MapPin },
@@ -1491,7 +1699,7 @@ export function AdminServicesPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setSelectedService(null)}
+                onClick={() => handleSelectService(null)}
                 className="border-slate-700 text-slate-300"
               >
                 Close

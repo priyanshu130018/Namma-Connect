@@ -28,6 +28,8 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { getBookingById, cancelBooking } from "@/services/bookingService";
 import { createPaymentOrder, verifyPayment, loadRazorpayScript } from "@/services/paymentService";
 import { LeaveReviewModal } from "@/components/reviews/LeaveReviewModal";
+import { TomTomMap, RouteInfo } from "@/components/map/TomTomMap";
+import { calculateRoute, geocodeLocation } from "@/services/locationService";
 import { BookingItem } from "@/types";
 
 declare global {
@@ -53,6 +55,55 @@ export function CustomerBookingDetailPage() {
 
   // Review modal state
   const [reviewModalOpen, setReviewModalOpen] = useState<boolean>(false);
+
+  // Map & Directions State
+  const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
+  const [isRouting, setIsRouting] = useState<boolean>(false);
+  const [routingError, setRoutingError] = useState<string | null>(null);
+
+  const handleGetDirections = async () => {
+    if (!booking) return;
+    setIsRouting(true);
+    setRoutingError(null);
+
+    let destLat = 12.3375;
+    let destLon = 75.8069;
+    try {
+      const geo = await geocodeLocation(booking.service_location);
+      destLat = geo.lat;
+      destLon = geo.lon;
+    } catch {
+      // Fallback coordinates
+    }
+
+    if (!navigator.geolocation) {
+      setRoutingError("Geolocation is not supported by your browser.");
+      setIsRouting(false);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const res = await calculateRoute(pos.coords.latitude, pos.coords.longitude, destLat, destLon);
+          setRouteInfo({
+            distanceText: res.distance_text,
+            durationText: res.duration_text,
+            routePoints: res.route_points,
+          });
+        } catch {
+          setRoutingError("Unable to calculate directions right now.");
+        } finally {
+          setIsRouting(false);
+        }
+      },
+      () => {
+        setIsRouting(false);
+        setRoutingError("Location permission denied.");
+      },
+      { timeout: 8000 }
+    );
+  };
 
   const fetchDetail = async () => {
     if (!booking_id) return;
@@ -131,6 +182,10 @@ export function CustomerBookingDetailPage() {
           theme: {
             color: "#059669",
           },
+          retry: {
+            enabled: true,
+            max_count: 3,
+          },
           handler: onPaymentSuccess,
           modal: {
             ondismiss: () => {
@@ -139,7 +194,20 @@ export function CustomerBookingDetailPage() {
             },
           },
         });
-        rzp.open();
+
+        rzp.on("payment.failed", (failureResponse: any) => {
+          setIsPaying(false);
+          const desc = failureResponse?.error?.description || failureResponse?.error?.reason || "Transaction was declined or interrupted.";
+          setPaymentError(`Payment failed: ${desc}. Your reservation has not been charged.`);
+        });
+
+        try {
+          rzp.open();
+        } catch (openErr: any) {
+          console.warn("Razorpay checkout failed to open:", openErr?.message);
+          setIsPaying(false);
+          setPaymentError("Unable to open payment checkout. Your booking has not been charged. Please try again.");
+        }
       } else if (typeof import.meta !== "undefined" && import.meta.env?.MODE === "test") {
         // Safe unit testing mock handler
         const mockPaymentId = `pay_mock_${Date.now()}`;
@@ -158,7 +226,7 @@ export function CustomerBookingDetailPage() {
       setPaymentError(
         err.response?.data?.detail ||
           err.message ||
-          "Unable to initialize payment. Please try again."
+          "Unable to open payment checkout. Your booking has not been charged. Please try again."
       );
       setIsPaying(false);
     }
@@ -482,6 +550,51 @@ export function CustomerBookingDetailPage() {
                 </div>
               )}
             </div>
+          </Card>
+
+          {/* TomTom Map & Directions Card for Booking */}
+          <Card className="p-6 rounded-3xl border-slate-200 shadow-sm space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-emerald-700" />
+                  <span>Destination Map & Route</span>
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">{booking.service_location}</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleGetDirections}
+                disabled={isRouting}
+                className="text-xs font-bold border-emerald-300 text-emerald-800 hover:bg-emerald-50 rounded-xl"
+              >
+                {isRouting ? "Calculating..." : "Get Directions"}
+              </Button>
+            </div>
+
+            {routingError && (
+              <p className="text-xs text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-200">
+                {routingError}
+              </p>
+            )}
+
+            <TomTomMap
+              center={{ lat: 12.3375, lon: 75.8069 }}
+              zoom={13}
+              markers={[
+                {
+                  id: booking.service_id,
+                  lat: 12.3375,
+                  lon: 75.8069,
+                  title: "Estate Location",
+                  subtitle: booking.service_location,
+                },
+              ]}
+              route={routeInfo || undefined}
+              onDirectionsClick={handleGetDirections}
+              height="280px"
+            />
           </Card>
 
           {/* Host Info */}

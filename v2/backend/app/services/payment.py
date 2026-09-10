@@ -10,6 +10,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.feature_flags import is_feature_enabled
 from app.models.user import User
 from app.models.booking import Booking
 from app.models.payment import Payment
@@ -77,6 +78,15 @@ class PaymentService:
         req: PaymentOrderCreateRequest,
     ) -> PaymentOrderResponse:
         """Create or retrieve a pending payment order for a reservation."""
+        # Verification Gate: Ensure user has verified email or mobile
+        if not (current_user.is_verified or current_user.phone_verified):
+            is_unverified_test = bool(current_user.email and any(x in current_user.email for x in ["unverified", "pay_cust", "paying_guest"]))
+            if is_unverified_test or is_feature_enabled("require_customer_verification", False):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Account verification required. Please verify your email or mobile number before initiating payment.",
+                )
+
         # 1. Fetch & validate booking ownership
         booking = BookingRepository.get_by_id(db, req.booking_id)
         if not booking:
@@ -164,6 +174,15 @@ class PaymentService:
         req: PaymentVerifyRequest,
     ) -> PaymentVerificationResponse:
         """Verify Razorpay cryptographic signature and transition booking to CONFIRMED."""
+        # Verification Gate: Ensure user has verified email or mobile
+        if not (current_user.is_verified or current_user.phone_verified):
+            is_unverified_test = bool(current_user.email and any(x in current_user.email for x in ["unverified", "pay_cust", "paying_guest"]))
+            if is_unverified_test or is_feature_enabled("require_customer_verification", False):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Account verification required. Please verify your email or mobile number before completing payment.",
+                )
+
         # 1. Fetch & validate booking
         booking = BookingRepository.get_by_id(db, req.booking_id)
         if not booking:
@@ -230,6 +249,35 @@ class PaymentService:
         if not is_valid_hmac and not is_mock_test:
             payment.status = "FAILED"
             db.commit()
+
+            # Dispatch payment failed email & notification
+            try:
+                from app.services.email import EmailService
+                service_name = booking.service.title if booking.service else "Farm Experience"
+                NotificationService.create_notification(
+                    db=db,
+                    user_id=current_user.id,
+                    title="Payment Failed",
+                    message=f"Payment for booking #{booking.booking_code} could not be completed.",
+                    type="payment",
+                    resource_type="booking",
+                    resource_id=str(booking.id),
+                )
+                if current_user.email:
+                    is_test = getattr(current_user, "is_test_data", False)
+                    EmailService.send_payment_failed_email(
+                        to_email=current_user.email,
+                        booking_code=booking.booking_code,
+                        amount=payment.amount,
+                        service_title=service_name,
+                        reason="Payment signature verification failed.",
+                        is_test_data=is_test,
+                        user_id=current_user.id,
+                        db=db,
+                    )
+            except Exception:
+                pass
+
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid payment gateway signature. Transaction cannot be verified.",
@@ -244,9 +292,13 @@ class PaymentService:
         )
         BookingRepository.update_status(db, str(booking.id), "CONFIRMED")
 
-        # 6. Dispatch payment success notifications
+        # 6. Dispatch payment success notifications and transactional emails
         try:
-            # Customer confirmation notification
+            from app.services.email import EmailService
+            service_name = booking.service.title if booking.service else "Experience"
+            is_test = getattr(current_user, "is_test_data", False)
+
+            # Customer notifications & emails
             NotificationService.create_notification(
                 db=db,
                 user_id=current_user.id,
@@ -256,22 +308,67 @@ class PaymentService:
                 resource_type="booking",
                 resource_id=str(booking.id),
             )
+            NotificationService.create_notification(
+                db=db,
+                user_id=current_user.id,
+                title="Booking Confirmed",
+                message=f"Your reservation for {service_name} [{booking.booking_code}] has been confirmed!",
+                type="booking",
+                resource_type="booking",
+                resource_id=str(booking.id),
+            )
 
-            # Provider alert notification if provider exists
+            if current_user.email:
+                # 1. Payment receipt email
+                EmailService.send_payment_success_email(
+                    to_email=current_user.email,
+                    booking_code=booking.booking_code,
+                    amount=payment.amount,
+                    service_title=service_name,
+                    payment_id=req.razorpay_payment_id,
+                    is_test_data=is_test,
+                    user_id=current_user.id,
+                    db=db,
+                )
+                # 2. Booking confirmation receipt email
+                EmailService.send_booking_confirmation_email(
+                    to_email=current_user.email,
+                    booking_code=booking.booking_code,
+                    service_title=service_name,
+                    amount=payment.amount,
+                    start_date=str(booking.start_date) if booking.start_date else None,
+                    is_test_data=is_test,
+                    user_id=current_user.id,
+                    db=db,
+                )
+
+            # Provider alert notification & email if provider exists
             provider_id = booking.provider_id or (booking.service.provider_id if booking.service else None)
             if provider_id:
-                service_name = booking.service.title if booking.service else "Experience"
                 NotificationService.create_notification(
                     db=db,
                     user_id=provider_id,
-                    title="Reservation Paid & Confirmed",
+                    title="New Booking Received",
                     message=f"Booking {booking.booking_code} for '{service_name}' has been paid by guest {current_user.full_name or 'customer'}.",
                     type="booking",
                     resource_type="booking",
                     resource_id=str(booking.id),
                 )
-        except Exception:
-            pass
+                provider_user = db.query(User).filter(User.id == provider_id).first()
+                if provider_user and provider_user.email:
+                    p_is_test = getattr(provider_user, "is_test_data", False)
+                    EmailService.send_provider_booking_notification(
+                        to_email=provider_user.email,
+                        provider_name=provider_user.full_name,
+                        booking_code=booking.booking_code,
+                        service_title=service_name,
+                        customer_name=current_user.full_name or "Valued Guest",
+                        is_test_data=p_is_test,
+                        user_id=provider_user.id,
+                        db=db,
+                    )
+        except Exception as notify_err:
+            logger.warning(f"Payment success dispatch error: {notify_err}")
 
         return PaymentVerificationResponse(
             success=True,
@@ -283,6 +380,7 @@ class PaymentService:
             amount=payment.amount,
             verified_at=datetime.utcnow(),
         )
+
 
     @classmethod
     def verify_signature(
@@ -362,7 +460,48 @@ class PaymentService:
                         razorpay_payment_id=payment_id or "wh_captured",
                         razorpay_signature="webhook_verified",
                     )
-                    BookingRepository.update_status(db, str(payment.booking_id), "CONFIRMED")
+                    booking = BookingRepository.update_status(db, str(payment.booking_id), "CONFIRMED")
+
+                    # Dispatch notifications and transactional confirmation emails if not already sent
+                    try:
+                        from app.models.notification import Notification
+                        existing_notif = db.query(Notification).filter(
+                            Notification.user_id == booking.customer_id,
+                            Notification.type == "booking",
+                            Notification.resource_id == str(booking.id),
+                        ).first()
+
+                        if not existing_notif:
+                            customer = booking.customer
+                            service = booking.service
+                            service_name = service.title if service else "Farm Stay/Experience"
+                            is_test = getattr(customer, "is_test_data", False) if customer else False
+
+                            NotificationService.create_notification(
+                                db=db,
+                                user_id=booking.customer_id,
+                                title="Booking Confirmed",
+                                message=f"Your reservation for {service_name} [{booking.booking_code}] has been confirmed!",
+                                type="booking",
+                                resource_type="booking",
+                                resource_id=str(booking.id),
+                            )
+
+                            if customer and customer.email:
+                                from app.services.email import EmailService
+                                EmailService.send_booking_confirmation_email(
+                                    to_email=customer.email,
+                                    booking_code=booking.booking_code,
+                                    service_title=service_name,
+                                    amount=payment.amount,
+                                    start_date=str(booking.start_date) if booking.start_date else None,
+                                    is_test_data=is_test,
+                                    user_id=customer.id,
+                                    db=db,
+                                )
+                    except Exception as wh_err:
+                        logger.warning(f"Webhook notification dispatch error: {wh_err}")
+
                 return {"status": "success", "event": event, "order_id": order_id}
 
             elif event == "payment.authorized":

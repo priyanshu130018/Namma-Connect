@@ -18,6 +18,7 @@ export async function getMarketplaceServices(
     params: {
       category: params?.category && params.category !== "all" ? params.category : undefined,
       location: params?.location || undefined,
+      q: params?.q || undefined,
       min_price: params?.min_price || undefined,
       max_price: params?.max_price || undefined,
       min_rating: params?.min_rating || undefined,

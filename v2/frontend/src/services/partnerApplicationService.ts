@@ -1,5 +1,16 @@
 import { apiClient } from "./api-client";
 
+export interface OnboardingServiceItem {
+  title: string;
+  description?: string;
+  category: string;
+  price: number;
+  unit: string;
+  max_capacity?: number;
+  duration_hours?: number;
+  images: string[];
+}
+
 export interface PartnerApplicationData {
   id: string;
   application_code: string;
@@ -20,9 +31,14 @@ export interface PartnerApplicationData {
   id_type: string;
   id_number: string;
   document_url?: string | null;
+  provider_details?: Record<string, any>;
+  documents?: Array<{ name: string; url: string; type: string }>;
+  images?: string[];
   services: string[];
   activities: string[];
-  status: "DRAFT" | "PENDING" | "REJECTED" | "APPROVED";
+  services_payload?: OnboardingServiceItem[];
+  draft_step?: number;
+  status: "DRAFT" | "PENDING" | "REJECTED" | "APPROVED" | "CHANGES_REQUESTED";
   rejection_reason?: string | null;
   created_at: string;
   updated_at: string;
@@ -45,8 +61,13 @@ export interface PartnerApplicationPayload {
   id_type: string;
   id_number: string;
   document_url?: string;
+  provider_details?: Record<string, any>;
+  documents?: Array<{ name: string; url: string; type: string }>;
+  images?: string[];
   services: string[];
   activities: string[];
+  services_payload?: OnboardingServiceItem[];
+  draft_step?: number;
 }
 
 export async function getMyPartnerApplication(): Promise<PartnerApplicationData | null> {
@@ -58,10 +79,16 @@ export async function getMyPartnerApplication(): Promise<PartnerApplicationData 
   }
 }
 
+export async function savePartnerApplicationDraft(
+  payload: Partial<PartnerApplicationPayload>
+): Promise<PartnerApplicationData> {
+  const res = await apiClient.post<{ data: PartnerApplicationData }>("/partner/application/draft", payload);
+  return res.data.data;
+}
+
 export async function submitPartnerApplication(
   payload: PartnerApplicationPayload
 ): Promise<PartnerApplicationData> {
   const res = await apiClient.post<{ data: PartnerApplicationData }>("/partner/application", payload);
   return res.data.data;
 }
-

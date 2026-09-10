@@ -24,6 +24,8 @@ import { LoginPage } from "@/routes/public/Login";
 import { RegisterPage } from "@/routes/public/Register";
 import { ForgotPasswordPage } from "@/routes/public/ForgotPassword";
 import { ResetPasswordPage } from "@/routes/public/ResetPassword";
+import { VerifyEmailPage } from "@/routes/public/VerifyEmail";
+
 
 // Customer Routes
 import {
@@ -112,7 +114,9 @@ export function App() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/forgot-password" element={<ForgotPasswordPage />} />
               <Route path="/reset-password" element={<ResetPasswordPage />} />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
             </Route>
+
 
             {/* ── 2. Customer Application Area (Protected) ── */}
             <Route element={<ProtectedRoute />}>
@@ -155,8 +159,10 @@ export function App() {
                   <Route path="/partner/services/:service_id" element={<PartnerServiceDetailPage />} />
                   <Route path="/partner/bookings" element={<PartnerBookingsPage />} />
                   <Route path="/partner/bookings/:booking_id" element={<PartnerBookingDetailPage />} />
+                  <Route path="/partner/messages" element={<CustomerMessagesPage />} />
                   <Route path="/partner/earnings" element={<PartnerEarningsPage />} />
                   <Route path="/partner/collaborations" element={<PartnerCollaborationsPage />} />
+
                   <Route path="/partner/profile" element={<PartnerProfilePage />} />
                   <Route path="/partner/settings" element={<PartnerSettingsPage />} />
                   <Route path="/partner/creator" element={<CreatorHomePage />} />

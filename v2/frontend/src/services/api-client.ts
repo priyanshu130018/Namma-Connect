@@ -1,4 +1,13 @@
 import axios, { AxiosInstance, InternalAxiosRequestConfig } from "axios";
+import { logger } from "../lib/logger";
+import { queryClient } from "../lib/queryClient";
+
+export interface ApiErrorPayload {
+  message: string;
+  code?: string;
+  requestId?: string;
+  details?: unknown;
+}
 
 export const apiClient: AxiosInstance = axios.create({
   baseURL: "/api/v2",
@@ -29,6 +38,7 @@ apiClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  logger.debug(`[API] Request: ${config.method?.toUpperCase()} ${config.url}`);
   return config;
 });
 
@@ -53,6 +63,7 @@ apiClient.interceptors.response.use(
       if (!refreshToken) {
         localStorage.removeItem("nc_access_token");
         localStorage.removeItem("nc_user");
+        queryClient.clear();
         return Promise.reject(error);
       }
 
@@ -93,11 +104,29 @@ apiClient.interceptors.response.use(
         localStorage.removeItem("nc_access_token");
         localStorage.removeItem("nc_refresh_token");
         localStorage.removeItem("nc_user");
+        queryClient.clear();
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
       }
     }
+
+    // Extract standardized error details
+    const requestId = error.response?.headers?.["x-request-id"] || error.response?.data?.error?.request_id;
+    const serverMessage = error.response?.data?.error?.message || error.response?.data?.detail;
+    
+    if (requestId) {
+      error.requestId = requestId;
+    }
+    if (serverMessage && typeof serverMessage === "string") {
+      error.friendlyMessage = serverMessage;
+    }
+
+    logger.error(`[API] Error: ${error.config?.method?.toUpperCase()} ${error.config?.url} [${error.response?.status || "Network"}]`, {
+      requestId,
+      status: error.response?.status,
+      message: serverMessage,
+    });
 
     return Promise.reject(error);
   }

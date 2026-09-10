@@ -340,6 +340,19 @@ class AdminService:
         service.reviewed_by = admin_user.id
         service.reviewed_at = datetime.utcnow()
         service.rejection_reason = None
+
+        # Ensure embedding exists upon publication
+        if service.embedding is None:
+            try:
+                from app.services.embedding import EmbeddingService
+                from app.services.redis_service import RedisService
+                search_text = EmbeddingService.build_searchable_text(service)
+                emb = EmbeddingService.generate_embedding(search_text)
+                service.embedding = emb
+                RedisService.set(f"service_embedding:{service.id}", list(emb))
+            except Exception:
+                pass
+
         db.commit()
         db.refresh(service)
 

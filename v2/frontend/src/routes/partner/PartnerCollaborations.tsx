@@ -21,6 +21,7 @@ import {
   getMyCollaborations,
   acceptCollaboration,
   rejectCollaboration,
+  completeCollaboration,
 } from "@/services/creatorService";
 import { CollaborationItem } from "@/types";
 
@@ -63,6 +64,15 @@ export function PartnerCollaborationsPage() {
       setCollabs((prev) => prev.map((c) => (c.id === id ? updated : c)));
     } catch (err: unknown) {
       console.error("Failed to decline proposal:", err);
+    }
+  };
+
+  const handleComplete = async (id: string) => {
+    try {
+      const updated = await completeCollaboration(id);
+      setCollabs((prev) => prev.map((c) => (c.id === id ? updated : c)));
+    } catch (err: unknown) {
+      console.error("Failed to mark completed:", err);
     }
   };
 
@@ -129,6 +139,18 @@ export function PartnerCollaborationsPage() {
             className="bg-purple-600 hover:bg-purple-700 text-white gap-1 text-xs font-bold shadow-sm"
           >
             <Check className="h-4 w-4" /> Accept Proposal
+          </Button>
+        </div>
+      )}
+
+      {c.status === "ACCEPTED" && (
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+          <Button
+            size="sm"
+            onClick={() => handleComplete(c.id)}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white gap-1 text-xs font-bold shadow-sm"
+          >
+            <CheckCircle2 className="h-4 w-4" /> Mark Campaign Completed
           </Button>
         </div>
       )}

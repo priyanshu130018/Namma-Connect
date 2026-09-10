@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.schemas.common import APIResponse
 from app.services.gemini import GeminiService
+from app.core.rate_limiter import rate_limit
 
 router = APIRouter(prefix="/ai", tags=["Travel AI"])
 
@@ -28,7 +29,11 @@ class TravelChatResponse(BaseModel):
     source: str = "grounded_catalog"
 
 
-@router.post("/travel/chat", response_model=APIResponse[TravelChatResponse])
+@router.post(
+    "/travel/chat",
+    response_model=APIResponse[TravelChatResponse],
+    dependencies=[Depends(rate_limit(max_requests=25, window_seconds=60, key_prefix="ai:chat"))],
+)
 def travel_chat_assistant(
     payload: TravelChatRequest,
     db: Session = Depends(get_db),

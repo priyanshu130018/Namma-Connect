@@ -168,7 +168,7 @@ describe("Notifications & Messages Suite", () => {
     });
 
     // Send a message
-    const input = screen.getByPlaceholderText(/Type a message to your host.../i);
+    const input = screen.getByPlaceholderText(/Type a message/i);
     fireEvent.change(input, { target: { value: "Looking forward to checking in around 3 PM!" } });
 
     const sendBtn = screen.getByRole("button", { name: /Send/i });

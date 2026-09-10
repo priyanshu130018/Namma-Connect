@@ -79,7 +79,8 @@ export function CustomerExplorePage() {
     try {
       const data = await getMarketplaceServices({
         category: activeCategory !== "all" ? activeCategory : undefined,
-        location: searchQuery || undefined,
+        location: undefined,
+        q: searchQuery || undefined,
         max_price: maxPrice,
         sort_by: sortBy,
         page: currentPage,
@@ -397,8 +398,8 @@ export function CustomerExplorePage() {
 
       {/* ── Loading Skeleton Grid ── */}
       {isLoading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[...Array(6)].map((_, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {[...Array(12)].map((_, i) => (
             <ServiceCardSkeleton key={i} />
           ))}
         </div>
@@ -427,7 +428,7 @@ export function CustomerExplorePage() {
       {/* ── Service Results Grid ── */}
       {!isLoading && !errorMessage && filteredServices.length > 0 && (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {filteredServices.map((service) => (
               <ServiceCard key={service.id} service={service} />
             ))}

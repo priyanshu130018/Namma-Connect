@@ -80,7 +80,7 @@ describe("Customer Marketplace Discovery & Search Component Suite", () => {
     expect(screen.getByText(/Recommended for You/i)).toBeInTheDocument();
 
     await waitFor(() => {
-      expect(screen.getByText("Coorg Heritage Coffee Estate")).toBeInTheDocument();
+      expect(screen.getAllByText("Coorg Heritage Coffee Estate")[0]).toBeInTheDocument();
     });
   });
 

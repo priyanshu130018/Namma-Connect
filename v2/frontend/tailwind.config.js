@@ -10,6 +10,18 @@ export default {
       colors: {
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
+        surface: {
+          DEFAULT: "hsl(var(--surface))",
+          hover: "hsl(var(--surface-hover))",
+          elevated: "hsl(var(--surface-elevated))",
+        },
+        "text-primary": "hsl(var(--text-primary))",
+        "text-secondary": "hsl(var(--text-secondary))",
+        "text-muted": "hsl(var(--text-muted))",
+        accent: "hsl(var(--primary))",
+        success: "#10b981",
+        warning: "#f59e0b",
+        danger: "#ef4444",
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",

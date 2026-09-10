@@ -3,9 +3,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 export function ServiceCardSkeleton() {
   return (
-    <Card className="flex flex-col overflow-hidden rounded-3xl border-slate-200/80 bg-white">
+    <Card className="flex flex-col overflow-hidden rounded-3xl border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900">
       {/* Image Skeleton */}
-      <div className="relative aspect-[16/10] w-full bg-slate-100">
+      <div className="relative aspect-[16/10] w-full bg-slate-100 dark:bg-slate-800">
         <Skeleton className="h-full w-full" />
       </div>
 
@@ -19,7 +19,7 @@ export function ServiceCardSkeleton() {
         <Skeleton className="h-5 w-4/5 rounded-md" />
         <Skeleton className="h-3.5 w-1/2 rounded-md" />
 
-        <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-3">
+        <div className="mt-4 flex items-center justify-between border-t border-slate-100 dark:border-slate-800 pt-3">
           <div className="space-y-1">
             <Skeleton className="h-3 w-14 rounded-md" />
             <Skeleton className="h-5 w-20 rounded-md" />

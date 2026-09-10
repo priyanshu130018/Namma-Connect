@@ -68,16 +68,16 @@ export function PartnerSettingsPage() {
 
         {/* 1. Account */}
         <TabsContent value="account" className="space-y-4 pt-2">
-          <Card className="p-6 rounded-3xl border-slate-200 bg-white space-y-4">
-            <h3 className="text-sm font-bold text-slate-900">Partner Account Profile</h3>
+          <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Partner Account Profile</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="p-3.5 bg-slate-50 rounded-2xl">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Partner ID</span>
-                <p className="font-mono font-bold text-slate-900 mt-0.5">ptnr-kodagu-0012</p>
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800 rounded-2xl">
+                <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">Partner ID</span>
+                <p className="font-mono font-bold text-slate-900 dark:text-slate-100 mt-0.5">ptnr-kodagu-0012</p>
               </div>
-              <div className="p-3.5 bg-slate-50 rounded-2xl">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Provider Role</span>
-                <p className="font-bold text-harvest-900 mt-0.5">Farmer & Plantation Host</p>
+              <div className="p-3.5 bg-slate-50 dark:bg-slate-800 rounded-2xl">
+                <span className="text-[10px] uppercase font-bold text-slate-400 dark:text-slate-500">Provider Role</span>
+                <p className="font-bold text-harvest-800 dark:text-harvest-400 mt-0.5">Farmer & Plantation Host</p>
               </div>
             </div>
           </Card>
@@ -85,8 +85,8 @@ export function PartnerSettingsPage() {
 
         {/* 2. Notifications */}
         <TabsContent value="notifications" className="space-y-4 pt-2">
-          <Card className="p-6 rounded-3xl border-slate-200 bg-white space-y-5">
-            <h3 className="text-sm font-bold text-slate-900">Operational Alerts & Notifications</h3>
+          <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-5">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Operational Alerts & Notifications</h3>
             <div className="space-y-4">
               <Switch
                 label="Instant SMS Check-in Alerts"
@@ -112,19 +112,19 @@ export function PartnerSettingsPage() {
 
         {/* 3. Payouts */}
         <TabsContent value="payouts" className="space-y-4 pt-2">
-          <Card className="p-6 rounded-3xl border-slate-200 bg-white space-y-4">
-            <h3 className="text-sm font-bold text-slate-900">Payout Preferences</h3>
-            <p className="text-xs text-slate-500">
+          <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Payout Preferences</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Payouts are automatically settled to your verified bank account (SBI •••• 4092) within 24 hours after traveler check-in.
             </p>
-            <div className="rounded-2xl border border-harvest-200 bg-harvest-50/50 p-4 text-xs space-y-2">
-              <div className="flex justify-between text-slate-700">
+            <div className="rounded-2xl border border-harvest-200/80 dark:border-harvest-800/80 bg-harvest-50/60 dark:bg-harvest-950/40 p-4 text-xs space-y-2">
+              <div className="flex justify-between text-slate-700 dark:text-slate-300">
                 <span>Settlement Frequency:</span>
-                <strong className="text-slate-900">Daily Automated (T+1)</strong>
+                <strong className="text-slate-900 dark:text-slate-100">Daily Automated (T+1)</strong>
               </div>
-              <div className="flex justify-between text-slate-700">
+              <div className="flex justify-between text-slate-700 dark:text-slate-300">
                 <span>Bank Currency:</span>
-                <strong className="text-slate-900">INR (₹)</strong>
+                <strong className="text-slate-900 dark:text-slate-100">INR (₹)</strong>
               </div>
             </div>
           </Card>
@@ -132,19 +132,21 @@ export function PartnerSettingsPage() {
 
         {/* 4. Language & Theme */}
         <TabsContent value="language" className="space-y-4 pt-2">
-          <Card className="p-6 rounded-3xl border-slate-200 bg-white space-y-4">
-            <h3 className="text-sm font-bold text-slate-900">Portal Display Language</h3>
+          <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Portal Display Language</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs font-semibold">
               {["English (Default)", "ಕನ್ನಡ (Kannada)", "हिंदी (Hindi)", "മലയാളം (Malayalam)", "தமிழ் (Tamil)"].map(
                 (lang, i) => (
                   <div
                     key={i}
-                    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer ${
-                      i === 0 ? "border-harvest-500 bg-harvest-50 text-harvest-950" : "border-slate-200 hover:bg-slate-50 text-slate-700"
+                    className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-colors ${
+                      i === 0
+                        ? "border-harvest-500 bg-harvest-50 dark:bg-harvest-950/60 text-harvest-950 dark:text-harvest-200"
+                        : "border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
                     }`}
                   >
                     <span>{lang}</span>
-                    {i === 0 && <Check className="h-4 w-4 text-harvest-700" />}
+                    {i === 0 && <Check className="h-4 w-4 text-harvest-700 dark:text-harvest-400" />}
                   </div>
                 )
               )}
@@ -154,11 +156,11 @@ export function PartnerSettingsPage() {
 
         {/* 5. Security */}
         <TabsContent value="security" className="space-y-4 pt-2">
-          <Card className="p-6 rounded-3xl border-slate-200 bg-white space-y-4">
-            <h3 className="text-sm font-bold text-slate-900">Partner Security Credentials</h3>
+          <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Partner Security Credentials</h3>
             {pwSaved && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-xl flex items-center gap-2">
-                <Check className="h-4 w-4 text-emerald-600" />
+              <div className="p-3 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs rounded-xl flex items-center gap-2">
+                <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 <span>Password successfully updated.</span>
               </div>
             )}
