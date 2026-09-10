@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ServiceCard } from "@/components/cards/ServiceCard";
 import { ServiceCardSkeleton } from "@/components/cards/ServiceCardSkeleton";
-import { getMarketplaceServices, getSearchSuggestions } from "@/services/marketplaceService";
+import { getMarketplaceServices, getSearchSuggestions, getHomeRecommendations } from "@/services/marketplaceService";
 import { MarketplaceService, SearchSuggestion } from "@/types";
 import { EXPLORE_CATEGORIES } from "@/features/customer/data/customerData";
 import { AccountVerificationStatus } from "@/components/auth/AccountVerificationStatus";
@@ -37,10 +37,11 @@ export function CustomerHomePage() {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  // 3 Section states: Recommended, Top Rated, Most Visited
+  // 4 Section states: Recommended, Top Rated, Most Visited, Near You
   const [recommendedServices, setRecommendedServices] = useState<MarketplaceService[]>([]);
   const [topRatedServices, setTopRatedServices] = useState<MarketplaceService[]>([]);
   const [mostVisitedServices, setMostVisitedServices] = useState<MarketplaceService[]>([]);
+  const [nearYouServices, setNearYouServices] = useState<MarketplaceService[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -87,16 +88,37 @@ export function CustomerHomePage() {
     setIsLoading(true);
     setLoadError(null);
     try {
-      const [recData, topData, mostData] = await Promise.all([
-        getMarketplaceServices({ limit: 4, sort_by: "rating" }),
-        getMarketplaceServices({ limit: 4, sort_by: "rating", min_rating: 4.8 }),
-        getMarketplaceServices({ limit: 4, sort_by: "newest" }),
-      ]);
-      setRecommendedServices(recData.services || []);
-      setTopRatedServices(topData.services || []);
-      setMostVisitedServices(mostData.services || []);
-    } catch (err: any) {
-      setLoadError("Unable to load home showcase services at this moment.");
+      const recData = await getHomeRecommendations();
+      if (recData && (recData.recommended_for_you?.length || recData.top_rated?.length)) {
+        setRecommendedServices(recData.recommended_for_you || []);
+        setTopRatedServices(recData.top_rated || []);
+        setMostVisitedServices(recData.most_visited || []);
+        setNearYouServices(recData.near_you || []);
+      } else {
+        const [rec, top, most] = await Promise.all([
+          getMarketplaceServices({ limit: 4, sort_by: "rating" }),
+          getMarketplaceServices({ limit: 4, sort_by: "rating", min_rating: 4.8 }),
+          getMarketplaceServices({ limit: 4, sort_by: "newest" }),
+        ]);
+        setRecommendedServices(rec.services || []);
+        setTopRatedServices(top.services || []);
+        setMostVisitedServices(most.services || []);
+        setNearYouServices(rec.services || []);
+      }
+    } catch {
+      try {
+        const [rec, top, most] = await Promise.all([
+          getMarketplaceServices({ limit: 4, sort_by: "rating" }),
+          getMarketplaceServices({ limit: 4, sort_by: "rating", min_rating: 4.8 }),
+          getMarketplaceServices({ limit: 4, sort_by: "newest" }),
+        ]);
+        setRecommendedServices(rec.services || []);
+        setTopRatedServices(top.services || []);
+        setMostVisitedServices(most.services || []);
+        setNearYouServices(rec.services || []);
+      } catch (err: any) {
+        setLoadError("Unable to load home showcase services at this moment.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -377,6 +399,41 @@ export function CustomerHomePage() {
         ) : (
           <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-center text-xs text-slate-500 dark:text-slate-400">
             No trending listings found.
+          </div>
+        )}
+      </div>
+
+      {/* ── Section 4: Near You ── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Near You</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Authentic rural experiences near your location</p>
+          </div>
+          <Link
+            to="/app/explore?location=Karnataka"
+            className="inline-flex items-center gap-1 text-xs font-bold text-harvest-700 hover:text-harvest-800 dark:text-harvest-400 hover:underline"
+          >
+            <span>More</span>
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <ServiceCardSkeleton key={i} />
+            ))}
+          </div>
+        ) : nearYouServices.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {nearYouServices.map((service) => (
+              <ServiceCard key={service.id} service={service} />
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-6 text-center text-xs text-slate-500 dark:text-slate-400">
+            No nearby listings found currently.
           </div>
         )}
       </div>

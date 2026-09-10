@@ -1,5 +1,6 @@
 import { apiClient } from "./api-client";
 import {
+  MarketplaceService,
   ServiceListResult,
   ServiceDetailData,
   ServiceReview,
@@ -101,4 +102,61 @@ export async function getSearchSuggestions(query: string): Promise<SearchSuggest
     }
   );
   return response.data.data?.suggestions || [];
+}
+
+export async function getHomeRecommendations(location?: string): Promise<{
+  recommended_for_you: MarketplaceService[];
+  top_rated: MarketplaceService[];
+  most_visited: MarketplaceService[];
+  near_you: MarketplaceService[];
+  categories: any[];
+}> {
+  const response = await apiClient.get<ApiMessageResponse<any>>("/recommendations/home", {
+    params: { location: location || undefined },
+  });
+  return response.data.data || {
+    recommended_for_you: [],
+    top_rated: [],
+    most_visited: [],
+    near_you: [],
+    categories: [],
+  };
+}
+
+export async function recordUserInteraction(
+  eventType: string,
+  serviceId?: string,
+  metadata?: Record<string, any>
+): Promise<void> {
+  try {
+    await apiClient.post("/recommendations/interactions", {
+      event_type: eventType,
+      service_id: serviceId || null,
+      metadata: metadata || {},
+    });
+  } catch {
+    // Non-blocking interaction log
+  }
+}
+
+export async function getProviderNCScore(serviceId?: string): Promise<{
+  nc_score: number;
+  trend: string;
+  components: Record<string, number>;
+  explanations: Record<string, string>;
+}> {
+  const response = await apiClient.get<ApiMessageResponse<any>>("/provider/nc-score", {
+    params: { service_id: serviceId || undefined },
+  });
+  return response.data.data || {
+    nc_score: 0,
+    trend: "0%",
+    components: {},
+    explanations: {},
+  };
+}
+
+export async function getProviderRecommendations(): Promise<any[]> {
+  const response = await apiClient.get<ApiMessageResponse<any>>("/provider/recommendations");
+  return response.data.data?.action_recommendations || [];
 }

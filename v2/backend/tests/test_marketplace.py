@@ -154,17 +154,24 @@ def test_home_page_concurrent_requests_and_seeding(client: TestClient, db_sessio
 def test_list_services_empty_db_and_response_shape(client: TestClient, db_session):
     """Verify GET /services returns valid empty list when DB has no published services."""
     from app.models.service import Service
+    from app.services.marketplace import MarketplaceService
+
     # Remove all services temporarily to test empty catalog
     db_session.query(Service).delete()
     db_session.commit()
 
-    response = client.get("/api/v2/services")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["success"] is True
-    assert data["data"]["services"] == []
-    assert data["data"]["total"] == 0
-    assert data["data"]["page"] == 1
-    assert data["data"]["limit"] == 12
-    assert data["data"]["total_pages"] == 1
+    try:
+        response = client.get("/api/v2/services")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        assert data["data"]["services"] == []
+        assert data["data"]["total"] == 0
+        assert data["data"]["page"] == 1
+        assert data["data"]["limit"] == 12
+        assert data["data"]["total_pages"] == 1
+    finally:
+        # Re-seed catalog so subsequent test suites retain required seed services
+        MarketplaceService.ensure_seeded(db_session)
+
 

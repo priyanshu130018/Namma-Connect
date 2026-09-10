@@ -97,7 +97,32 @@ services:
     networks:
       - nammaconnect-net
 
-  # ── 4. Web Application Frontend (React 18 + Vite + Tailwind) ──
+  # ── 4. Asynchronous Background Task Worker (Celery) ──
+  worker:
+    build:
+      context: ./v2/backend
+      dockerfile: Dockerfile
+    container_name: nammaconnect-worker
+    command: celery -A app.core.celery_app worker --loglevel=info -Q recommendation,analytics,nc_score,notification
+    restart: unless-stopped
+    environment:
+      ENV: development
+      DEBUG: "True"
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_SYNC_URL: ${DATABASE_SYNC_URL}
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET: ${JWT_SECRET}
+    volumes:
+      - ./v2/backend:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - nammaconnect-net
+
+  # ── 5. Web Application Frontend (React 18 + Vite + Tailwind) ──
   frontend:
     build:
       context: ./v2/frontend

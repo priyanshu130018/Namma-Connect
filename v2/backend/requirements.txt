@@ -22,3 +22,4 @@ pydantic[email]
 email-validator
 pgvector
 psycopg2-binary
+celery>=5.3.6

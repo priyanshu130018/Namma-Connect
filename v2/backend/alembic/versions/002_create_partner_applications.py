@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from app.models.base import GUID
 
 # revision identifiers, used by Alembic.
-revision = '3bf23c0933a9'
-down_revision = '40322496bba3'
+revision = '7d9a1e4b2c83'
+down_revision = 'c8f1e29a3b47'
 branch_labels = None
 depends_on = None
 

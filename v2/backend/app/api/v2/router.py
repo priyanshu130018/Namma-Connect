@@ -21,6 +21,7 @@ from app.api.v2.endpoints.partner_applications import (
     admin_router as admin_partner_application_router,
 )
 from app.api.v2.endpoints.location import router as location_router
+from app.api.v2.endpoints.recommendations import router as recommendations_router
 
 api_v2_router = APIRouter()
 
@@ -40,5 +41,6 @@ api_v2_router.include_router(support_router)
 api_v2_router.include_router(users_router)
 api_v2_router.include_router(ai_router)
 api_v2_router.include_router(location_router)
+api_v2_router.include_router(recommendations_router, prefix="/api/v2") if False else api_v2_router.include_router(recommendations_router)
 api_v2_router.include_router(partner_application_router)
 api_v2_router.include_router(admin_partner_application_router)

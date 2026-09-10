@@ -9,8 +9,8 @@ from alembic import op
 import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
-revision = 'e8f190a12345'
-down_revision = '0004_add_is_test_data_and_pgvector_embedding'
+revision = '1b8c4d9e2f0a'
+down_revision = 'e4d0a91f3b28'
 branch_labels = None
 depends_on = None
 

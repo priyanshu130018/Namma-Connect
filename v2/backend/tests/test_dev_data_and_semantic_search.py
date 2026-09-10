@@ -208,8 +208,20 @@ def test_semantic_search_cosine_ranking_and_filters(db_session: Session):
 # ─────────────────────────────────────────────────────────────
 def test_normal_search_and_ai_chat_use_semantic_pipeline(client: TestClient, db_session: Session):
     """Verify that both /search and /ai/travel/chat route through the unified semantic search pipeline."""
+    provider = User(
+        id=uuid.uuid4(),
+        email=f"sirsi.host.{uuid.uuid4()}@nammaconnect.test",
+        full_name="Girish Hegde",
+        role="partner",
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(provider)
+    db_session.commit()
+
     srv = Service(
         id=uuid.uuid4(),
+        provider_id=provider.id,
         title="Spices & Vanilla Agro-Tour",
         slug=f"spices-tour-{uuid.uuid4()}",
         description="Explore organic cardamom, pepper vines, and pure vanilla orchid farms in Sirsi.",
@@ -220,6 +232,7 @@ def test_normal_search_and_ai_chat_use_semantic_pipeline(client: TestClient, db_
         price=950.0,
         rating=4.9,
         status="PUBLISHED",
+        is_verified=True,
         primary_image="https://example.com/spice.jpg",
         provider_name="Girish Hegde",
         embedding=EmbeddingService.generate_embedding("Spices Vanilla Agro Tour Cardamom Pepper Sirsi"),

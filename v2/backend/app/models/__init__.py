@@ -14,8 +14,21 @@ from app.models.support import SupportTicket
 from app.models.refund import Refund
 from app.models.saved_service import SavedService
 from app.models.partner_application import PartnerApplication
-from app.models.setting import PlatformSetting
-from app.models.email_log import EmailLog
+from app.models.recommendation import (
+    UserInteraction,
+    UserInterestProfile,
+    UserSimilarity,
+    RecommendationResult,
+    RecommendationImpression,
+    RecommendationFeedback,
+)
+from app.models.nc_score import (
+    NCScoreSnapshot,
+    ProviderDailyMetrics,
+    ServiceDailyMetrics,
+    ProviderResponseMetrics,
+    ProviderActionRecommendation,
+)
 
 __all__ = [
     "Base",
@@ -38,4 +51,15 @@ __all__ = [
     "PartnerApplication",
     "PlatformSetting",
     "EmailLog",
+    "UserInteraction",
+    "UserInterestProfile",
+    "UserSimilarity",
+    "RecommendationResult",
+    "RecommendationImpression",
+    "RecommendationFeedback",
+    "NCScoreSnapshot",
+    "ProviderDailyMetrics",
+    "ServiceDailyMetrics",
+    "ProviderResponseMetrics",
+    "ProviderActionRecommendation",
 ]

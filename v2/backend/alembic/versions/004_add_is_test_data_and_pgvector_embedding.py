@@ -10,8 +10,8 @@ import sqlalchemy as sa
 from pgvector.sqlalchemy import Vector
 
 # revision identifiers, used by Alembic.
-revision = '0004_add_is_test_data_and_pgvector_embedding'
-down_revision = '90c287509883'
+revision = 'e4d0a91f3b28'
+down_revision = '5e2b8f1c4a90'
 branch_labels = None
 depends_on = None
 
