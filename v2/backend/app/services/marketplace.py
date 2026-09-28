@@ -4,7 +4,7 @@ import json
 import uuid
 import math
 from datetime import datetime, date, timedelta
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Any, Dict
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 from app.models.user import User
@@ -66,6 +66,8 @@ class MarketplaceService:
             description=s.description,
             category=s.category,
             category_slug=s.category_slug,
+            category_id=str(s.category_id) if getattr(s, "category_id", None) else None,
+            marketplace_type=getattr(s, "marketplace_type", "ACTIVITY") or "ACTIVITY",
             location=s.location,
             district=s.district,
             state=s.state,
@@ -334,7 +336,7 @@ class MarketplaceService:
         category_slug = (service.category_slug or "").lower()
         if category_slug == "stay":
             booking_model = "date_range"
-        elif category_slug in ["experiences", "guides-tours", "workshops"]:
+        elif category_slug in ["experiences", "guides-tours", "workshops", "farm", "adventure", "tour", "food", "wildlife", "water-sports"] or (service.category and ("experience" in service.category.lower() or "tour" in service.category.lower())):
             booking_model = "time_slot"
         else:
             booking_model = "single_date"
@@ -458,308 +460,29 @@ class MarketplaceService:
 
     @classmethod
     def ensure_seeded(cls, db: Session) -> None:
-        """Seed initial authoritative verified agricultural catalog if empty and ensure provider linking."""
+        """Seed permanent reference taxonomy categories if empty."""
         try:
-            # Ensure a verified active partner exists for catalog services
-            seed_partner = db.query(User).filter(
-                User.role == "partner", User.is_verified == True, User.is_active == True
-            ).first()
-
-            if not seed_partner:
-                seed_partner = db.query(User).filter(
-                    User.email == "seed.partner.bopaiah@nammaconnect.test"
-                ).first()
-
-            if not seed_partner:
-                from app.core.security import get_password_hash
-                try:
-                    seed_partner = User(
-                        id=uuid.uuid4(),
-                        email="seed.partner.bopaiah@nammaconnect.test",
-                        hashed_password=get_password_hash("PartnerPass123!"),
-                        full_name="Bopaiah & Kaveri Muthappa",
-                        role="partner",
-                        is_active=True,
-                        is_verified=True,
-                        phone_verified=True,
-                        auth_provider="local",
-                        location="Madikeri, Coorg, Karnataka",
-                    )
-                    db.add(seed_partner)
-                    db.commit()
-                    db.refresh(seed_partner)
-                except Exception:
-                    db.rollback()
-                    seed_partner = db.query(User).filter(
-                        User.email == "seed.partner.bopaiah@nammaconnect.test"
-                    ).first()
-
-            if not seed_partner:
-                seed_partner = db.query(User).filter(User.role == "partner", User.is_active == True).first()
-
-            if seed_partner:
-                # Backfill any existing unlinked seed services
-                try:
-                    unlinked = db.query(Service).filter(Service.provider_id.is_(None)).all()
-                    if unlinked:
-                        for u_srv in unlinked:
-                            u_srv.provider_id = seed_partner.id
-                        db.commit()
-                except Exception:
-                    db.rollback()
-
-            if ServiceRepository.count(db) > 0 or not seed_partner:
-                return
-
-            catalog_seeds = [
-                {
-                    "title": "Heritage Coffee Estate Homestay & Cupping Trail",
-                    "slug": "coorg-heritage-coffee-estate",
-                    "provider_id": seed_partner.id,
-                    "description": "Stay in a century-old British colonial planter's bungalow surrounded by organic Arabica plantations. Includes guided botanical walks, bean roasting workshops, and authentic Coorg Kodava family dinners.",
-                    "category": "Stay",
-                    "category_slug": "stay",
-                    "location": "Madikeri, Coorg, Karnataka",
-                    "district": "Coorg",
-                    "state": "Karnataka",
-                    "price": 2800.0,
-                    "unit": "night",
-                    "duration_hours": 24.0,
-                    "max_capacity": 6,
-                    "rating": 4.92,
-                    "reviews_count": 34,
-                    "is_verified": True,
-                    "status": "PUBLISHED",
-                    "provider_name": "Bopaiah & Kaveri Muthappa",
-                    "provider_type": "Farmer / Plantation Host",
-                    "primary_image": "/images/services/coffee-estate.jpg",
-                    "images_json": json.dumps([
-                        "/images/services/coffee-estate.jpg",
-                        "/images/services/coffee-roasting.jpg",
-                        "/images/services/coorg-bungalow.jpg"
-                    ]),
-                    "inclusions_json": json.dumps([
-                        "Traditional Kodava Breakfast (Akki Rotti & Honey)",
-                        "Guided 3-hour Plantation Trail with Estate Botanist",
-                        "Coffee Cupping & Fresh Bean Roasting Session",
-                        "Bonfire Evening with Estate Spices"
-                    ]),
-                    "amenities_json": json.dumps([
-                        "High-Speed Wi-Fi", "Solar Heated Water", "Organic Home Dining", "Free On-Site Parking", "Child-Friendly Estate"
-                    ]),
-                },
-                {
-                    "title": "Cardamom & Black Pepper Canopy Trail",
-                    "slug": "wayanad-spice-canopy-trail",
-                    "provider_id": seed_partner.id,
-                    "description": "Join certified agricultural naturalists across an 80-acre biodynamic spice estate. Learn to hand-pick Malabar green cardamom, identify black pepper vines, and harvest raw wild forest honey.",
-                    "category": "Guides & Tours",
-                    "category_slug": "guides-tours",
-                    "location": "Meppadi, Wayanad, Kerala",
-                    "district": "Wayanad",
-                    "state": "Kerala",
-                    "price": 650.0,
-                    "unit": "person",
-                    "duration_hours": 3.5,
-                    "max_capacity": 12,
-                    "rating": 4.88,
-                    "reviews_count": 28,
-                    "is_verified": True,
-                    "status": "PUBLISHED",
-                    "provider_name": "Devasia Thomas",
-                    "provider_type": "Guide & Naturalist",
-                    "primary_image": "/images/services/spice-trail.jpg",
-                    "images_json": json.dumps([
-                        "/images/services/spice-trail.jpg",
-                        "/images/services/cardamom-harvest.jpg"
-                    ]),
-                    "inclusions_json": json.dumps([
-                        "Guided Estate Walk with Naturalist",
-                        "Fresh Spice Tasting & Sample Pouch",
-                        "Herbal Tea Refreshment with Jaggery"
-                    ]),
-                    "amenities_json": json.dumps([
-                        "Walking Sticks Provided", "Drinking Water Refills", "First Aid Onsite"
-                    ]),
-                },
-                {
-                    "title": "Traditional Paddy Transplanting & Clay Pottery",
-                    "slug": "chikmagalur-paddy-pottery-workshop",
-                    "provider_id": seed_partner.id,
-                    "description": "Immerse yourself in traditional soil arts. Experience barefoot paddy sapling transplanting in organic wetlands followed by hands-on wheel throwing with master village potters.",
-                    "category": "Experiences",
-                    "category_slug": "experiences",
-                    "location": "Mudigere, Chikmagalur, Karnataka",
-                    "district": "Chikmagalur",
-                    "state": "Karnataka",
-                    "price": 850.0,
-                    "unit": "person",
-                    "duration_hours": 4.0,
-                    "max_capacity": 15,
-                    "rating": 4.95,
-                    "reviews_count": 42,
-                    "is_verified": True,
-                    "status": "PUBLISHED",
-                    "provider_name": "Kencharayappa Village Cooperative",
-                    "provider_type": "Rural Artisan Guild",
-                    "primary_image": "/images/services/paddy-workshop.jpg",
-                    "images_json": json.dumps([
-                        "/images/services/paddy-workshop.jpg",
-                        "/images/services/clay-pottery.jpg"
-                    ]),
-                    "inclusions_json": json.dumps([
-                        "Hands-on Paddy Sowing Activity",
-                        "Take-home Terracotta Pot Crafted by You",
-                        "Banana Leaf Malnad Lunch"
-                    ]),
-                    "amenities_json": json.dumps([
-                        "Washrooms & Showers", "Protective Aprons", "Drinking Water"
-                    ]),
-                },
-                {
-                    "title": "4x4 Western Ghats Plantation Shuttle & Ridge Safari",
-                    "slug": "sakleshpur-4x4-estate-jeep-transit",
-                    "provider_id": seed_partner.id,
-                    "description": "Private 4x4 rugged Jeep transport traversing steep coffee ridges, stream crossings, and remote forest trails. Ideal for hill station transit and photography excursions.",
-                    "category": "Travel Services",
-                    "category_slug": "travel-services",
-                    "location": "Hanbal, Sakleshpur, Karnataka",
-                    "district": "Sakleshpur",
-                    "state": "Karnataka",
-                    "price": 2200.0,
-                    "unit": "tour",
-                    "duration_hours": 3.0,
-                    "max_capacity": 6,
-                    "rating": 4.79,
-                    "reviews_count": 19,
-                    "is_verified": True,
-                    "status": "PUBLISHED",
-                    "provider_name": "Manju Kumar 4x4 Adventures",
-                    "provider_type": "Travel / Driver Host",
-                    "primary_image": "/images/services/4x4-jeep.jpg",
-                    "images_json": json.dumps([
-                        "/images/services/4x4-jeep.jpg",
-                        "/images/services/ridge-view.jpg"
-                    ]),
-                    "inclusions_json": json.dumps([
-                        "Private 4x4 Vehicle & Veteran Estate Driver",
-                        "Sunset Ridge Point Halt",
-                        "Luggage Transfer Assistance"
-                    ]),
-                    "amenities_json": json.dumps([
-                        "Roof Rack", "All-Weather Tarpaulin", "Emergency Tool Kit"
-                    ]),
-                },
-                {
-                    "title": "Malnad Wood-Fired Feast & Organic Farm Dining",
-                    "slug": "thirthahalli-malnad-farm-dining",
-                    "provider_id": seed_partner.id,
-                    "description": "Authentic multi-course lunch served in an ancestral areca-nut farm kitchen. Prepared using heirloom rice varieties, freshly pressed coconut milk, wild greens, and wood-fired earthen pots.",
-                    "category": "Food & Dining",
-                    "category_slug": "food",
-                    "location": "Thirthahalli, Shimoga, Karnataka",
-                    "district": "Shimoga",
-                    "state": "Karnataka",
-                    "price": 550.0,
-                    "unit": "person",
-                    "duration_hours": 2.0,
-                    "max_capacity": 20,
-                    "rating": 4.96,
-                    "reviews_count": 51,
-                    "is_verified": True,
-                    "status": "PUBLISHED",
-                    "provider_name": "Subhadra Hegde Farm Kitchen",
-                    "provider_type": "Homestay Host",
-                    "primary_image": "/images/services/farm-food.jpg",
-                    "images_json": json.dumps([
-                        "/images/services/farm-food.jpg",
-                        "/images/services/woodfired-kitchen.jpg"
-                    ]),
-                    "inclusions_json": json.dumps([
-                        "7-Course Seasonal Malnad Feast",
-                        "Fresh Sugarcane & Ginger Juice",
-                        "Arecanut Farm Tour"
-                    ]),
-                    "amenities_json": json.dumps([
-                        "Traditional Floor Seating & Dining Tables", "Hand Wash Area", "Pure Well Water"
-                    ]),
-                },
-                {
-                    "title": "Baisakhi & Sugarcane Harvest Community Fair",
-                    "slug": "mandya-sugarcane-harvest-fair",
-                    "provider_id": seed_partner.id,
-                    "description": "Annual community festival celebrating seasonal jaggery crushing, bullock cart rides, local folk dance (Veeragase), and open-air agro-crafts exhibition.",
-                    "category": "Events",
-                    "category_slug": "events",
-                    "location": "Maddur, Mandya, Karnataka",
-                    "district": "Mandya",
-                    "state": "Karnataka",
-                    "price": 400.0,
-                    "unit": "session",
-                    "duration_hours": 6.0,
-                    "max_capacity": 50,
-                    "rating": 4.85,
-                    "reviews_count": 22,
-                    "is_verified": True,
-                    "status": "PUBLISHED",
-                    "provider_name": "Mandya Organic Farmers Guild",
-                    "provider_type": "Farmer Cooperative",
-                    "primary_image": "/images/services/harvest-festival.jpg",
-                    "images_json": json.dumps([
-                        "/images/services/harvest-festival.jpg",
-                        "/images/services/jaggery-making.jpg"
-                    ]),
-                    "inclusions_json": json.dumps([
-                        "Festival Entry & Folk Performance Access",
-                        "Fresh Warm Jaggery Tasting",
-                        "Bullock Cart Village Tour"
-                    ]),
-                    "amenities_json": json.dumps([
-                        "Rest Areas", "First Aid Center", "Local Souvenir Stalls"
-                    ]),
-                },
-            ]
-
-            for s_data in catalog_seeds:
-                s_data["provider_id"] = seed_partner.id
-                existing = ServiceRepository.get_by_slug(db, s_data["slug"])
-                if existing:
-                    continue
-                try:
-                    service = ServiceRepository.create(db, **s_data)
-                    # Generate and persist initial embedding on PostgreSQL
-                    if db.bind and db.bind.dialect.name == "postgresql":
-                        try:
-                            from app.services.embedding import EmbeddingService
-                            from app.services.redis_service import RedisService
-                            search_text = EmbeddingService.build_searchable_text(service)
-                            emb = EmbeddingService.generate_embedding(search_text)
-                            service.embedding = emb
-                            db.commit()
-                            RedisService.set(f"service_embedding:{service.id}", emb)
-                        except Exception:
-                            db.rollback()
-
-                    # Add sample reviews
-                    try:
-                        ServiceRepository.add_review(
-                            db,
-                            service_id=service.id,
-                            user_name="Ananya Sharma",
-                            rating=5.0,
-                            comment="Unforgettable experience! The hosts were exceedingly warm and the plantation knowledge was truly inspiring.",
-                        )
-                        ServiceRepository.add_review(
-                            db,
-                            service_id=service.id,
-                            user_name="Vikramaditya Rao",
-                            rating=4.8,
-                            comment="Outstanding authentic farm food and clean amenities. Will definitely book again with family.",
-                        )
-                    except Exception:
-                        db.rollback()
-                except Exception:
-                    db.rollback()
+            from app.models.category import MarketplaceCategory
+            # Ensure the 10 permanent reference categories exist
+            cat_count = db.query(MarketplaceCategory).count()
+            if cat_count < 10:
+                SEED_CATEGORIES = [
+                    {"id": uuid.UUID("c0000001-0000-0000-0000-000000000001"), "slug": "farm", "name": "Farm Tours & Experiences", "marketplace_type": "ACTIVITY", "icon": "sprout", "description": "Hands-on agro-tours, harvest experiences, plantation walks, and rural life workshops.", "sort_order": 1},
+                    {"id": uuid.UUID("c0000001-0000-0000-0000-000000000002"), "slug": "adventure", "name": "Adventure & Trekking", "marketplace_type": "ACTIVITY", "icon": "mountain", "description": "Western Ghats peak trekking, coffee estate night camping, forest trails, and off-road expeditions.", "sort_order": 2},
+                    {"id": uuid.UUID("c0000001-0000-0000-0000-000000000003"), "slug": "water-sports", "name": "Water Sports & Activities", "marketplace_type": "ACTIVITY", "icon": "waves", "description": "Kayaking, river rafting, coracle rides, and coastal aquatic adventures.", "sort_order": 3},
+                    {"id": uuid.UUID("c0000001-0000-0000-0000-000000000004"), "slug": "wildlife", "name": "Wildlife Tours", "marketplace_type": "ACTIVITY", "icon": "paw-print", "description": "Guided jungle safaris, bird-watching trails, reptile walks, and sanctuary explorations.", "sort_order": 4},
+                    {"id": uuid.UUID("c0000001-0000-0000-0000-000000000005"), "slug": "food", "name": "Food Tours & Cooking", "marketplace_type": "ACTIVITY", "icon": "utensils", "description": "Authentic regional culinary walks, farm-to-table dining, and traditional cooking workshops.", "sort_order": 5},
+                    {"id": uuid.UUID("c0000001-0000-0000-0000-000000000006"), "slug": "cultural-historical", "name": "Cultural & Historical Tours", "marketplace_type": "ACTIVITY", "icon": "landmark", "description": "Ancient temple trails, traditional crafts, folklore performances, and heritage explorations.", "sort_order": 6},
+                    {"id": uuid.UUID("c0000001-0000-0000-0000-000000000007"), "slug": "photography", "name": "Photography", "marketplace_type": "CONTENT_CREATOR", "icon": "camera", "description": "High-res estate, resort & farm photo shoots and portrait storytelling.", "sort_order": 7},
+                    {"id": uuid.UUID("c0000001-0000-0000-0000-000000000008"), "slug": "videography", "name": "Videography", "marketplace_type": "CONTENT_CREATOR", "icon": "video", "description": "Cinematic promotional films, brand documentaries, and storytelling productions.", "sort_order": 8},
+                    {"id": uuid.UUID("c0000001-0000-0000-0000-000000000009"), "slug": "drone-aerial", "name": "Drone & Aerial", "marketplace_type": "CONTENT_CREATOR", "icon": "navigation", "description": "4K aerial estate mapping, land elevation footage, and drone cinematography.", "sort_order": 9},
+                    {"id": uuid.UUID("c0000001-0000-0000-0000-000000000010"), "slug": "travel-reels", "name": "Travel Reels", "marketplace_type": "CONTENT_CREATOR", "icon": "sparkles", "description": "Dynamic short-form reels for Instagram, YouTube Shorts, and travel campaigns.", "sort_order": 10},
+                ]
+                for cat_dict in SEED_CATEGORIES:
+                    existing_c = db.query(MarketplaceCategory).filter(MarketplaceCategory.slug == cat_dict["slug"]).first()
+                    if not existing_c:
+                        db.add(MarketplaceCategory(**cat_dict))
+                db.commit()
         except Exception:
             db.rollback()
 
@@ -789,12 +512,31 @@ class MarketplaceService:
             payload.images[0] if payload.images else "/images/services/default-experience.jpg"
         )
 
+        # Resolve category_id and marketplace_type
+        from app.models.category import MarketplaceCategory
+        category_id = None
+        marketplace_type = payload.marketplace_type or "ACTIVITY"
+        if payload.category_id:
+            category_id = payload.category_id
+            cat_obj = db.query(MarketplaceCategory).filter(MarketplaceCategory.id == payload.category_id).first()
+            if cat_obj:
+                marketplace_type = cat_obj.marketplace_type
+        else:
+            cat_obj = db.query(MarketplaceCategory).filter(
+                (MarketplaceCategory.slug == cat_slug) | (MarketplaceCategory.name.ilike(f"%{payload.category}%"))
+            ).first()
+            if cat_obj:
+                category_id = cat_obj.id
+                marketplace_type = cat_obj.marketplace_type
+
         service = Service(
             title=payload.title,
             slug=unique_slug,
             description=payload.description,
             category=payload.category,
             category_slug=cat_slug,
+            category_id=category_id,
+            marketplace_type=marketplace_type,
             location=payload.location,
             district=payload.district or payload.location.split(",")[0].strip(),
             state=payload.state or "Karnataka",
@@ -875,18 +617,24 @@ class MarketplaceService:
     def list_partner_services(
         cls,
         db: Session,
-        provider_id: uuid.UUID,
+        provider_id: Any,
     ) -> List[ServiceResponse]:
         """List all services owned by the authenticated provider."""
         cls.ensure_seeded(db)
-        services = db.query(Service).filter(Service.provider_id == provider_id).order_by(Service.created_at.desc()).all()
+        # Match both UUID and string provider_id
+        services = (
+            db.query(Service)
+            .filter((Service.provider_id == provider_id) | (Service.provider_id == str(provider_id)))
+            .order_by(Service.created_at.desc())
+            .all()
+        )
         return [cls._to_service_response(s, db=db) for s in services]
 
     @classmethod
     def get_partner_service_by_id(
         cls,
         db: Session,
-        provider_id: uuid.UUID,
+        provider_id: Any,
         service_id: str,
     ) -> ServiceResponse:
         """Fetch a specific service listing owned by the authenticated provider."""
@@ -894,7 +642,7 @@ class MarketplaceService:
         service = db.query(Service).filter(Service.id == service_id).first()
         if not service:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Service with ID '{service_id}' not found.")
-        if service.provider_id != provider_id:
+        if str(service.provider_id) != str(provider_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You are not authorized to view or edit this service listing.",
@@ -905,7 +653,7 @@ class MarketplaceService:
     def update_partner_service(
         cls,
         db: Session,
-        provider_id: uuid.UUID,
+        provider_id: Any,
         service_id: str,
         payload: ServiceUpdatePayload,
     ) -> ServiceResponse:
@@ -918,7 +666,7 @@ class MarketplaceService:
         service = db.query(Service).filter(Service.id == service_id).first()
         if not service:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Service with ID '{service_id}' not found.")
-        if service.provider_id != provider_id:
+        if str(service.provider_id) != str(provider_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You are not authorized to modify this service listing.",
@@ -931,6 +679,10 @@ class MarketplaceService:
         if payload.category is not None:
             service.category = payload.category
             service.category_slug = payload.category_slug or payload.category.lower().replace(" ", "-")
+        if payload.category_id is not None:
+            service.category_id = payload.category_id
+        if payload.marketplace_type is not None:
+            service.marketplace_type = payload.marketplace_type
         if payload.location is not None:
             service.location = payload.location
         if payload.district is not None:
@@ -967,6 +719,24 @@ class MarketplaceService:
             service.reviewed_by = None
             service.reviewed_at = None
 
+        # Trigger translation staleness and async regeneration if title or description updated
+        if payload.title is not None or payload.description is not None:
+            try:
+                from app.services.translation import TranslationService
+                stale_fields = {}
+                if payload.title is not None:
+                    stale_fields["title"] = payload.title
+                if payload.description is not None:
+                    stale_fields["description"] = payload.description
+                TranslationService.mark_stale_and_translate_async(
+                    db=db,
+                    resource_type="service",
+                    resource_id=str(service.id),
+                    fields=stale_fields,
+                )
+            except Exception as t_err:
+                logger.warning(f"Failed to trigger service translation update: {t_err}")
+
         # Refresh embedding upon content update
         try:
             from app.services.embedding import EmbeddingService
@@ -998,7 +768,7 @@ class MarketplaceService:
         service = db.query(Service).filter(Service.id == service_id).first()
         if not service:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Service with ID '{service_id}' not found.")
-        if service.provider_id != provider_id:
+        if str(service.provider_id) != str(provider_id):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You are not authorized to submit this service listing.",

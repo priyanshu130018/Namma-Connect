@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
-import { PartnerNavbar } from "@/components/layout/PartnerNavbar";
+import { DashboardNavbar } from "@/components/layout/DashboardNavbar";
 import { PartnerSidebar } from "@/components/layout/PartnerSidebar";
 import { PartnerDashboardPage } from "@/routes/partner/PartnerDashboard";
 import { PartnerServicesPage } from "@/routes/partner/PartnerServices";
@@ -11,16 +11,14 @@ import { PartnerProfilePage } from "@/routes/partner/PartnerProfile";
 import * as earningsService from "@/services/earningsService";
 
 describe("Partner Application Components", () => {
-  it("renders PartnerNavbar with Brand, Notifications, Messages, and Profile menu", () => {
+  it("renders DashboardNavbar with Brand, Notifications, and Profile menu", () => {
     render(
       <BrowserRouter>
-        <PartnerNavbar />
+        <DashboardNavbar />
       </BrowserRouter>
     );
     expect(screen.getByText(/Namma/i)).toBeInTheDocument();
     expect(screen.getByLabelText("Notifications")).toBeInTheDocument();
-    expect(screen.getByLabelText("Customer Messages")).toBeInTheDocument();
-    expect(screen.getByLabelText("Provider Profile Menu")).toBeInTheDocument();
   });
 
   it("renders PartnerSidebar with all primary links", () => {
@@ -30,9 +28,10 @@ describe("Partner Application Components", () => {
       </BrowserRouter>
     );
     expect(screen.getByRole("link", { name: /^Services$/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Bookings$/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Earnings$/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Payments \/ Payouts/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Add New Service$/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Reports \/ Earnings$/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Profile$/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Settings$/i })).toBeInTheDocument();
   });
 
   it("renders PartnerDashboard with KPI metrics", () => {
@@ -41,10 +40,10 @@ describe("Partner Application Components", () => {
         <PartnerDashboardPage />
       </BrowserRouter>
     );
-    expect(screen.getByRole("heading", { name: /Host Operations Dashboard/i })).toBeInTheDocument();
-    expect(screen.getByText("Active Services")).toBeInTheDocument();
-    expect(screen.getByText("Upcoming Bookings")).toBeInTheDocument();
-    expect(screen.getByText("Net Payout (30 Days)")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Provider Operations Dashboard/i })).toBeInTheDocument();
+    expect(screen.getByText("Total Services")).toBeInTheDocument();
+    expect(screen.getByText("Published Live")).toBeInTheDocument();
+    expect(screen.getByText("Pending Review")).toBeInTheDocument();
   });
 
   it("renders PartnerServices with table of services and + Add Service CTA", () => {

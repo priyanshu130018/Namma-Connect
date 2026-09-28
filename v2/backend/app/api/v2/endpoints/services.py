@@ -4,7 +4,7 @@ from typing import Optional, List
 from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.dependencies.auth import get_current_user
+from app.dependencies.auth import get_current_user, get_current_user_optional
 from app.dependencies.rbac import require_partner
 from app.models.user import User
 from app.schemas.common import APIResponse, MessageResponse
@@ -23,6 +23,67 @@ from app.services.marketplace import MarketplaceService
 from app.services.saved_service import SavedServiceDomainService
 
 router = APIRouter(prefix="/services", tags=["Services"])
+
+
+@router.get("/categories", response_model=APIResponse[List[dict]])
+def list_activity_categories(db: Session = Depends(get_db)):
+    """List static product taxonomy categories for Activities."""
+    categories = [
+        {
+            "id": "farm",
+            "slug": "farm",
+            "name": "Farm Tours & Experiences 🌾",
+            "icon": "farm",
+            "description": "Authentic agricultural tours, harvest experiences, and rural farmstays.",
+            "listingCount": 0,
+        },
+        {
+            "id": "adventure",
+            "slug": "adventure",
+            "name": "Adventure & Trekking 🥾",
+            "icon": "hiking",
+            "description": "Western Ghats mountain treks, outdoor camping, and trail expeditions.",
+            "listingCount": 0,
+        },
+        {
+            "id": "water-sports",
+            "slug": "water-sports",
+            "name": "Water Sports & Activities 🌊",
+            "icon": "waves",
+            "description": "White water rafting, kayaking, water falls, and river adventures.",
+            "listingCount": 0,
+        },
+        {
+            "id": "wildlife",
+            "slug": "wildlife",
+            "name": "Wildlife Tours 🐘",
+            "icon": "trees",
+            "description": "Jungle safaris, birdwatching expeditions, and sanctuary explorations.",
+            "listingCount": 0,
+        },
+        {
+            "id": "food",
+            "slug": "food",
+            "name": "Food Tours & Cooking 🍳",
+            "icon": "utensils",
+            "description": "Traditional Karavali & Malnad culinary workshops and food walks.",
+            "listingCount": 0,
+        },
+        {
+            "id": "cultural-historical",
+            "slug": "cultural-historical",
+            "name": "Cultural & Historical Tours 🏛️",
+            "icon": "landmark",
+            "description": "Heritage temple circuits, palace walks, and ancient monument tours.",
+            "listingCount": 0,
+        },
+    ]
+    return APIResponse(
+        success=True,
+        message="Activity categories retrieved successfully",
+        data=categories,
+    )
+
 
 
 @router.get("", response_model=APIResponse[ServiceListResponse])
@@ -89,7 +150,6 @@ def get_partner_service(
     )
 
 
-@router.put("/partner/{service_id}", response_model=APIResponse[ServiceResponse])
 @router.patch("/partner/{service_id}", response_model=APIResponse[ServiceResponse])
 def update_partner_service(
     service_id: str,
@@ -149,10 +209,31 @@ def create_service(
 @router.get("/{service_id}", response_model=APIResponse[ServiceDetailResponse])
 def get_service_detail(
     service_id: str,
+    current_user: Optional[User] = Depends(get_current_user_optional),
     db: Session = Depends(get_db),
 ):
     """Get full details of a published service including reviews."""
     detail = MarketplaceService.get_service_detail(db, service_id)
+
+    if current_user and detail and detail.service:
+        try:
+            import uuid
+            from app.services.recommendation_engine import RecommendationEngine
+            srv_id = uuid.UUID(detail.service.id) if detail.service.id else None
+            RecommendationEngine.record_interaction(
+                db=db,
+                user_id=current_user.id,
+                event_type="view",
+                service_id=srv_id,
+                metadata={
+                    "category_slug": detail.service.category_slug,
+                    "district": detail.service.district,
+                    "price": detail.service.price,
+                },
+            )
+        except Exception:
+            pass
+
     return APIResponse(
         success=True,
         message="Service details retrieved successfully",

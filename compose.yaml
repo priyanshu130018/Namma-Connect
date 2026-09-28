@@ -9,18 +9,15 @@ services:
     container_name: nammaconnect-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-
-      DATABASE_URL: ${DATABASE_URL}
-      DATABASE_SYNC_URL: ${DATABASE_SYNC_URL}
+      POSTGRES_USER: ${POSTGRES_USER:-namma_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-namma_connect_dev}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-namma_user} -d ${POSTGRES_DB:-namma_connect_dev}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -55,19 +52,19 @@ services:
       - "8000:8000"
     environment:
       PROJECT_NAME: Namma Connect
-      ENV: development
-      DEBUG: "True"
+      ENV: ${ENV:-development}
+      DEBUG: ${DEBUG:-True}
       API_V2_PREFIX: /api/v2
       
-      DATABASE_URL: ${DATABASE_URL}
-      DATABASE_SYNC_URL: ${DATABASE_SYNC_URL}
+      DATABASE_SYNC_URL: ${DATABASE_SYNC_URL:-postgresql://${POSTGRES_USER:-namma_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-namma_connect_dev}}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${POSTGRES_USER:-namma_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-namma_connect_dev}}
 
-      REDIS_URL: redis://redis:6379/0
-      JWT_SECRET: ${JWT_SECRET}
-      JWT_ALGORITHM: HS256
-      ACCESS_TOKEN_EXPIRE_MINUTES: 60
-      REFRESH_TOKEN_EXPIRE_DAYS: 30
-      CORS_ORIGINS: '["http://localhost:5173","http://localhost:3000","http://127.0.0.1:5173"]'
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-30}
+      CORS_ORIGINS: ${CORS_ORIGINS:-'["http://localhost:5173","http://localhost:3000","http://127.0.0.1:5173"]'}
       # External Integrations passed from host .env
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
@@ -78,7 +75,11 @@ services:
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET}
       RESEND_API_KEY: ${RESEND_API_KEY}
+      RESEND_FROM_EMAIL: ${RESEND_FROM_EMAIL}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_API_URL: ${GEMINI_API_URL}
+      GEMINI_MODEL: ${GEMINI_MODEL}
+      TOMTOM_API_KEY: ${TOMTOM_API_KEY}
     volumes:
       - ./v2/backend:/app
     depends_on:
@@ -101,15 +102,19 @@ services:
       context: ./v2/backend
       dockerfile: Dockerfile
     container_name: nammaconnect-worker
-    command: celery -A app.core.celery_app worker --loglevel=info -Q recommendation,analytics,nc_score,notification
+    command: celery -A app.core.celery_app worker --loglevel=info -Q recommendation,analytics,nc_score,notification,translation
     restart: unless-stopped
     environment:
-      ENV: development
-      DEBUG: "True"
-      DATABASE_URL: ${DATABASE_URL}
-      DATABASE_SYNC_URL: ${DATABASE_SYNC_URL}
-      REDIS_URL: redis://redis:6379/0
-      JWT_SECRET: ${JWT_SECRET}
+      ENV: ${ENV:-development}
+      DEBUG: ${DEBUG:-True}
+      DATABASE_SYNC_URL: ${DATABASE_SYNC_URL:-postgresql://${POSTGRES_USER:-namma_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-namma_connect_dev}}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${POSTGRES_USER:-namma_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-namma_connect_dev}}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      # Translation Engine Environment (Google Translate & Gemini LLM)
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_API_URL: ${GEMINI_API_URL}
+      GEMINI_MODEL: ${GEMINI_MODEL}
     volumes:
       - ./v2/backend:/app
     depends_on:
@@ -119,6 +124,12 @@ services:
         condition: service_healthy
     networks:
       - nammaconnect-net
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A app.core.celery_app inspect ping -d celery@$$HOSTNAME || exit 1"]
+      interval: 30s
+      timeout: 10s
+      start_period: 30s
+      retries: 3
 
   # ── 5. Web Application Frontend (React 18 + Vite + Tailwind) ──
   frontend:
@@ -128,17 +139,21 @@ services:
     container_name: nammaconnect-frontend
     restart: unless-stopped
     ports:
-      - "5173:5173"
+      - "5173:80"
     environment:
       VITE_API_URL: http://localhost:8000/api/v2
       VITE_API_PROXY_TARGET: http://backend:8000
       VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
-    volumes:
-      - ./v2/frontend:/app
-      - /app/node_modules
+      VITE_TOMTOM_API_KEY: ${VITE_TOMTOM_API_KEY}
     depends_on:
       backend:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:80/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
     networks:
       - nammaconnect-net
 

@@ -14,11 +14,8 @@ from app.models.partner_application import PartnerApplication
 from app.models.booking import Booking
 from app.models.payment import Payment
 from app.models.notification import Notification
-from app.models.creator import CreatorProfile
 from app.services.embedding import EmbeddingService
 from app.services.search import SemanticSearchService, _cosine_similarity
-from scripts.seed_dev_data import seed_development_data, check_safety_guard as seed_safety_guard
-from scripts.clear_dev_data import clear_development_data, check_safety_guard as clear_safety_guard
 
 
 # ─────────────────────────────────────────────────────────────
@@ -53,18 +50,31 @@ def test_is_test_data_model_defaults(db_session: Session):
 
 
 # ─────────────────────────────────────────────────────────────
-# 2. SAFETY ENVIRONMENT GUARDS
+# 2. TEST FIXTURE ISOLATION & PURGE
 # ─────────────────────────────────────────────────────────────
-def test_seed_and_clear_safety_guard_refuses_production(monkeypatch):
-    """Verify seed and clear scripts refuse execution in production."""
-    monkeypatch.setenv("ENVIRONMENT", "production")
-    with pytest.raises(SystemExit) as exc_info:
-        seed_safety_guard()
-    assert exc_info.value.code == 1
+def test_test_data_isolation_and_filtering(db_session: Session):
+    """Verify test-only fixtures can be flagged and queried independently from production entities."""
+    test_user = User(
+        id=uuid.uuid4(),
+        email=f"fixture.user.{uuid.uuid4()}@test.internal",
+        full_name="Fixture User",
+        role="customer",
+        is_test_data=True,
+    )
+    prod_user = User(
+        id=uuid.uuid4(),
+        email=f"prod.user.{uuid.uuid4()}@example.com",
+        full_name="Prod User",
+        role="customer",
+        is_test_data=False,
+    )
+    db_session.add_all([test_user, prod_user])
+    db_session.commit()
 
-    with pytest.raises(SystemExit) as exc_clear:
-        clear_safety_guard()
-    assert exc_clear.value.code == 1
+    test_count = db_session.query(User).filter(User.is_test_data == True).count()
+    prod_count = db_session.query(User).filter(User.is_test_data == False).count()
+    assert test_count >= 1
+    assert prod_count >= 1
 
 
 # ─────────────────────────────────────────────────────────────
@@ -266,33 +276,3 @@ def test_normal_search_and_ai_chat_use_semantic_pipeline(client: TestClient, db_
     assert len(ai_data["suggested_services"]) >= 1
     assert any(s["id"] == str(srv.id) for s in ai_data["suggested_services"])
 
-
-# ─────────────────────────────────────────────────────────────
-# 6. SEED & CLEANUP SCRIPT INTEGRATION TEST
-# ─────────────────────────────────────────────────────────────
-def test_seed_and_clear_dataset_execution(db_session: Session):
-    """Test safe seeding and cleanup lifecycle on the test database."""
-    # Run seeder
-    seed_development_data(db_session)
-
-    test_users = db_session.query(User).filter(User.is_test_data == True).count()
-    test_services = db_session.query(Service).filter(Service.is_test_data == True).count()
-    test_apps = db_session.query(PartnerApplication).filter(PartnerApplication.is_test_data == True).count()
-
-    assert test_users >= 500
-    assert test_services >= 1000
-    assert test_apps >= 100
-
-    # Verify approval state distribution
-    published_count = db_session.query(Service).filter(Service.is_test_data == True, Service.status == "PUBLISHED").count()
-    pending_count = db_session.query(Service).filter(Service.is_test_data == True, Service.status == "PENDING").count()
-    assert published_count > 0
-    assert pending_count > 0
-
-    # Run cleanup
-    clear_development_data(db_session)
-
-    after_users = db_session.query(User).filter(User.is_test_data == True).count()
-    after_services = db_session.query(Service).filter(Service.is_test_data == True).count()
-    assert after_users == 0
-    assert after_services == 0

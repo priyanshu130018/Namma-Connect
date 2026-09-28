@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
-import { BrowserRouter, MemoryRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, MemoryRouter } from "react-router-dom";
 import {
   CreatorHomePage,
   CreatorServicesPage,
@@ -8,9 +8,10 @@ import {
   CreatorCollaborationsPage,
 } from "@/routes/partner/PartnerCreatorPages";
 import { PartnerCollaborationsPage } from "@/routes/partner/PartnerCollaborations";
-import { CustomerCreatorsPage, CustomerCreatorDetailPage } from "@/routes/customer/Creators";
+import { CustomerCreatorsPage } from "@/routes/customer/Creators";
 import * as creatorService from "@/services/creatorService";
-import { CreatorProfile, CollaborationItem } from "@/types";
+import * as marketplaceService from "@/services/marketplaceService";
+import { CreatorProfile, CollaborationItem, MarketplaceService } from "@/types";
 
 const mockProfile: CreatorProfile = {
   id: "cre-001",
@@ -81,6 +82,30 @@ const mockCollabs: CollaborationItem[] = [
   },
 ];
 
+const mockCreatorService: MarketplaceService = {
+  id: "srv-cr-01",
+  title: "Estate Harvest 4K Cinematography Package",
+  slug: "estate-harvest-4k",
+  description: "Professional aerial drone shoot and 4K reel production for coffee and spice plantations.",
+  category: "Content Creator",
+  category_slug: "content-creator",
+  location: "Madikeri, Coorg",
+  district: "Kodagu",
+  state: "Karnataka",
+  price: 15000,
+  unit: "package",
+  rating: 4.95,
+  reviews_count: 18,
+  is_verified: true,
+  status: "PUBLISHED",
+  provider_name: "Priya Storyteller",
+  provider_type: "Creator",
+  primary_image: "https://images.unsplash.com/photo-1500382017468-9049fed747ef",
+  images: ["https://images.unsplash.com/photo-1500382017468-9049fed747ef"],
+  inclusions: ["2x 4K Reels", "15x High-res photos"],
+  amenities: [],
+};
+
 describe("Creator Collaboration Component Suite", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -100,44 +125,32 @@ describe("Creator Collaboration Component Suite", () => {
       </BrowserRouter>
     );
 
+    expect(screen.getByText("Creator Media Studio")).toBeInTheDocument();
+
     await waitFor(() => {
-      expect(screen.getByText("Creator Media Studio")).toBeInTheDocument();
       expect(screen.getByText("120K+ Reach")).toBeInTheDocument();
-      expect(screen.getByText("1 Campaigns")).toBeInTheDocument();
+      expect(screen.getByText("Arabica Blossom Spring Campaign")).toBeInTheDocument();
     });
 
-    // Toggle Edit Profile
-    const editBtn = screen.getByRole("button", { name: /Edit Profile/i });
-    fireEvent.click(editBtn);
+    fireEvent.click(screen.getByRole("button", { name: /Edit Profile/i }));
 
     const bioInput = screen.getByLabelText(/Bio \/ Creative Pitch/i);
     fireEvent.change(bioInput, { target: { value: "Updated agro-storyteller bio." } });
 
-    const saveBtn = screen.getByRole("button", { name: /Save Profile/i });
-    fireEvent.click(saveBtn);
+    fireEvent.click(screen.getByRole("button", { name: /Save Profile/i }));
 
     await waitFor(() => {
       expect(updateSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ bio: "Updated agro-storyteller bio." })
+        expect.objectContaining({
+          bio: "Updated agro-storyteller bio.",
+        })
       );
     });
   });
 
-  it("renders CreatorServicesPage and adds new package", async () => {
+  it("renders CreatorServicesPage and manages package listings", async () => {
     vi.spyOn(creatorService, "getMyCreatorProfile").mockResolvedValue(mockProfile);
-    const addPackageSpy = vi.spyOn(creatorService, "addOrUpdatePackage").mockResolvedValue({
-      ...mockProfile,
-      packages: [
-        ...mockProfile.packages,
-        {
-          id: "pkg-2",
-          title: "Culinary Farm Recipe Reel Feature",
-          price: 18000,
-          deliverables: ["2x Reels"],
-          turnaround: "3 Business Days",
-        },
-      ],
-    });
+    const addPackageSpy = vi.spyOn(creatorService, "addOrUpdatePackage").mockResolvedValue(mockProfile);
 
     render(
       <BrowserRouter>
@@ -150,17 +163,16 @@ describe("Creator Collaboration Component Suite", () => {
       expect(screen.getByText("Estate Harvest 4K Cinematography Package")).toBeInTheDocument();
     });
 
-    // Toggle Add Package form
     fireEvent.click(screen.getByRole("button", { name: /Add Media Package/i }));
 
     fireEvent.change(screen.getByLabelText(/Package Title/i), {
-      target: { value: "Culinary Farm Recipe Reel Feature" },
+      target: { value: "Mini Drone Reel Package" },
     });
     fireEvent.change(screen.getByLabelText(/Package Price/i), {
-      target: { value: "18000" },
+      target: { value: "8500" },
     });
     fireEvent.change(screen.getByLabelText(/Deliverables/i), {
-      target: { value: "2x Reels, 10x Stills" },
+      target: { value: "1x 4K Reel, 5x Stills" },
     });
 
     fireEvent.click(screen.getByRole("button", { name: /Save Package/i }));
@@ -168,27 +180,17 @@ describe("Creator Collaboration Component Suite", () => {
     await waitFor(() => {
       expect(addPackageSpy).toHaveBeenCalledWith(
         expect.objectContaining({
-          title: "Culinary Farm Recipe Reel Feature",
-          price: 18000,
+          title: "Mini Drone Reel Package",
+          price: 8500,
+          deliverables: ["1x 4K Reel", "5x Stills"],
         })
       );
     });
   });
 
-  it("renders CreatorPortfolioPage and adds media asset", async () => {
+  it("renders CreatorPortfolioPage and manages visual assets", async () => {
     vi.spyOn(creatorService, "getMyCreatorProfile").mockResolvedValue(mockProfile);
-    const addMediaSpy = vi.spyOn(creatorService, "addPortfolioItem").mockResolvedValue({
-      ...mockProfile,
-      portfolio_items: [
-        ...mockProfile.portfolio_items,
-        {
-          title: "Wayanad Bamboo Plantation Story",
-          location: "Wayanad, Kerala",
-          imageUrl: "https://images.unsplash.com/photo-1592417817098",
-          category: "Cinematography",
-        },
-      ],
-    });
+    const addMediaSpy = vi.spyOn(creatorService, "addPortfolioItem").mockResolvedValue(mockProfile);
 
     render(
       <BrowserRouter>
@@ -265,9 +267,14 @@ describe("Creator Collaboration Component Suite", () => {
     });
   });
 
-  it("renders CustomerCreatorsPage and CustomerCreatorDetailPage", async () => {
-    vi.spyOn(creatorService, "getPublicCreators").mockResolvedValue([mockProfile]);
-    vi.spyOn(creatorService, "getPublicCreatorById").mockResolvedValue(mockProfile);
+  it("renders CustomerCreatorsPage with Content Creator services discovery", async () => {
+    vi.spyOn(marketplaceService, "getMarketplaceServices").mockResolvedValue({
+      services: [mockCreatorService],
+      total: 1,
+      page: 1,
+      limit: 16,
+      total_pages: 1,
+    });
 
     render(
       <MemoryRouter initialEntries={["/app/creators"]}>
@@ -276,21 +283,8 @@ describe("Creator Collaboration Component Suite", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Creator Discovery Directory")).toBeInTheDocument();
-      expect(screen.getByText("Priya Storyteller")).toBeInTheDocument();
-    });
-
-    render(
-      <MemoryRouter initialEntries={["/app/creators/cre-001"]}>
-        <Routes>
-          <Route path="/app/creators/:creator_id" element={<CustomerCreatorDetailPage />} />
-        </Routes>
-      </MemoryRouter>
-    );
-
-    await waitFor(() => {
-      expect(screen.getByText("Verified Creator")).toBeInTheDocument();
-      expect(screen.getByText("Available Production Packages")).toBeInTheDocument();
+      expect(screen.getByText("Content Creator Services")).toBeInTheDocument();
+      expect(screen.getByText("Estate Harvest 4K Cinematography Package")).toBeInTheDocument();
     });
   });
 });

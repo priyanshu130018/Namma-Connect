@@ -12,6 +12,8 @@ import {
   AdminPayoutsPage,
   AdminSupportPage,
   AdminSettingsPage,
+  AdminReviewsPage,
+  AdminReportsPage,
 } from "@/routes/admin/AdminPages";
 import * as adminService from "@/services/adminService";
 import {
@@ -23,6 +25,8 @@ import {
   PayoutItem,
   AdminSupportTicketItem,
   AdminPlatformSettings,
+  AdminReviewItem,
+  AdminReportData,
 } from "@/types";
 
 const mockOverview: AdminOverviewData = {
@@ -374,4 +378,90 @@ describe("Admin Operations Component Suite", () => {
       expect(screen.getByText("Disabled (Live)")).toBeInTheDocument();
     });
   });
+
+  it("renders AdminReviewsPage and handles review moderation", async () => {
+    const mockReviews: AdminReviewItem[] = [
+      {
+        id: "rev-01",
+        service_id: "srv-01",
+        service_title: "Organic Coffee Estate Stay",
+        user_name: "Kavya Murthy",
+        rating: 5.0,
+        comment: "Exceptional experience in the coffee estates!",
+        is_verified: true,
+        status: "PUBLISHED",
+        created_at: "2026-08-15T12:00:00Z",
+      },
+    ];
+
+    vi.spyOn(adminService, "getAdminReviews").mockResolvedValue(mockReviews);
+    const modSpy = vi.spyOn(adminService, "moderateAdminReview").mockResolvedValue({
+      ...mockReviews[0],
+      status: "HIDDEN",
+    });
+
+    render(
+      <BrowserRouter>
+        <AdminReviewsPage />
+      </BrowserRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Customer Reviews Moderation")).toBeInTheDocument();
+      expect(screen.getByText("Kavya Murthy")).toBeInTheDocument();
+      expect(screen.getByText('"Exceptional experience in the coffee estates!"')).toBeInTheDocument();
+    });
+
+    const hideBtn = screen.getByRole("button", { name: /^Hide$/i });
+    fireEvent.click(hideBtn);
+
+    const confirmBtn = await screen.findByRole("button", { name: /Hide Review/i });
+    fireEvent.click(confirmBtn);
+
+    await waitFor(() => {
+      expect(modSpy).toHaveBeenCalledWith("rev-01", { status: "HIDDEN" });
+    });
+  });
+
+  it("renders AdminReportsPage with real platform metrics", async () => {
+    const mockReport: AdminReportData = {
+      period: "monthly",
+      total_users: 1420,
+      total_providers: 48,
+      total_services: 30,
+      published_services: 24,
+      total_bookings: 312,
+      total_revenue: 1248000,
+      total_tickets: 15,
+      resolved_tickets: 12,
+      total_reviews: 45,
+      average_platform_rating: 4.8,
+      time_series: [
+        {
+          date: "Month 1",
+          users: 200,
+          services: 10,
+          bookings: 40,
+          revenue: 150000,
+        },
+      ],
+    };
+
+    vi.spyOn(adminService, "getAdminReports").mockResolvedValue(mockReport);
+
+    render(
+      <BrowserRouter>
+        <AdminReportsPage />
+      </BrowserRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("Platform Governance & Performance Reports")).toBeInTheDocument();
+      expect(screen.getByText("1420")).toBeInTheDocument();
+      expect(screen.getByText("48")).toBeInTheDocument();
+      expect(screen.getByText(/1,248,000|12,48,000|1248000/)).toBeInTheDocument();
+      expect(screen.getByText("Chronological Performance Trajectory")).toBeInTheDocument();
+    });
+  });
 });
+

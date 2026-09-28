@@ -3,6 +3,8 @@
 from app.repositories.base import BaseRepository
 from app.repositories.user import UserRepository
 from app.repositories.service import ServiceRepository
+from app.repositories.category import CategoryRepository
+from app.repositories.trip import TripRepository
 from app.repositories.booking import BookingRepository
 from app.repositories.payment import PaymentRepository
 from app.repositories.payout import PayoutRepository
@@ -11,7 +13,10 @@ __all__ = [
     "BaseRepository",
     "UserRepository",
     "ServiceRepository",
+    "CategoryRepository",
+    "TripRepository",
     "BookingRepository",
     "PaymentRepository",
     "PayoutRepository",
 ]
+

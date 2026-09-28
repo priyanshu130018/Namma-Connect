@@ -141,10 +141,12 @@ export async function getAdminBookings(params?: {
 }
 
 export async function getAdminPayments(params?: {
+  status?: string;
   limit?: number;
   offset?: number;
 }): Promise<AdminPaymentAuditItem[]> {
   const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.append("status", params.status);
   if (params?.limit) searchParams.append("limit", params.limit.toString());
   if (params?.offset) searchParams.append("offset", params.offset.toString());
 
@@ -291,3 +293,58 @@ export async function unblockAdminProvider(providerId: string): Promise<AdminUse
   );
   return response.data.data;
 }
+
+export async function getAdminProviders(params?: {
+  search?: string;
+  kyc_status?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<import("@/types").AdminProviderItem[]> {
+  const searchParams = new URLSearchParams();
+  if (params?.search) searchParams.append("search", params.search);
+  if (params?.kyc_status) searchParams.append("kyc_status", params.kyc_status);
+  if (params?.limit) searchParams.append("limit", params.limit.toString());
+  if (params?.offset) searchParams.append("offset", params.offset.toString());
+  const queryStr = searchParams.toString();
+  const url = queryStr ? `/admin/providers?${queryStr}` : "/admin/providers";
+  const response = await apiClient.get<{ success: boolean; data: import("@/types").AdminProviderItem[] }>(url);
+  return response.data.data;
+}
+
+export async function getAdminReviews(params?: {
+  status?: string;
+  search?: string;
+  rating?: number;
+  limit?: number;
+  offset?: number;
+}): Promise<import("@/types").AdminReviewItem[]> {
+  const searchParams = new URLSearchParams();
+  if (params?.status) searchParams.append("status", params.status);
+  if (params?.search) searchParams.append("search", params.search);
+  if (params?.rating) searchParams.append("rating", params.rating.toString());
+  if (params?.limit) searchParams.append("limit", params.limit.toString());
+  if (params?.offset) searchParams.append("offset", params.offset.toString());
+  const queryStr = searchParams.toString();
+  const url = queryStr ? `/admin/reviews?${queryStr}` : "/admin/reviews";
+  const response = await apiClient.get<{ success: boolean; data: import("@/types").AdminReviewItem[] }>(url);
+  return response.data.data;
+}
+
+export async function moderateAdminReview(
+  reviewId: string,
+  payload: { status: string; notes?: string }
+): Promise<import("@/types").AdminReviewItem> {
+  const response = await apiClient.post<{ success: boolean; data: import("@/types").AdminReviewItem }>(
+    `/admin/reviews/${reviewId}/moderate`,
+    payload
+  );
+  return response.data.data;
+}
+
+export async function getAdminReports(period: string = "monthly"): Promise<import("@/types").AdminReportData> {
+  const response = await apiClient.get<{ success: boolean; data: import("@/types").AdminReportData }>(
+    `/admin/reports?period=${period}`
+  );
+  return response.data.data;
+}
+

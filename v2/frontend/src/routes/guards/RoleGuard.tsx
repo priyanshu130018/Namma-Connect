@@ -6,17 +6,17 @@ import { Button } from "@/components/ui/button";
 
 export function RoleGuard({ allowedRoles }: { allowedRoles: UserRole[] }) {
   const { user } = useAuth();
-  const currentRole: UserRole = user?.role || "customer";
+  const currentRole: UserRole = user?.role || "user";
 
-  const isAllowed = allowedRoles.includes(currentRole) || (currentRole as string) === "admin";
+  // Determine if the current role is allowed. "admin" always has access.
+  const isAllowed = allowedRoles.includes(currentRole) || currentRole === "admin";
 
   if (!isAllowed) {
     const roleStr = String(currentRole);
+    // Map legacy role strings to appropriate fallback paths
     const returnPath =
-      roleStr === "partner" || roleStr === "farmer"
-        ? "/partner"
-        : roleStr === "creator"
-        ? "/partner/creator"
+      roleStr === "provider" || roleStr === "partner" || roleStr === "farmer" || roleStr === "creator"
+        ? "/provider"
         : roleStr === "admin"
         ? "/admin"
         : "/app";

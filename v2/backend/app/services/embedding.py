@@ -20,6 +20,8 @@ class EmbeddingService:
     @classmethod
     def is_configured(cls) -> bool:
         """Check if Gemini API Key is configured with valid production credentials."""
+        if settings.ENV in ["test", "testing"]:
+            return False
         k = (settings.GEMINI_API_KEY or "").strip()
         if not k or k.startswith("your-") or k.startswith("placeholder") or k.startswith("dummy"):
             return False
@@ -185,7 +187,7 @@ class EmbeddingService:
         clean_text = text.strip()
 
         if cls.is_configured():
-            url = f"https://generativelanguage.googleapis.com/v1beta/{cls.MODEL_NAME}:embedContent?key={settings.GEMINI_API_KEY}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/{cls.MODEL_NAME}:embedContent"
             payload = {
                 "model": cls.MODEL_NAME,
                 "content": {"parts": [{"text": clean_text}]},
@@ -193,7 +195,14 @@ class EmbeddingService:
             }
             try:
                 data = json.dumps(payload).encode("utf-8")
-                req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+                req = urllib.request.Request(
+                    url,
+                    data=data,
+                    headers={
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": settings.GEMINI_API_KEY,
+                    },
+                )
                 with urllib.request.urlopen(req, timeout=2) as resp:
                     res = json.loads(resp.read().decode("utf-8"))
                     values = res.get("embedding", {}).get("values", [])
@@ -217,7 +226,7 @@ class EmbeddingService:
 
         for i in range(0, len(texts), batch_size):
             chunk = texts[i : i + batch_size]
-            url = f"https://generativelanguage.googleapis.com/v1beta/{cls.MODEL_NAME}:batchEmbedContents?key={settings.GEMINI_API_KEY}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/{cls.MODEL_NAME}:batchEmbedContents"
             requests_list = [
                 {
                     "model": cls.MODEL_NAME,
@@ -229,7 +238,14 @@ class EmbeddingService:
             payload = {"requests": requests_list}
             try:
                 data = json.dumps(payload).encode("utf-8")
-                req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json"})
+                req = urllib.request.Request(
+                    url,
+                    data=data,
+                    headers={
+                        "Content-Type": "application/json",
+                        "x-goog-api-key": settings.GEMINI_API_KEY,
+                    },
+                )
                 with urllib.request.urlopen(req, timeout=30) as resp:
                     res = json.loads(resp.read().decode("utf-8"))
                     embs = res.get("embeddings", [])

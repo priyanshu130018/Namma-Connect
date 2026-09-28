@@ -24,6 +24,10 @@ from app.schemas.admin import (
     AdminSupportTicketItem,
     AdminPlatformSettingsResponse,
     AdminPlatformSettingsUpdateRequest,
+    AdminReviewItemResponse,
+    AdminReviewModerationRequest,
+    AdminReportMetricsResponse,
+    AdminProviderItemResponse,
 )
 from app.schemas.service import ServiceResponse
 from app.schemas.booking import ProviderBookingResponse
@@ -470,3 +474,72 @@ def list_admin_collaborations(
         message=f"Retrieved {len(collabs)} collaborations",
         data=collabs,
     )
+
+
+@router.get("/providers", response_model=APIResponse[List[AdminProviderItemResponse]])
+def list_admin_providers(
+    search: Optional[str] = Query(None, description="Search by provider name or email"),
+    kyc_status: Optional[str] = Query(None, description="Filter by KYC status (PENDING, APPROVED, REJECTED, NOT_SUBMITTED)"),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """List provider accounts with KYC status, service count, and masked identity verification."""
+    providers = AdminService.list_providers(db, search=search, kyc_status=kyc_status, limit=limit, offset=offset)
+    return APIResponse(
+        success=True,
+        message=f"Retrieved {len(providers)} providers",
+        data=providers,
+    )
+
+
+@router.get("/reviews", response_model=APIResponse[List[AdminReviewItemResponse]])
+def list_admin_reviews(
+    status: Optional[str] = Query(None, description="Filter by status (PUBLISHED, HIDDEN, FLAGGED, REJECTED)"),
+    search: Optional[str] = Query(None, description="Search by user name or review content"),
+    rating: Optional[float] = Query(None, description="Filter by exact rating (1.0 to 5.0)"),
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """List customer reviews for platform moderation."""
+    reviews = AdminService.list_reviews(db, status_filter=status, search=search, rating_filter=rating, limit=limit, offset=offset)
+    return APIResponse(
+        success=True,
+        message=f"Retrieved {len(reviews)} reviews",
+        data=reviews,
+    )
+
+
+@router.post("/reviews/{review_id}/moderate", response_model=APIResponse[AdminReviewItemResponse])
+def moderate_admin_review(
+    review_id: str,
+    req: AdminReviewModerationRequest,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Moderate review visibility or state (PUBLISHED, HIDDEN, FLAGGED, REJECTED)."""
+    review = AdminService.moderate_review(db, review_id, req.status, notes=req.notes, admin_user=_admin)
+    return APIResponse(
+        success=True,
+        message=f"Review status updated to '{req.status}'",
+        data=review,
+    )
+
+
+@router.get("/reports", response_model=APIResponse[AdminReportMetricsResponse])
+def get_admin_reports(
+    period: Optional[str] = Query("monthly", description="Time aggregation period: daily, weekly, monthly, yearly, all_time"),
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Retrieve comprehensive platform performance and audit reports from database."""
+    report = AdminService.get_platform_reports(db, period=period or "monthly")
+    return APIResponse(
+        success=True,
+        message="Platform reports generated successfully",
+        data=report,
+    )
+

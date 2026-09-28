@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Calendar,
@@ -10,6 +10,8 @@ import {
   AlertCircle,
   Bell,
   ArrowUpRight,
+  Trash2,
+  Lock,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -19,6 +21,7 @@ import {
   getNotifications,
   markNotificationRead,
   markAllNotificationsRead,
+  deleteNotification,
 } from "@/services/communicationService";
 import { AppNotification } from "@/types";
 
@@ -26,6 +29,7 @@ export function CustomerNotificationsPage() {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [sortBy, setSortBy] = useState<string>("newest");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,7 +37,7 @@ export function CustomerNotificationsPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const data = await getNotifications();
+      const data = await getNotifications(sortBy);
       setNotifications(data.notifications || []);
       setUnreadCount(data.unread_count || 0);
     } catch (err: unknown) {
@@ -42,7 +46,7 @@ export function CustomerNotificationsPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [sortBy]);
 
   useEffect(() => {
     loadNotifications();
@@ -66,6 +70,22 @@ export function CustomerNotificationsPage() {
       setUnreadCount(0);
     } catch (err: unknown) {
       console.error("Failed to mark all read:", err);
+    }
+  };
+
+  const handleDelete = async (n: AppNotification, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (n.is_deletable === false || n.title === "Welcome to Namma Connect") {
+      return;
+    }
+    try {
+      await deleteNotification(n.id);
+      setNotifications((prev) => prev.filter((item) => item.id !== n.id));
+      if (!n.is_read) {
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      }
+    } catch (err: unknown) {
+      console.error("Failed to delete notification:", err);
     }
   };
 
@@ -100,7 +120,6 @@ export function CustomerNotificationsPage() {
     }
   };
 
-
   const formatTime = (dateStr?: string | null) => {
     if (!dateStr) return "Just now";
     const date = new Date(dateStr);
@@ -116,28 +135,41 @@ export function CustomerNotificationsPage() {
     <div className="space-y-6 max-w-4xl mx-auto pb-12">
       <PageHeader
         title="Notifications Center"
-        subtitle="Stay updated on booking confirmations, check-in alerts, and seasonal agro-harvest events."
+        subtitle="Stay updated on booking confirmations, check-in alerts, and system announcements."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Sort Filter Dropdown */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="h-9 px-3 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              <option value="newest">Newest First</option>
+              <option value="oldest">Oldest First</option>
+              <option value="name_asc">Title A-Z</option>
+              <option value="name_desc">Title Z-A</option>
+            </select>
+
             <Button
               variant="outline"
               size="sm"
               onClick={loadNotifications}
               disabled={isLoading}
-              className="gap-1.5"
+              className="gap-1.5 rounded-xl text-xs font-bold"
             >
               <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
+
             {unreadCount > 0 && (
               <Button
                 size="sm"
                 variant="outline"
                 onClick={handleMarkAllRead}
-                className="gap-1.5 text-xs font-bold text-slate-700 hover:text-emerald-700"
+                className="gap-1.5 text-xs font-bold rounded-xl text-slate-700 dark:text-slate-200 hover:text-emerald-700"
               >
                 <CheckCheck className="h-4 w-4 text-emerald-600" />
-                <span>Mark all as read</span>
+                <span>Mark all read</span>
               </Button>
             )}
           </div>
@@ -173,9 +205,9 @@ export function CustomerNotificationsPage() {
       {!isLoading && !error && notifications.length === 0 && (
         <Card className="p-12 rounded-3xl border-dashed border-2 border-slate-200 dark:border-slate-800 text-center bg-white dark:bg-slate-900 space-y-3">
           <Bell className="h-10 w-10 text-emerald-600 dark:text-emerald-400 mx-auto" />
-          <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">No notifications yet.</h3>
+          <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">No notifications found.</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
-            You're all caught up! Updates regarding your bookings, payments, and seasonal retreat alerts will appear here.
+            You're all caught up! Updates regarding your bookings, payments, and account alerts will appear here.
           </p>
         </Card>
       )}
@@ -185,6 +217,7 @@ export function CustomerNotificationsPage() {
           {notifications.map((n) => {
             const Icon = getIcon(n.type);
             const hasLink = Boolean(n.resource_type && n.resource_id);
+            const isPermanentSystemNotif = n.is_deletable === false || n.title === "Welcome to Namma Connect";
 
             return (
               <Card
@@ -216,6 +249,11 @@ export function CustomerNotificationsPage() {
                         <Badge variant="outline" className="text-[9px] uppercase font-bold text-slate-500 dark:text-slate-400">
                           {n.type}
                         </Badge>
+                        {isPermanentSystemNotif && (
+                          <Badge variant="secondary" className="text-[9px] font-bold bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300">
+                            Permanent System Notification
+                          </Badge>
+                        )}
                       </div>
                       <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium shrink-0">
                         {formatTime(n.created_at)}
@@ -231,16 +269,34 @@ export function CustomerNotificationsPage() {
                     )}
                   </div>
 
-                  {!n.is_read && (
-                    <button
-                      type="button"
-                      onClick={(e) => handleMarkRead(n.id, e)}
-                      title="Mark as read"
-                      className="p-1 text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400"
-                    >
-                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-600 block shrink-0" />
-                    </button>
-                  )}
+                  {/* Actions: Delete & Read dot */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {!n.is_read && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleMarkRead(n.id, e)}
+                        title="Mark as read"
+                        className="p-1 text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400"
+                      >
+                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-600 block shrink-0" />
+                      </button>
+                    )}
+
+                    {isPermanentSystemNotif ? (
+                      <span title="System notification cannot be deleted" className="p-1 text-slate-300 dark:text-slate-600 cursor-not-allowed">
+                        <Lock className="h-4 w-4" />
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={(e) => handleDelete(n, e)}
+                        title="Delete notification"
+                        className="p-1 text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </Card>
             );

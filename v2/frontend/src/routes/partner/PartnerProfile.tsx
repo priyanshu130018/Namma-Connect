@@ -25,16 +25,16 @@ export function PartnerProfilePage() {
   const [requestSubmitted, setRequestSubmitted] = useState(false);
 
   const [providerInfo, setProviderInfo] = useState({
-    name: user?.full_name || "Somanna (Kodagu Organics)",
-    email: user?.email || "partner@kodaguorganics.in",
-    phone: "+91 94481 23456",
-    estateName: "Kodagu Heritage Plantation",
-    location: "Madikeri, Coorg, Karnataka - 571201",
-    bio: "Generational coffee grower and biodiverse agro-culturist dedicated to shade-grown Arabica and sustainable honey harvesting.",
+    name: user?.full_name || "Provider Host",
+    email: user?.email || "provider@nammaconnect.in",
+    phone: user?.mobile || "+91 99000 99000",
+    estateName: user?.business_name || (user?.full_name ? `${user.full_name}'s Enterprise` : "NammaConnect Host Facility"),
+    location: user?.location || "Karnataka, India",
+    bio: "Verified local host offering authentic stays, agricultural tours, workshops, and experiences across Karnataka.",
   });
 
   const [changeRequest, setChangeRequest] = useState({
-    field: "Land Title Deed",
+    field: "Government Identification / KYC",
     requestedValue: "",
     reason: "",
   });
@@ -53,26 +53,26 @@ export function PartnerProfilePage() {
     <div className="space-y-6 max-w-4xl mx-auto pb-16">
       <PageHeader
         title="Host & Property Profile"
-        subtitle="Manage public host bio, operational contacts, and inspect verified KYC land ownership credentials."
+        subtitle="Manage public host bio, operational contacts, and inspect verified KYC credentials."
       />
 
       {/* 1. Header Card */}
-      <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 bg-white">
+      <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 bg-white dark:bg-slate-900 dark:border-slate-800">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
           <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-harvest-600 to-amber-700 text-2xl font-black text-white shadow-md shadow-harvest-600/20">
             <Sprout className="h-10 w-10" />
           </div>
           <div className="space-y-1 flex-1">
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900">
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-slate-100">
                 {providerInfo.name}
               </h2>
               <Badge variant="default" dot className="bg-emerald-50 text-emerald-800 border-emerald-200">
-                Verified Agricultural Host
+                Verified Provider Host
               </Badge>
             </div>
             <p className="text-xs text-slate-500">{providerInfo.estateName} • {providerInfo.email}</p>
-            <div className="flex items-center justify-center sm:justify-start gap-1 pt-2 text-xs text-slate-600">
+            <div className="flex items-center justify-center sm:justify-start gap-1 pt-2 text-xs text-slate-600 dark:text-slate-400">
               <MapPin className="h-3.5 w-3.5 text-harvest-700 shrink-0" />
               <span>{providerInfo.location}</span>
             </div>

@@ -18,8 +18,11 @@ from app.schemas.auth import (
     VerifyEmailRequest,
     VerifyPhoneRequest,
     ResendVerificationRequest,
+    PasswordOTPRequest,
+    PasswordOTPVerifyRequest,
+    PasswordChangeWithOTPRequest,
 )
-from app.schemas.common import MessageResponse
+from app.schemas.common import MessageResponse, APIResponse
 from app.services.auth import AuthService
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -123,6 +126,27 @@ async def reset_password(req: ResetPasswordRequest, db: Session = Depends(get_db
     )
 
 
+@router.post("/change-password/request-otp", response_model=APIResponse[dict])
+async def request_change_password_otp(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Step 1: Request OTP for password change."""
+    res = AuthService.request_password_otp(db, current_user)
+    return APIResponse(success=True, message=res["message"], data=res)
+
+
+@router.post("/change-password/verify-otp", response_model=APIResponse[dict])
+async def verify_change_password_otp(
+    req: PasswordOTPVerifyRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Step 1 verification: Verify OTP for password change."""
+    res = AuthService.verify_password_otp(db, current_user, req.otp)
+    return APIResponse(success=True, message=res["message"], data=res)
+
+
 @router.post("/change-password", response_model=MessageResponse)
 async def change_password(
     req: ChangePasswordRequest,
@@ -132,6 +156,18 @@ async def change_password(
     """Change password for the currently authenticated user."""
     AuthService.change_password(db, str(current_user.id), req)
     return MessageResponse(success=True, message="Password updated successfully.")
+
+
+@router.post("/change-password/confirm", response_model=MessageResponse)
+async def change_password_with_otp_confirm(
+    req: PasswordChangeWithOTPRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Step 2: Update password with verified OTP token."""
+    AuthService.change_password_with_otp(db, current_user, req.otp_token, req.new_password)
+    return MessageResponse(success=True, message="Password updated successfully.")
+
 
 
 @router.post("/verify-email", response_model=MessageResponse)

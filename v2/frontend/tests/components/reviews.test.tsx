@@ -140,12 +140,12 @@ describe("Customer Reviews & Ratings Suite", () => {
       </MemoryRouter>
     );
 
-    // Switch to Completed tab
+    // Switch to History / Completed tab
     await waitFor(() => {
-      expect(screen.getByText(/Completed \(1\)/i)).toBeInTheDocument();
+      expect(screen.getByText(/History \(1\)/i)).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText(/Completed \(1\)/i));
+    fireEvent.click(screen.getByText(/History \(1\)/i));
 
     await waitFor(() => {
       expect(screen.getByText("Highland Arabica Coffee Estate Stay")).toBeInTheDocument();

@@ -38,7 +38,18 @@ def register_exception_handlers(app: FastAPI):
     async def http_exception_handler(request: Request, exc: HTTPException):
         req_id = getattr(request.state, "request_id", None)
         message = exc.detail if isinstance(exc.detail, str) else "Request error occurred."
-        code = "NOT_FOUND" if exc.status_code == 404 else f"HTTP_{exc.status_code}"
+        code_map = {
+            400: "BAD_REQUEST",
+            401: "UNAUTHORIZED",
+            403: "FORBIDDEN",
+            404: "NOT_FOUND",
+            409: "CONFLICT",
+            422: "VALIDATION_ERROR",
+            429: "RATE_LIMITED",
+            500: "SERVER_ERROR",
+            503: "SERVICE_UNAVAILABLE",
+        }
+        code = code_map.get(exc.status_code, f"HTTP_{exc.status_code}")
         return JSONResponse(
             status_code=exc.status_code,
             headers=getattr(exc, "headers", None),
@@ -52,6 +63,7 @@ def register_exception_handlers(app: FastAPI):
                     "code": code,
                     "message": message,
                     "request_id": req_id,
+                    "details": None,
                 },
             },
         )
@@ -69,7 +81,7 @@ def register_exception_handlers(app: FastAPI):
                 "errors": exc.errors() if settings.DEBUG else None,
                 "error": {
                     "code": "VALIDATION_ERROR",
-                    "message": "The submitted payload failed validation.",
+                    "message": "Please correct the highlighted fields.",
                     "request_id": req_id,
                     "details": exc.errors() if settings.DEBUG else None,
                 },
@@ -93,6 +105,11 @@ def register_exception_handlers(app: FastAPI):
                 "success": False,
                 "message": "An internal server error occurred.",
                 "request_id": req_id,
-                "error_detail": str(exc) if settings.DEBUG else None,
+                "error": {
+                    "code": "SERVER_ERROR",
+                    "message": "Something went wrong. The service is temporarily unavailable.",
+                    "request_id": req_id,
+                    "details": str(exc) if settings.DEBUG else None,
+                },
             },
         )

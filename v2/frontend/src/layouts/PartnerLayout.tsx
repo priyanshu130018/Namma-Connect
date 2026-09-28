@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { DashboardNavbar } from "@/components/layout/DashboardNavbar";
+import { CustomerNavbar } from "@/components/layout/CustomerNavbar";
 import { PartnerSidebar } from "@/components/layout/PartnerSidebar";
 import { cn } from "@/lib/utils";
 
@@ -10,13 +10,13 @@ export function PartnerLayout() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
-      {/* Top Navbar */}
-      <DashboardNavbar
-        onToggleMobileSidebar={() => setIsMobileOpen(true)}
+      {/* Consistent Authenticated Top Navbar */}
+      <CustomerNavbar
+        onToggleSidebar={() => setIsMobileOpen(!isMobileOpen)}
       />
 
       <div className="flex flex-1 relative pt-16">
-        {/* Collapsible Left Sidebar */}
+        {/* Collapsible Left Provider Sidebar */}
         <PartnerSidebar
           isCollapsed={isCollapsed}
           onToggleCollapse={() => setIsCollapsed(!isCollapsed)}
@@ -28,7 +28,7 @@ export function PartnerLayout() {
         <main
           className={cn(
             "flex-1 transition-all duration-300 ease-in-out p-4 sm:p-6 lg:p-8 min-w-0",
-            isCollapsed ? "md:ml-16" : "md:ml-64"
+            isCollapsed ? "lg:ml-16" : "lg:ml-64"
           )}
         >
           <div className="mx-auto max-w-7xl">

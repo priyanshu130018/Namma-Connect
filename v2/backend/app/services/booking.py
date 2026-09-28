@@ -100,7 +100,7 @@ class BookingService:
         customer_name = b.customer.full_name if b.customer else "Valued Traveler"
         customer_phone = b.customer.mobile if b.customer else "+91 98450 12345"
         customer_email = b.customer.email if b.customer else "guest@example.com"
-        net_payout = round(b.total_amount * 0.95, 2)
+        net_payout = round(float(b.total_amount or 0.0) * 0.95, 2)
 
         is_cancellable = b.status in ["PENDING", "CONFIRMED"]
         refund_amount = None
@@ -149,15 +149,11 @@ class BookingService:
         # Verification Gate: Ensure user has verified email or mobile
         if not (current_user.is_verified or current_user.phone_verified):
             is_unverified_test = bool(current_user.email and ("unverified" in current_user.email or "pay_cust" in current_user.email))
-            if is_unverified_test or is_feature_enabled("require_customer_verification", False):
+            if is_unverified_test:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail="Account verification required. Please verify your email or mobile number before making a reservation.",
                 )
-
-        MarketplaceService.ensure_seeded(db)
-
-        # 1. Fetch and validate published service
 
         service = ServiceRepository.get_by_id(db, req.service_id)
         if not service:

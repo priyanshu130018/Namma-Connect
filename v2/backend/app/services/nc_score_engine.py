@@ -68,12 +68,14 @@ class NCScoreEngine:
             services = [s for s in services if s.id == service_id]
 
         total_reviews = sum(s.reviews_count for s in services)
-        avg_rating = sum(s.rating * s.reviews_count for s in services) / float(total_reviews) if total_reviews > 0 else 4.5
-
-        prior_weight = 5.0
-        prior_mean = 4.0
-        adjusted_rating = ((total_reviews * avg_rating) + (prior_weight * prior_mean)) / (total_reviews + prior_weight)
-        bayesian_rating = max(0.0, min(1.0, adjusted_rating / 5.0))
+        if total_reviews > 0:
+            avg_rating = sum(s.rating * s.reviews_count for s in services) / float(total_reviews)
+            prior_weight = 5.0
+            prior_mean = 4.0
+            adjusted_rating = ((total_reviews * avg_rating) + (prior_weight * prior_mean)) / (total_reviews + prior_weight)
+            bayesian_rating = max(0.0, min(1.0, adjusted_rating / 5.0))
+        else:
+            bayesian_rating = 0.0
 
         # 2. COMPLETION RATE (0..1)
         bookings = db.query(Booking).filter(Booking.provider_id == provider_id).all()
@@ -84,7 +86,7 @@ class NCScoreEngine:
         if (completed_b + cancelled_b) > 0:
             completion_rate = completed_b / float(completed_b + cancelled_b)
         else:
-            completion_rate = 1.0  # Default full score for new providers with zero cancellations
+            completion_rate = 0.0
 
         # 3. RESPONSE TIME (0..1) - Real computed from ProviderResponseMetrics or default
         resp_metric = db.query(ProviderResponseMetrics).filter(ProviderResponseMetrics.provider_id == provider_id).first()
@@ -96,13 +98,13 @@ class NCScoreEngine:
             cancellation_rate = cancelled_b / float(total_b)
             reliability_score = max(0.0, min(1.0, 1.0 - cancellation_rate))
         else:
-            reliability_score = 1.0
+            reliability_score = 0.0
 
         # 5. ACCEPTANCE RATE (0..1)
         daily_metrics = db.query(ProviderDailyMetrics).filter(ProviderDailyMetrics.provider_id == provider_id).all()
         total_leads = sum(m.total_leads for m in daily_metrics) if daily_metrics else 0
         accepted_leads = sum(m.accepted_leads for m in daily_metrics) if daily_metrics else 0
-        acceptance_rate = (accepted_leads / float(total_leads)) if total_leads > 0 else 1.0
+        acceptance_rate = (accepted_leads / float(total_leads)) if total_leads > 0 else 0.0
 
         # 6. REPEAT CUSTOMERS (0..1)
         if total_b > 0:
@@ -110,7 +112,7 @@ class NCScoreEngine:
             repeat_customers = len(customer_ids) - len(set(customer_ids))
             repeat_score = min(1.0, max(0.0, repeat_customers / float(total_b)))
         else:
-            repeat_score = 0.5  # Neutral starting score for new providers
+            repeat_score = 0.0
 
         # 7. PROFILE COMPLETENESS (0..1)
         completeness_checks = [

@@ -77,7 +77,7 @@ export function PartnerServicesPage() {
               <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin" : ""}`} />
               <span className="hidden sm:inline">Refresh</span>
             </Button>
-            <Link to="/partner/services/new">
+            <Link to="/provider/listings/new">
               <Button size="sm" className="gap-2 font-bold bg-harvest-600 hover:bg-harvest-700 text-white shadow-sm">
                 <PlusCircle className="h-4 w-4" />
                 <span>+ Add Service</span>
@@ -130,7 +130,7 @@ export function PartnerServicesPage() {
               Start publishing your rural experiences, plantation stays, or guided agro-trails to reach travelers.
             </p>
           </div>
-          <Link to="/partner/services/new" className="inline-block pt-2">
+          <Link to="/provider/services/new" className="inline-block pt-2">
             <Button className="bg-harvest-600 hover:bg-harvest-700 text-white font-bold gap-2">
               <PlusCircle className="h-4 w-4" />
               <span>Create Your First Service</span>
@@ -203,7 +203,7 @@ export function PartnerServicesPage() {
                     </span>
 
                     <div className="flex items-center gap-2">
-                      <Link to={`/partner/services/${service.id}`}>
+                      <Link to={`/provider/services/${service.id}`}>
                         <Button size="sm" variant="outline" className="gap-1.5 text-xs font-bold">
                           <Edit className="h-3.5 w-3.5 text-slate-600" />
                           <span>Edit Listing</span>

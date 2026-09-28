@@ -24,10 +24,8 @@ export function RegisterPage() {
     if (isAuthenticated && user) {
       const roleStr = String(user.role);
       const target =
-        roleStr === "partner" || roleStr === "farmer"
-          ? "/partner"
-          : roleStr === "creator"
-          ? "/partner/creator"
+        roleStr === "provider" || roleStr === "partner" || roleStr === "farmer" || roleStr === "creator"
+          ? "/provider"
           : roleStr === "admin"
           ? "/admin"
           : "/app";

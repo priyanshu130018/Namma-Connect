@@ -7,6 +7,7 @@ export { PartnerBookingDetailPage } from "./PartnerBookingDetail";
 export { PartnerCollaborationsPage } from "./PartnerCollaborations";
 export { PartnerEarningsPage } from "./PartnerEarnings";
 export { PartnerProfilePage } from "./PartnerProfile";
+export { PartnerAnalyticsPage } from "./PartnerAnalytics";
 export { PartnerSettingsPage } from "./PartnerSettings";
 
 export {

@@ -1,0 +1,47 @@
+"""User domain database model."""
+
+import uuid
+from sqlalchemy import Boolean, Column, DateTime, String, Text
+from app.models.base import Base, GUID, TimestampMixin
+from app.core.enums import UserRole, AuthProvider
+
+
+class User(Base, TimestampMixin):
+    """Authoritative User entity representing customers, providers, and administrators."""
+
+    __tablename__ = "users"
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=True)
+    full_name = Column(String(255), nullable=False)
+    mobile = Column(String(32), unique=True, index=True, nullable=True)
+    role = Column(String(32), default=UserRole.CUSTOMER.value, nullable=False, index=True)
+    is_active = Column(Boolean, default=True, nullable=False)
+    is_verified = Column(Boolean, default=False, nullable=False)
+    phone_verified = Column(Boolean, default=False, nullable=False)
+    auth_provider = Column(String(32), default=AuthProvider.LOCAL.value, nullable=False)
+    google_id = Column(String(255), unique=True, nullable=True, index=True)
+    avatar_url = Column(String(512), nullable=True)
+    location = Column(String(255), nullable=True, default="Bengaluru, Karnataka")
+    language = Column(String(64), nullable=False, default="English, Kannada")
+    theme_preference = Column(String(32), nullable=False, default="system")
+    notification_preferences = Column(
+        String(1024),
+        nullable=True,
+        default='{"email": true, "sms": true, "promo": false, "bookings": true, "payments": true, "support": true}',
+    )
+    privacy_preferences = Column(
+        String(512),
+        nullable=True,
+        default='{"share_profile": true, "personalize_location": true}',
+    )
+    bio = Column(Text, nullable=True)
+    gender = Column(String(32), nullable=True)
+    date_of_birth = Column(String(32), nullable=True)
+    tags_json = Column(Text, nullable=False, default="[]")
+    password_otp_hash = Column(String(255), nullable=True)
+    password_otp_expires_at = Column(DateTime, nullable=True)
+    email_otp_hash = Column(String(255), nullable=True)
+    email_otp_expires_at = Column(DateTime, nullable=True)
+    is_test_data = Column(Boolean, default=False, nullable=False, index=True)

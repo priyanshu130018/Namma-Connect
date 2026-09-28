@@ -864,3 +864,171 @@ def test_hybrid_candidate_deduplication(db_session: Session):
         db_session.delete(srv)
         db_session.delete(provider)
         db_session.commit()
+
+
+def test_informational_queries_return_no_service_cards(client: TestClient):
+    """Verify general travel questions (season, culture, facts) return text replies with 0 suggested service cards."""
+    informational_queries = [
+        "What is the best season to visit Coorg?",
+        "Why is Coorg famous?",
+        "Tell me about Karnataka culture and traditional food",
+        "When does the monsoon start in Western Ghats?",
+    ]
+    for query in informational_queries:
+        resp = client.post("/api/v2/ai/travel/chat", json={
+            "message": query,
+            "language": "en",
+        })
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        assert data["suggested_services"] == [], f"Expected 0 suggested services for general query '{query}', got {data['suggested_services']}"
+        assert data["reply"], f"Expected informative reply for '{query}'"
+        assert data["source"] == "gemini_general"
+
+
+def test_short_catalog_search_coconut_returns_service(client: TestClient, db_session: Session):
+    """Verify single word/short catalog search 'coconut' routes to catalog search and retrieves matching coconut service."""
+    provider = User(
+        id=uuid.uuid4(),
+        email=f"coconut.host.{uuid.uuid4()}@nammaconnect.test",
+        full_name="Coconut Farmer",
+        role="partner",
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(provider)
+    db_session.commit()
+
+    coconut_srv = Service(
+        id=uuid.uuid4(),
+        provider_id=provider.id,
+        title="Mandya Organic Coconut Grove & Neera Tasting",
+        slug=f"coconut-grove-{uuid.uuid4()}",
+        description="Explore lush coconut groves with fresh organic coconut water and traditional harvesting in Mandya.",
+        category="Experiences",
+        category_slug="experiences",
+        location="Maddur, Mandya, Karnataka",
+        district="Mandya",
+        price=450.0,
+        rating=4.9,
+        status="PUBLISHED",
+        is_verified=True,
+        provider_name="Coconut Farmer",
+        primary_image="https://example.com/coconut.jpg",
+        inclusions_json='["Coconut Tasting", "Tree Climbing Demo"]',
+        amenities_json='["Parking", "Restrooms"]',
+        embedding=EmbeddingService.generate_embedding("Mandya Organic Coconut Grove Neera Tasting fresh coconut water"),
+    )
+    db_session.add(coconut_srv)
+    db_session.commit()
+
+    try:
+        # Search for short term "coconut"
+        resp = client.post("/api/v2/ai/travel/chat", json={
+            "message": "coconut",
+        })
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        suggested = data.get("suggested_services", [])
+        assert len(suggested) >= 1, "Expected at least 1 suggested service for 'coconut'"
+        suggested_ids = [s["id"] for s in suggested]
+        assert str(coconut_srv.id) in suggested_ids
+    finally:
+        db_session.delete(coconut_srv)
+        db_session.delete(provider)
+        db_session.commit()
+
+
+def test_location_normalization_near_kodava(client: TestClient, db_session: Session):
+    """Verify 'near Kodava' normalizes destination to Coorg and returns matching Coorg homestay."""
+    provider = User(
+        id=uuid.uuid4(),
+        email=f"kodava.host.{uuid.uuid4()}@nammaconnect.test",
+        full_name="Kodagu Estate Host",
+        role="partner",
+        is_active=True,
+        is_verified=True,
+    )
+    db_session.add(provider)
+    db_session.commit()
+
+    coorg_srv = Service(
+        id=uuid.uuid4(),
+        provider_id=provider.id,
+        title="Madikeri Heritage Plantation Homestay",
+        slug=f"madikeri-homestay-{uuid.uuid4()}",
+        description="Authentic homestay nestled in lush green coffee hills of Coorg with scenic valley views.",
+        category="Stay",
+        category_slug="stay",
+        location="Madikeri, Coorg, Karnataka",
+        district="Coorg",
+        price=2900.0,
+        rating=4.88,
+        status="PUBLISHED",
+        is_verified=True,
+        provider_name="Kodagu Estate Host",
+        primary_image="https://example.com/madikeri.jpg",
+        inclusions_json='["Stay", "Breakfast"]',
+        amenities_json='["Wi-Fi", "Hot Water"]',
+        embedding=EmbeddingService.generate_embedding("Madikeri Heritage Plantation Homestay Coorg Kodagu"),
+    )
+    db_session.add(coorg_srv)
+    db_session.commit()
+
+    try:
+        resp = client.post("/api/v2/ai/travel/chat", json={
+            "message": "near Kodava",
+        })
+        assert resp.status_code == 200
+        data = resp.json()["data"]
+        suggested = data.get("suggested_services", [])
+        assert len(suggested) >= 1, "Expected 'near Kodava' to retrieve Coorg homestay"
+        suggested_ids = [s["id"] for s in suggested]
+        assert str(coorg_srv.id) in suggested_ids
+    finally:
+        db_session.delete(coorg_srv)
+        db_session.delete(provider)
+        db_session.commit()
+
+
+def test_intent_classifier_unit_rules():
+    """Verify GeminiService.classify_intent and fallback heuristics on all intent categories and parameter extractions."""
+    # 1. Conversational
+    r1 = GeminiService.classify_intent("hello")
+    assert r1["intent"] == "conversational"
+
+    r2 = GeminiService.classify_intent("namaskara, how are you?")
+    assert r2["intent"] == "conversational"
+
+    # 2. Informational
+    r3 = GeminiService.classify_intent("What is the best season to visit Coorg?")
+    assert r3["intent"] == "informational"
+    assert r3.get("destination") == "Coorg"
+
+    r4 = GeminiService.classify_intent("Why is Coorg famous?")
+    assert r4["intent"] == "informational"
+
+    # 3. Catalog Search
+    r5 = GeminiService.classify_intent("coconut")
+    assert r5["intent"] == "catalog_search"
+
+    r6 = GeminiService.classify_intent("show me pottery workshops")
+    assert r6["intent"] in ["catalog_search", "recommendation"]
+
+    # 4. Location Search with Synonym Normalization
+    r7 = GeminiService.classify_intent("near Kodava")
+    assert r7["intent"] == "location_search"
+    assert r7.get("destination") == "Coorg"
+
+    # 5. Recommendation with Constraints
+    r8 = GeminiService.classify_intent("homestay in Chikmagalur under 3000")
+    assert r8["intent"] in ["recommendation", "catalog_search", "location_search"]
+    assert r8.get("destination") == "Chikmagalur"
+    assert r8.get("category") == "Stay"
+    assert r8.get("budget") == 3000.0
+
+    # 6. Itinerary
+    r9 = GeminiService.classify_intent("plan a 2 day trip to Coorg")
+    assert r9["intent"] == "itinerary"
+    assert r9.get("destination") == "Coorg"
+    assert r9.get("duration_days") == 2

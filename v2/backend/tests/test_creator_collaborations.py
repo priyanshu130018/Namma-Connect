@@ -11,7 +11,7 @@ def auth_headers_creator(client: TestClient) -> dict:
         "email": "priya.storyteller@example.com",
         "password": "SecurePassword123!",
         "full_name": "Priya Storyteller",
-        "role": "creator",
+        "role": "provider",
     }
     reg_resp = client.post("/api/v2/auth/register", json=user_payload)
     if reg_resp.status_code == 201:
@@ -58,8 +58,10 @@ def auth_headers_intruder(client: TestClient) -> dict:
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_public_creator_discovery(client: TestClient):
+def test_public_creator_discovery(client: TestClient, auth_headers_creator: dict):
     """Verify public creator listing and detail endpoints."""
+    # Ensure creator profile is initialized for test isolation
+    client.get("/api/v2/creators/me/profile", headers=auth_headers_creator)
     resp = client.get("/api/v2/creators")
     assert resp.status_code == 200
     creators = resp.json()["data"]

@@ -47,3 +47,34 @@ export async function changePassword(payload: { current_password?: string; new_p
   const response = await apiClient.post<ApiMessageResponse<{ message: string }>>("/auth/change-password", payload);
   return response.data.data;
 }
+
+export async function requestPasswordChangeOTP(): Promise<{ message: string; expires_in_seconds?: number; otp_dev?: string }> {
+  const response = await apiClient.post<ApiMessageResponse<{ message: string; expires_in_seconds?: number; otp_dev?: string }>>("/auth/change-password/request-otp");
+  return response.data.data;
+}
+
+export async function verifyPasswordChangeOTP(otp: string): Promise<{ message: string; otp_token: string; verified: boolean }> {
+  const response = await apiClient.post<ApiMessageResponse<{ message: string; otp_token: string; verified: boolean }>>("/auth/change-password/verify-otp", { otp });
+  return response.data.data;
+}
+
+export async function confirmPasswordChangeWithOTP(otp_token: string, new_password: string): Promise<{ message: string }> {
+  const response = await apiClient.post<ApiMessageResponse<{ message: string }>>("/auth/change-password/confirm", { otp_token, new_password });
+  return response.data.data;
+}
+
+export async function uploadAvatar(avatarUrl: string): Promise<User> {
+  const response = await apiClient.post<ApiMessageResponse<User>>("/users/me/avatar", { avatar_url: avatarUrl });
+  return response.data.data;
+}
+
+export async function requestEmailVerificationOTP(): Promise<{ message: string; otp_dev?: string }> {
+  const response = await apiClient.post<ApiMessageResponse<{ message: string; otp_dev?: string }>>("/users/verify-email/request");
+  return response.data.data;
+}
+
+export async function verifyEmailOTP(otp: string): Promise<{ message: string; is_verified: boolean }> {
+  const response = await apiClient.post<ApiMessageResponse<{ message: string; is_verified: boolean }>>("/users/verify-email/verify", { otp });
+  return response.data.data;
+}
+

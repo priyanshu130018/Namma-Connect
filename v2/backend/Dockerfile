@@ -1,17 +1,16 @@
 # ==============================================================================
-# Namma Connect V2 — Backend FastAPI Dockerfile
+# Namma Connect V2 — Production Backend Dockerfile
 # ==============================================================================
 
-FROM python:3.10-slim
+# ── Base Stage: System Dependencies ──
+FROM python:3.10-slim as base
 
-# Prevent Python from writing .pyc files and buffer stdout/stderr
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /app
 
-# Install system dependencies needed for compiling psycopg2 and healthchecks
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     gcc \
@@ -19,20 +18,48 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy and install python dependencies
+# ── Dependencies Stage ──
+FROM base as dependencies
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Copy backend application source and alembic configurations
+# ── Production Target ──
+FROM python:3.10-slim as production
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive \
+    ENV=production \
+    DEBUG=False
+
+WORKDIR /app
+
+# Install minimal runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root application user
+RUN groupadd -r appgroup && useradd -r -g appgroup -d /app -s /sbin/nologin appuser
+
+# Copy installed Python packages from dependencies stage
+COPY --from=dependencies /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
+COPY --from=dependencies /usr/local/bin /usr/local/bin
+
+# Copy backend application source and migrations
 COPY . .
 
-# Expose FastAPI server port
+# Set ownership to non-root user
+RUN chown -R appuser:appgroup /app
+
+USER appuser
+
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=10s --timeout=5s --start-period=15s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+HEALTHCHECK --interval=15s --timeout=5s --start-period=15s --retries=3 \
+    CMD curl -f http://localhost:8000/health/ready || exit 1
 
-# Default command: Start Uvicorn development server with hot reload
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--proxy-headers", "--forwarded-allow-ips=*"]

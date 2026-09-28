@@ -128,8 +128,8 @@ describe("Customer Booking Engine & My Trip Suite", () => {
     fireEvent.click(qrBtn);
     expect(screen.getByRole("heading", { name: /Check-In Digital Pass/i })).toBeInTheDocument();
 
-    // Switch to Completed tab
-    const completedTab = screen.getByRole("button", { name: /Completed/i });
+    // Switch to Completed / History tab
+    const completedTab = screen.getByRole("button", { name: /History/i });
     fireEvent.click(completedTab);
 
     await waitFor(() => {
@@ -185,8 +185,8 @@ describe("Customer Booking Engine & My Trip Suite", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("No trips yet")).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /Explore Marketplace/i })).toBeInTheDocument();
+      expect(screen.getByText("No active trips")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Explore Activities/i })).toBeInTheDocument();
     });
   });
 

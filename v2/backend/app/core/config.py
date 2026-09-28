@@ -4,14 +4,111 @@ import json
 from pathlib import Path
 from typing import Dict, List
 
-from pydantic import AliasChoices, Field, field_validator
+from pydantic import AliasChoices, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Therefore the unified .env is parents[4] / ".env"
+
+class ConfigurationError(RuntimeError):
+    """Raised when application configuration is missing, invalid, or violates strict runtime rules."""
+    pass
+
+def find_project_root(start_path: Path = None) -> Path:
+    """Locate the project root directory by traversing upwards looking for repo markers.
+    
+    Works reliably both locally from within the repository tree and inside
+    Docker container layouts (such as /app/app/core/config.py) without fixed parent indexing.
+    """
+    if start_path is None:
+        start_path = Path(__file__).resolve()
+    else:
+        start_path = Path(start_path).resolve()
+
+    search_dirs = [start_path] if start_path.is_dir() else [start_path.parent]
+    search_dirs.extend(start_path.parents)
+
+    # 1. Look for repository root markers
+    for p in search_dirs:
+        if (p / "compose.yaml").is_file() or (p / "docker-compose.yml").is_file() or (p / "docker-compose.yaml").is_file():
+            return p
+        if (p / ".git").is_dir():
+            return p
+        if (p / ".env").is_file() and (p / "v2").is_dir():
+            return p
+
+    # 2. Look for application root boundary (parent of 'app')
+    for p in search_dirs:
+        if (p / "app" / "core").is_dir():
+            return p
+
+    # 3. Fallback safely to nearest plausible root without assuming fixed parent index
+    parents = list(start_path.parents)
+    if len(parents) >= 3:
+        return parents[2]
+    elif parents:
+        return parents[0]
+    return start_path.parent
+
+
+def find_backend_dir(start_path: Path = None) -> Path:
+    """Locate the backend root directory (parent of 'app')."""
+    if start_path is None:
+        start_path = Path(__file__).resolve()
+    else:
+        start_path = Path(start_path).resolve()
+
+    search_dirs = [start_path] if start_path.is_dir() else [start_path.parent]
+    search_dirs.extend(start_path.parents)
+
+    for p in search_dirs:
+        if p.name == "app" and p.is_dir():
+            return p.parent
+        if (p / "app" / "core").is_dir():
+            return p
+
+    parents = list(start_path.parents)
+    if len(parents) >= 3:
+        return parents[2]
+    elif parents:
+        return parents[0]
+    return start_path.parent
+
+
+def resolve_env_files(start_path: Path = None) -> tuple:
+    """Resolve authoritative .env candidates in priority order without raising IndexError."""
+    if start_path is None:
+        start_path = Path(__file__).resolve()
+    else:
+        start_path = Path(start_path).resolve()
+
+    root_dir = find_project_root(start_path)
+    backend_dir = find_backend_dir(start_path)
+
+    candidates = []
+
+    # 1. Explicit ENV_FILE environment variable override
+    import os
+    explicit_env = os.environ.get("ENV_FILE")
+    if explicit_env:
+        candidates.append(Path(explicit_env).resolve())
+
+    # 2. Authoritative project root .env
+    candidates.append(root_dir / ".env")
+
+    # 3. Backend directory fallback .env (if different from root)
+    if backend_dir != root_dir:
+        candidates.append(backend_dir / ".env")
+
+    # Filter to existing files to avoid unnecessary file handles, or return candidates
+    existing = [str(c) for c in candidates if c.is_file()]
+    if existing:
+        return tuple(existing)
+    return tuple(str(c) for c in candidates)
+
 
 CURRENT_FILE = Path(__file__).resolve()
-PROJECT_ROOT = CURRENT_FILE.parents[2]
-ENV_FILE = PROJECT_ROOT / ".env"
+ROOT_DIR = find_project_root(CURRENT_FILE)
+BACKEND_DIR = find_backend_dir(CURRENT_FILE)
+ENV_FILES = resolve_env_files(CURRENT_FILE)
 
 
 class Settings(BaseSettings):
@@ -120,6 +217,7 @@ class Settings(BaseSettings):
 
     CLOUDINARY_API_SECRET: str = ""
 
+
     # ==========================================================================
     # Resend
     # ==========================================================================
@@ -132,12 +230,17 @@ class Settings(BaseSettings):
             "resend_api_key",
         ),
     )
+    RESEND_FROM_EMAIL: str = "notifications@nammaconnect.in"
+    RESEND_API_URL: str = "https://api.resend.com/emails"
 
     # ==========================================================================
-    # Gemini
+    # Translation & Gemini AI
     # ==========================================================================
 
     GEMINI_API_KEY: str = ""
+    GEMINI_API_URL: str = "https://generativelanguage.googleapis.com/v1beta/models"
+    GEMINI_MODEL: str = "gemini-3.5-flash-lite"
+
 
     # ==========================================================================
     # TomTom Maps & Location Services
@@ -164,11 +267,93 @@ class Settings(BaseSettings):
     # ==========================================================================
 
     model_config = SettingsConfigDict(
-        env_file=str(ENV_FILE),
+        env_file=ENV_FILES,
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
     )
+
+    @model_validator(mode="after")
+    def validate_strict_configuration(self) -> "Settings":
+        """Strictly validate environment configuration and enforce zero silent fallbacks for secrets."""
+        # 1. Environment validation
+        env_normalized = (self.ENV or "development").strip().lower()
+        if env_normalized not in ["development", "staging", "production", "test", "testing"]:
+            raise ConfigurationError(
+                f"Invalid ENV '{self.ENV}'. Must be one of: development, staging, production, test."
+            )
+        self.ENV = env_normalized
+
+        is_test = env_normalized in ["test", "testing"]
+
+        # 2. Derive DATABASE_SYNC_URL from components if not directly provided
+        if not self.DATABASE_SYNC_URL and self.POSTGRES_USER and self.POSTGRES_PASSWORD and self.POSTGRES_HOST and self.POSTGRES_DB:
+            port = self.POSTGRES_PORT or "5432"
+            self.DATABASE_SYNC_URL = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{port}/{self.POSTGRES_DB}"
+
+        # 3. Synchronize sync and async database connection URLs
+        if self.DATABASE_SYNC_URL and not self.DATABASE_URL:
+            if self.DATABASE_SYNC_URL.startswith("postgresql://"):
+                self.DATABASE_URL = self.DATABASE_SYNC_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+            elif self.DATABASE_SYNC_URL.startswith("postgres://"):
+                self.DATABASE_URL = self.DATABASE_SYNC_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+            else:
+                self.DATABASE_URL = self.DATABASE_SYNC_URL
+        elif self.DATABASE_URL and not self.DATABASE_SYNC_URL:
+            if self.DATABASE_URL.startswith("postgresql+asyncpg://"):
+                self.DATABASE_SYNC_URL = self.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://", 1)
+            else:
+                self.DATABASE_SYNC_URL = self.DATABASE_URL
+
+        # 4. Enforce strict requirements in non-test runtime environments
+        if not is_test:
+            # Database URL checks
+            if not self.DATABASE_SYNC_URL or not self.DATABASE_SYNC_URL.strip():
+                raise ConfigurationError(
+                    "Missing required environment variable: DATABASE_SYNC_URL (or DATABASE_URL). PostgreSQL is required."
+                )
+            if self.DATABASE_SYNC_URL.startswith("sqlite"):
+                raise ConfigurationError(
+                    "SQLite is strictly prohibited for application runtime. PostgreSQL is required for NammaConnect V2."
+                )
+            if not (self.DATABASE_SYNC_URL.startswith("postgresql://") or self.DATABASE_SYNC_URL.startswith("postgres://")):
+                raise ConfigurationError(
+                    "DATABASE_SYNC_URL is invalid: must be a valid PostgreSQL connection URL (e.g. postgresql://user:pass@host:5432/dbname)."
+                )
+
+            # Security / JWT Secret checks
+            if not self.JWT_SECRET or not self.JWT_SECRET.strip():
+                raise ConfigurationError(
+                    "Missing required environment variable: JWT_SECRET."
+                )
+            if len(self.JWT_SECRET.strip()) < 32:
+                raise ConfigurationError(
+                    f"Insecure JWT_SECRET: Secret length ({len(self.JWT_SECRET.strip())}) is less than the required minimum of 32 characters."
+                )
+
+            # JWT Algorithm check
+            if not self.JWT_ALGORITHM or not self.JWT_ALGORITHM.strip():
+                self.JWT_ALGORITHM = "HS256"
+        else:
+            # Test environment defaults
+            if not self.JWT_SECRET or not self.JWT_SECRET.strip():
+                self.JWT_SECRET = "test_ci_jwt_secret_must_be_32_characters_long"
+            if not self.JWT_ALGORITHM or not self.JWT_ALGORITHM.strip():
+                self.JWT_ALGORITHM = "HS256"
+
+        # 5. Numeric configuration validations
+        if self.ACCESS_TOKEN_EXPIRE_MINUTES <= 0:
+            raise ConfigurationError("ACCESS_TOKEN_EXPIRE_MINUTES must be a positive integer.")
+        if self.REFRESH_TOKEN_EXPIRE_DAYS <= 0:
+            raise ConfigurationError("REFRESH_TOKEN_EXPIRE_DAYS must be a positive integer.")
+
+        # 6. Redis URL validation if provided
+        if self.REDIS_URL and self.REDIS_URL.strip():
+            r_url = self.REDIS_URL.strip()
+            if not (r_url.startswith("redis://") or r_url.startswith("rediss://")):
+                raise ConfigurationError("REDIS_URL is invalid: must start with redis:// or rediss://")
+
+        return self
 
     # ==========================================================================
     # Service Configuration Status
@@ -201,6 +386,7 @@ class Settings(BaseSettings):
 
             "resend": bool(self.RESEND_API_KEY),
 
+            "translation": bool(self.GEMINI_API_KEY),
             "gemini": bool(self.GEMINI_API_KEY),
 
             "tomtom": bool(self.TOMTOM_API_KEY),

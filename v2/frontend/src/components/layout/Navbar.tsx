@@ -9,7 +9,6 @@ import {
   Sun,
   Moon,
   Laptop,
-  Globe,
   Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,31 +22,33 @@ export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const location = useLocation();
   const { theme, setTheme } = useTheme();
-  const { language, setLanguage, t } = useTranslation();
+  const { t } = useTranslation();
+
 
   const links = [
-    { label: t("nav.home"), href: "/" },
-    { label: t("nav.about"), href: "/about" },
-    { label: t("nav.contact"), href: "/contact" },
-    { label: t("nav.faq"), href: "/faq" },
+    { label: "Home", href: "/" },
+    { label: "About", href: "/about" },
+    { label: "Blog", href: "/blog" },
+    { label: "FAQ", href: "/faq" },
+    { label: "Contact", href: "/contact" },
   ];
 
-  const isActive = (href: string) => location.pathname === href;
+  const isActive = (href: string) => location.pathname === href || (href === "/blog" && location.pathname.startsWith("/blog"));
 
   return (
     <header className="sticky top-0 z-40 w-full border-b border-slate-200/80 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md transition-colors">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Brand Logo */}
         <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-harvest-600 to-amber-700 text-white shadow-md shadow-harvest-600/20 group-hover:scale-105 transition-transform">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-600 to-teal-700 text-white shadow-md shadow-emerald-600/20 group-hover:scale-105 transition-transform">
             <Sprout className="h-5 w-5" />
           </div>
           <div>
             <span className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100">
-              Namma<span className="text-harvest-700 dark:text-harvest-500">Connect</span>
+              Namma<span className="text-emerald-700 dark:text-emerald-500">Connect</span>
             </span>
-            <span className="ml-1.5 rounded-md bg-harvest-100 dark:bg-harvest-950/80 px-1.5 py-0.5 text-[10px] font-black uppercase text-harvest-800 dark:text-harvest-300 tracking-wider">
-              {t("common.version")}
+            <span className="ml-1.5 rounded-md bg-emerald-100 dark:bg-emerald-950/80 px-1.5 py-0.5 text-[10px] font-black uppercase text-emerald-800 dark:text-emerald-300 tracking-wider">
+              V2
             </span>
           </div>
         </Link>
@@ -62,7 +63,7 @@ export function Navbar() {
                 to={link.href}
                 className={`px-3.5 py-2 rounded-xl text-sm font-semibold transition-all ${
                   active
-                    ? "bg-harvest-50 dark:bg-harvest-950/50 text-harvest-800 dark:text-harvest-400 font-bold"
+                    ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-400 font-bold"
                     : "text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
@@ -96,69 +97,17 @@ export function Navbar() {
             }
           >
             <DropdownHeader>{t("common.theme")}</DropdownHeader>
-            <DropdownItem
-              icon={Sun}
-              onClick={() => setTheme("light")}
-              className="flex items-center justify-between text-xs"
-            >
+            <DropdownItem icon={Sun} onClick={() => setTheme("light")} className="flex items-center justify-between text-xs">
               <span>{t("common.light")}</span>
-              {theme === "light" && <Check className="h-3.5 w-3.5 text-harvest-600 dark:text-harvest-400" />}
+              {theme === "light" && <Check className="h-3.5 w-3.5 text-emerald-600" />}
             </DropdownItem>
-            <DropdownItem
-              icon={Moon}
-              onClick={() => setTheme("dark")}
-              className="flex items-center justify-between text-xs"
-            >
+            <DropdownItem icon={Moon} onClick={() => setTheme("dark")} className="flex items-center justify-between text-xs">
               <span>{t("common.dark")}</span>
-              {theme === "dark" && <Check className="h-3.5 w-3.5 text-harvest-600 dark:text-harvest-400" />}
+              {theme === "dark" && <Check className="h-3.5 w-3.5 text-emerald-600" />}
             </DropdownItem>
-            <DropdownItem
-              icon={Laptop}
-              onClick={() => setTheme("system")}
-              className="flex items-center justify-between text-xs"
-            >
+            <DropdownItem icon={Laptop} onClick={() => setTheme("system")} className="flex items-center justify-between text-xs">
               <span>{t("common.system")}</span>
-              {theme === "system" && <Check className="h-3.5 w-3.5 text-harvest-600 dark:text-harvest-400" />}
-            </DropdownItem>
-          </Dropdown>
-
-          {/* Language Selector */}
-          <Dropdown
-            align="right"
-            trigger={
-              <Tooltip content={t("common.language")} side="bottom">
-                <button
-                  type="button"
-                  className="flex h-9 items-center gap-1 rounded-xl px-2.5 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
-                  aria-label={t("common.language")}
-                >
-                  <Globe className="h-4 w-4" />
-                  <span className="text-[11px] uppercase font-bold">{language}</span>
-                </button>
-              </Tooltip>
-            }
-          >
-            <DropdownHeader>{t("common.language")}</DropdownHeader>
-            <DropdownItem
-              onClick={() => setLanguage("en")}
-              className="flex items-center justify-between text-xs"
-            >
-              <span>English (EN)</span>
-              {language === "en" && <Check className="h-3.5 w-3.5 text-harvest-600 dark:text-harvest-400" />}
-            </DropdownItem>
-            <DropdownItem
-              onClick={() => setLanguage("kn")}
-              className="flex items-center justify-between text-xs font-medium"
-            >
-              <span>ಕನ್ನಡ (KN)</span>
-              {language === "kn" && <Check className="h-3.5 w-3.5 text-harvest-600 dark:text-harvest-400" />}
-            </DropdownItem>
-            <DropdownItem
-              onClick={() => setLanguage("hi")}
-              className="flex items-center justify-between text-xs font-medium"
-            >
-              <span>हिन्दी (HI)</span>
-              {language === "hi" && <Check className="h-3.5 w-3.5 text-harvest-600 dark:text-harvest-400" />}
+              {theme === "system" && <Check className="h-3.5 w-3.5 text-emerald-600" />}
             </DropdownItem>
           </Dropdown>
 
@@ -169,16 +118,16 @@ export function Navbar() {
               size="sm"
               className="gap-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 font-semibold"
             >
-              <LogIn className="h-4 w-4" /> {t("nav.signIn")}
+              <LogIn className="h-4 w-4" /> Sign In
             </Button>
           </Link>
           <Link to="/register">
             <Button
               variant="default"
               size="sm"
-              className="gap-2 font-bold shadow-sm bg-harvest-600 hover:bg-harvest-700 text-white"
+              className="gap-2 font-bold shadow-sm bg-emerald-600 hover:bg-emerald-700 text-white"
             >
-              <UserPlus className="h-4 w-4" /> {t("nav.joinPlatform")}
+              <UserPlus className="h-4 w-4" /> Join Platform
             </Button>
           </Link>
         </div>
@@ -204,11 +153,11 @@ export function Navbar() {
         <div className="space-y-6">
           <div className="flex items-center justify-between pb-4 border-b border-slate-200 dark:border-slate-800">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-harvest-700 dark:bg-harvest-600 text-white font-bold">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-600 text-white font-bold">
                 <Sprout className="h-5 w-5" />
               </div>
               <span className="font-extrabold text-base text-slate-900 dark:text-slate-100">
-                Namma<span className="text-harvest-700 dark:text-harvest-500">Connect</span>
+                Namma<span className="text-emerald-700 dark:text-emerald-500">Connect</span>
               </span>
             </div>
             <button
@@ -227,7 +176,7 @@ export function Navbar() {
                 onClick={() => setMobileOpen(false)}
                 className={`block rounded-2xl px-4 py-3 text-sm font-semibold transition-all ${
                   isActive(link.href)
-                    ? "bg-harvest-50 dark:bg-harvest-950/50 text-harvest-800 dark:text-harvest-400 font-bold"
+                    ? "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-400 font-bold"
                     : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-900 dark:hover:text-slate-100"
                 }`}
               >
@@ -237,83 +186,14 @@ export function Navbar() {
           </nav>
 
           <div className="space-y-3 pt-4 border-t border-slate-200 dark:border-slate-800">
-            <div className="flex items-center justify-between px-2">
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t("common.language")}</span>
-              <div className="flex gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setLanguage("en")}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                    language === "en" ? "bg-harvest-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
-                  }`}
-                >
-                  EN
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLanguage("kn")}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                    language === "kn" ? "bg-harvest-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
-                  }`}
-                >
-                  KN
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setLanguage("hi")}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                    language === "hi" ? "bg-harvest-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
-                  }`}
-                >
-                  HI
-                </button>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between px-2">
-              <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">{t("common.theme")}</span>
-              <div className="flex gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setTheme("light")}
-                  className={`p-1.5 rounded-lg text-xs ${
-                    theme === "light" ? "bg-harvest-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
-                  }`}
-                  aria-label={t("common.light")}
-                >
-                  <Sun className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTheme("dark")}
-                  className={`p-1.5 rounded-lg text-xs ${
-                    theme === "dark" ? "bg-harvest-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
-                  }`}
-                  aria-label={t("common.dark")}
-                >
-                  <Moon className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTheme("system")}
-                  className={`p-1.5 rounded-lg text-xs ${
-                    theme === "system" ? "bg-harvest-600 text-white" : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
-                  }`}
-                  aria-label={t("common.system")}
-                >
-                  <Laptop className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-
             <Link to="/login" onClick={() => setMobileOpen(false)} className="block w-full">
               <Button variant="outline" className="w-full gap-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200">
-                <LogIn className="h-4 w-4" /> {t("nav.signIn")}
+                <LogIn className="h-4 w-4" /> Sign In
               </Button>
             </Link>
             <Link to="/register" onClick={() => setMobileOpen(false)} className="block w-full">
-              <Button variant="default" className="w-full gap-2 font-bold bg-harvest-600 hover:bg-harvest-700 text-white">
-                <UserPlus className="h-4 w-4" /> {t("nav.joinPlatform")}
+              <Button variant="default" className="w-full gap-2 font-bold bg-emerald-600 hover:bg-emerald-700 text-white">
+                <UserPlus className="h-4 w-4" /> Join Platform
               </Button>
             </Link>
           </div>

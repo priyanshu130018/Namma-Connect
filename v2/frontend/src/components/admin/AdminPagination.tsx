@@ -18,11 +18,16 @@ export function AdminPagination({
   totalRecords,
   onPageChange,
   onPageSizeChange,
-  pageSizeOptions = [10, 25, 50, 100],
+  pageSizeOptions = [10, 20, 50, 100],
   className,
 }: AdminPaginationProps) {
+  // Hide pagination controls when zero records
+  if (totalRecords === 0) {
+    return null;
+  }
+
   const totalPages = Math.max(1, Math.ceil(totalRecords / pageSize));
-  const startRecord = totalRecords === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+  const startRecord = (currentPage - 1) * pageSize + 1;
   const endRecord = Math.min(currentPage * pageSize, totalRecords);
 
   const getPageNumbers = () => {
@@ -56,17 +61,17 @@ export function AdminPagination({
   return (
     <div
       className={cn(
-        "flex flex-col sm:flex-row items-center justify-between gap-4 py-3 px-4 border-t border-slate-800 bg-slate-900/60 rounded-b-xl text-xs text-slate-400",
+        "flex flex-col sm:flex-row items-center justify-between gap-4 py-3 px-4 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 rounded-b-3xl text-xs text-slate-600 dark:text-slate-400",
         className
       )}
     >
       <div className="flex items-center gap-4">
         <div className="flex items-center gap-2">
-          <span className="font-medium text-slate-300">Rows per page:</span>
+          <span className="font-semibold text-slate-500 dark:text-slate-400">Rows per page:</span>
           <select
             value={pageSize}
             onChange={(e) => onPageSizeChange(Number(e.target.value))}
-            className="rounded-lg border border-slate-700 bg-slate-800 px-2 py-1 text-xs font-medium text-slate-200 focus:outline-none focus:ring-1 focus:ring-rose-500"
+            className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-2 py-1 text-xs font-bold text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-harvest-500"
           >
             {pageSizeOptions.map((opt) => (
               <option key={opt} value={opt}>
@@ -75,10 +80,10 @@ export function AdminPagination({
             ))}
           </select>
         </div>
-        <span className="text-slate-400">
-          Showing <span className="font-semibold text-slate-200">{startRecord}</span> -{" "}
-          <span className="font-semibold text-slate-200">{endRecord}</span> of{" "}
-          <span className="font-semibold text-slate-200">{totalRecords}</span> records
+        <span className="text-slate-600 dark:text-slate-400 font-medium">
+          Showing <span className="font-bold text-slate-900 dark:text-white">{startRecord}</span>–
+          <span className="font-bold text-slate-900 dark:text-white">{endRecord}</span> of{" "}
+          <span className="font-bold text-slate-900 dark:text-white">{totalRecords}</span>
         </span>
       </div>
 
@@ -88,7 +93,7 @@ export function AdminPagination({
           size="sm"
           onClick={() => onPageChange(1)}
           disabled={currentPage === 1}
-          className="h-8 w-8 p-0 border-slate-800 hover:bg-slate-800"
+          className="h-8 w-8 p-0 rounded-xl border-slate-200 dark:border-slate-800"
           title="First Page"
         >
           <ChevronsLeft className="h-3.5 w-3.5" />
@@ -98,7 +103,7 @@ export function AdminPagination({
           size="sm"
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className="h-8 w-8 p-0 border-slate-800 hover:bg-slate-800"
+          className="h-8 w-8 p-0 rounded-xl border-slate-200 dark:border-slate-800"
           title="Previous Page"
         >
           <ChevronLeft className="h-3.5 w-3.5" />
@@ -108,7 +113,7 @@ export function AdminPagination({
           {getPageNumbers().map((p, idx) => {
             if (p === "...") {
               return (
-                <span key={`ellipsis-${idx}`} className="px-2 text-slate-500">
+                <span key={`ellipsis-${idx}`} className="px-2 text-slate-400">
                   ...
                 </span>
               );
@@ -121,10 +126,10 @@ export function AdminPagination({
                 size="sm"
                 onClick={() => onPageChange(Number(p))}
                 className={cn(
-                  "h-8 min-w-[32px] px-2 text-xs font-semibold",
+                  "h-8 min-w-[32px] px-2.5 text-xs font-bold rounded-xl",
                   isCurrent
-                    ? "bg-rose-600 hover:bg-rose-700 text-white font-bold"
-                    : "border-slate-800 hover:bg-slate-800 text-slate-300"
+                    ? "bg-harvest-600 hover:bg-harvest-700 text-white shadow-sm"
+                    : "border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
                 )}
               >
                 {p}
@@ -138,7 +143,7 @@ export function AdminPagination({
           size="sm"
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage >= totalPages}
-          className="h-8 w-8 p-0 border-slate-800 hover:bg-slate-800"
+          className="h-8 w-8 p-0 rounded-xl border-slate-200 dark:border-slate-800"
           title="Next Page"
         >
           <ChevronRight className="h-3.5 w-3.5" />
@@ -148,7 +153,7 @@ export function AdminPagination({
           size="sm"
           onClick={() => onPageChange(totalPages)}
           disabled={currentPage >= totalPages}
-          className="h-8 w-8 p-0 border-slate-800 hover:bg-slate-800"
+          className="h-8 w-8 p-0 rounded-xl border-slate-200 dark:border-slate-800"
           title="Last Page"
         >
           <ChevronsRight className="h-3.5 w-3.5" />

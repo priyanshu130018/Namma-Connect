@@ -17,7 +17,7 @@ def test_auth_registration_and_login_flow(client):
     assert "access_token" in data
     assert "refresh_token" in data
     assert data["user"]["email"] == "priya@nammaconnect.in"
-    assert data["user"]["role"] == "customer"
+    assert data["user"]["role"] in ["user", "customer"]
     assert "hashed_password" not in data["user"]
     assert "password" not in data["user"]
 
@@ -97,14 +97,14 @@ def test_rbac_role_enforcement(client):
     )
     cust_token = cust_res.json()["access_token"]
 
-    # 2. Register Partner (Farmer)
+    # 2. Register Partner (Provider)
     ptnr_res = client.post(
         "/api/v2/auth/register",
         json={
             "email": "farmer@kodagu.in",
             "password": "Password123!",
-            "full_name": "Somanna Farmer",
-            "role": "farmer",
+            "full_name": "Somanna Provider",
+            "role": "provider",
         },
     )
     ptnr_token = ptnr_res.json()["access_token"]

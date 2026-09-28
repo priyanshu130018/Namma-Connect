@@ -409,9 +409,9 @@ class PartnerApplicationService:
             app.reviewed_at = datetime.utcnow()
             app.updated_at = datetime.utcnow()
 
-            # Upgrade role if customer
-            if target_user and target_user.role == "customer":
-                target_user.role = "partner"
+            # Upgrade role if customer / user
+            if target_user and target_user.role in ["customer", "user"]:
+                target_user.role = "provider"
                 target_user.is_verified = True
 
             # If approve_services_together is enabled, approve attached pending services for this provider

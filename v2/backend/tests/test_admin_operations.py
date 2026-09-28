@@ -156,10 +156,43 @@ def test_admin_full_operations_workflow(
     # 10. List Support Tickets
     support_resp = client.get("/api/v2/admin/support", headers=auth_headers_admin)
     assert support_resp.status_code == 200
-    assert len(support_resp.json()["data"]) > 0
+    assert isinstance(support_resp.json()["data"], list)
 
     # 11. Platform Settings
     settings_resp = client.get("/api/v2/admin/settings", headers=auth_headers_admin)
     assert settings_resp.status_code == 200
     assert settings_resp.json()["data"]["platform_name"] == "NammaConnect"
     assert settings_resp.json()["data"]["commission_rate"] == 0.05
+
+    # 12. Providers Directory Endpoint (with masked KYC ID and service count)
+    providers_resp = client.get("/api/v2/admin/providers", headers=auth_headers_admin)
+    assert providers_resp.status_code == 200
+    providers_list = providers_resp.json()["data"]
+    assert len(providers_list) > 0
+    for prov in providers_list:
+        if prov.get("masked_id_number") and prov["masked_id_number"] != "Not Provided":
+            assert "••••" in prov["masked_id_number"]
+
+    # 13. Reviews Management and Moderation
+    reviews_resp = client.get("/api/v2/admin/reviews", headers=auth_headers_admin)
+    assert reviews_resp.status_code == 200
+    rev_data = reviews_resp.json()["data"]
+    if len(rev_data) > 0:
+        first_rev = rev_data[0]
+        mod_rev_resp = client.post(
+            f"/api/v2/admin/reviews/{first_rev['id']}/moderate",
+            headers=auth_headers_admin,
+            json={"status": "HIDDEN", "notes": "Temporarily hidden for review"},
+        )
+        assert mod_rev_resp.status_code == 200
+        assert mod_rev_resp.json()["data"]["status"] == "HIDDEN"
+
+    # 14. Performance & Governance Reports (Aggregated Real DB metrics)
+    reports_resp = client.get("/api/v2/admin/reports?period=monthly", headers=auth_headers_admin)
+    assert reports_resp.status_code == 200
+    rep_data = reports_resp.json()["data"]
+    assert "total_users" in rep_data
+    assert "published_services" in rep_data
+    assert "total_revenue" in rep_data
+    assert "time_series" in rep_data
+

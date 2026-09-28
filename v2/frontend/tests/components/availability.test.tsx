@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AvailabilityCalendar } from "@/components/availability/AvailabilityCalendar";
 import { TimeSlotSelector } from "@/components/availability/TimeSlotSelector";
@@ -138,24 +138,10 @@ describe("Service Availability Component Suite", () => {
     expect(screen.getByText("Full capacity")).toBeInTheDocument();
   });
 
-  it("triggers check availability, renders calendar, and confirms schedule in ServiceDetailPage", async () => {
+  it("renders ServiceDetailPage with host details and Message Host action", async () => {
     vi.spyOn(marketplaceService, "getServiceDetail").mockResolvedValue({
       service: mockService,
       reviews: [],
-    });
-
-    vi.spyOn(marketplaceService, "getServiceAvailability").mockResolvedValue({
-      service_id: "srv-exp-01",
-      service_title: "Cardamom & Black Pepper Canopy Trail",
-      booking_model: "time_slot",
-      min_guests: 1,
-      max_guests: 12,
-      min_days_notice: 1,
-      max_days_advance: 60,
-      start_date: "2026-09-10",
-      end_date: "2026-09-12",
-      days: mockDays,
-      blackout_dates: ["2026-09-12"],
     });
 
     window.history.pushState({}, "Detail", "/app/services/srv-exp-01");
@@ -171,24 +157,8 @@ describe("Service Availability Component Suite", () => {
     // Wait for service detail load
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Cardamom & Black Pepper Canopy Trail" })).toBeInTheDocument();
+      expect(screen.getAllByText(/Devasia Thomas/i).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByRole("button", { name: /Message Host \/ Inquire/i })).toBeInTheDocument();
     });
-
-    // Click Check Availability
-    const checkBtn = screen.getByRole("button", { name: /Check Availability/i });
-    expect(checkBtn).toBeInTheDocument();
-    fireEvent.click(checkBtn);
-
-    // Wait for availability matrix to appear
-    await waitFor(() => {
-      expect(screen.getByText(/Live Schedule Matrix/i)).toBeInTheDocument();
-    });
-
-    // Verify Continue to Booking button is present
-    const continueBtn = screen.getByRole("button", { name: /Continue to Booking/i });
-    expect(continueBtn).toBeInTheDocument();
-    fireEvent.click(continueBtn);
-
-    // Verify booking review modal opens
-    expect(screen.getByRole("heading", { name: /Review Your Reservation/i })).toBeInTheDocument();
   });
 });

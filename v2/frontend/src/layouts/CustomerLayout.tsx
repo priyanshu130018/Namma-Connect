@@ -1,23 +1,18 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
-import { DashboardNavbar } from "@/components/layout/DashboardNavbar";
+import { CustomerNavbar } from "@/components/layout/CustomerNavbar";
 import { CustomerSidebar } from "@/components/layout/CustomerSidebar";
 import { TravelAIFloating } from "@/components/customer/TravelAIFloating";
-import { SupportModal } from "@/components/customer/SupportModal";
 import { cn } from "@/lib/utils";
 
 export function CustomerLayout() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [isSupportOpen, setIsSupportOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 flex flex-col transition-colors duration-200">
       {/* Top Navbar (Fixed) */}
-      <DashboardNavbar
-        onOpenSupport={() => setIsSupportOpen(true)}
-        onToggleMobileSidebar={() => setIsMobileOpen(true)}
-      />
+      <CustomerNavbar onToggleSidebar={() => setIsMobileOpen(!isMobileOpen)} />
 
       <div className="flex flex-1 relative pt-16">
         {/* Collapsible Left Sidebar */}
@@ -43,12 +38,6 @@ export function CustomerLayout() {
 
       {/* Floating Travel AI Assistant */}
       <TravelAIFloating />
-
-      {/* Concierge Help / Support Modal */}
-      <SupportModal
-        isOpen={isSupportOpen}
-        onClose={() => setIsSupportOpen(false)}
-      />
     </div>
   );
 }

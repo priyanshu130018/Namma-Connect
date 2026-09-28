@@ -1,0 +1,143 @@
+name: Namma Connect V2 CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, master, release/*, "v2/*"]
+  pull_request:
+    branches: [main, master, release/*, "v2/*"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── 1. Backend Verification Job ──
+  backend-ci:
+    name: Backend Lint, Compile & Pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: v2/backend
+
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: namma_connect_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: "pip"
+
+      - name: Install System Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpq-dev build-essential curl gzip
+
+      - name: Install Python Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio anyio
+
+      - name: Verify Python Compilation (compileall)
+        run: python -m compileall app tests
+
+      - name: Run Alembic Migrations on PostgreSQL 16
+        env:
+          DATABASE_SYNC_URL: postgresql://postgres:postgres@localhost:5432/namma_connect_test
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/namma_connect_test
+          JWT_SECRET: test_ci_jwt_secret_must_be_32_characters_long
+        run: |
+          alembic upgrade head
+          alembic current
+
+      - name: Execute Full V2 Backend Pytest Suite
+        env:
+          ENV: test
+          DEBUG: "False"
+          DATABASE_SYNC_URL: postgresql://postgres:postgres@localhost:5432/namma_connect_test
+          DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/namma_connect_test
+          REDIS_URL: redis://localhost:6379/0
+          JWT_SECRET: test_ci_jwt_secret_must_be_32_characters_long
+        run: |
+          pytest tests/test_v2_models_and_schema.py                  tests/test_v2_modular_services.py                  tests/test_recommendations_and_nc_score.py                  tests/test_v2_recommendation_engine.py                  tests/test_v2_ai_assistant.py                  tests/test_v2_agentic_trip_planner.py                  tests/test_v2_provider_intelligence.py                  tests/test_v2_e2e_integration_and_hardening.py                  tests/test_v2_production_audit_and_hardening.py -v
+
+  # ── 2. Frontend Verification Job ──
+  frontend-ci:
+    name: Frontend Typecheck, Vitest & Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: v2/frontend
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: v2/frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+
+      - name: Run TypeScript Typecheck (tsc --noEmit)
+        run: npm run typecheck
+
+      - name: Run Vitest Suite
+        run: npx vitest run tests/components/trip_planner_v2.test.tsx
+
+      - name: Build Production Vite Static Bundle
+        run: npm run build
+
+      - name: Archive Production Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: v2/frontend/dist/
+          retention-days: 7
+
+  # ── 3. Secret and Security Scan Job ──
+  security-scan:
+    name: Repository Secret & Hygiene Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify No Committed .env Secrets
+        run: |
+          if git ls-files | grep -E '^(\.env|\.env\.local|\.env\.production)$'; then
+            echo "ERROR: Committed .env file detected in git tracking!"
+            exit 1
+          fi
+          echo "Secret tracking hygiene check passed."

@@ -663,8 +663,8 @@ All V2 endpoints are mounted under `/api/v2`.
 | `ENV` | Deployment environment | `development` / `production` |
 | `DEBUG` | Enable debug logs & reload | `True` |
 | `API_V2_PREFIX` | API v2 route prefix | `/api/v2` |
-| `DATABASE_URL` | Async PostgreSQL connection string | `postgresql+asyncpg://postgres:pass@localhost:5432/namma_connect_db` |
-| `DATABASE_SYNC_URL` | Sync PostgreSQL connection string (for Alembic) | `postgresql://postgres:pass@localhost:5432/namma_connect_db` |
+| `DATABASE_URL` | Async PostgreSQL connection string | `postgresql+asyncpg://postgres:pass@localhost:5432/namma_connect` |
+| `DATABASE_SYNC_URL` | Sync PostgreSQL connection string (for Alembic) | `postgresql://postgres:pass@localhost:5432/namma_connect` |
 | `REDIS_URL` | Redis connection URL | `redis://localhost:6379/0` |
 | `JWT_SECRET` | 32-byte secret for JWT signing | `change_me_in_production_jwt_secret_32b` |
 | `JWT_ALGORITHM` | Algorithm used for JWT | `HS256` |

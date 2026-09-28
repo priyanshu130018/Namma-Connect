@@ -31,7 +31,7 @@ def auth_headers_partner_b(client: TestClient) -> dict:
         "email": "host.beta@example.com",
         "password": "SecurePassword123!",
         "full_name": "Host Beta",
-        "role": "farmer",
+        "role": "provider",
     }
     reg_resp = client.post("/api/v2/auth/register", json=user_payload)
     if reg_resp.status_code == 201:
@@ -126,15 +126,15 @@ def test_partner_service_crud_and_isolation_workflow(
     assert cross_get_resp.status_code == 403
 
     # 6. Partner B cannot modify Partner A's service (403 Forbidden)
-    cross_put_resp = client.put(
+    cross_patch_resp = client.patch(
         f"/api/v2/services/partner/{service_id}",
         headers=auth_headers_partner_b,
         json={"price": 9999.0},
     )
-    assert cross_put_resp.status_code == 403
+    assert cross_patch_resp.status_code == 403
 
     # 7. Partner A can view and update their service
-    update_resp = client.put(
+    update_resp = client.patch(
         f"/api/v2/services/partner/{service_id}",
         headers=auth_headers_partner_a,
         json={"price": 4800.0, "description": "Updated serene estate homestay."},

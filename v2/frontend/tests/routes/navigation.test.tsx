@@ -26,10 +26,9 @@ describe("App Routing & Public / Protected Shells", () => {
     localStorage.setItem("nc_user", JSON.stringify({ id: "u1", email: "user@test.com", role: "customer", full_name: "Test Traveler" }));
     window.history.pushState({}, "Customer App", "/app");
     render(<App />);
-    expect(screen.getByRole("heading", { name: /Welcome to NammaConnect/i })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Place \(e\.g\. Coorg, Wayanad\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/Explore Categories/i)).toBeInTheDocument();
-    expect(screen.getByText(/Recommended for You/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Search activities, places, experiences/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Nearby$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Top Rated$/i })).toBeInTheDocument();
   });
 
   it("renders Customer My Trip bookings page when authenticated", () => {
@@ -39,15 +38,15 @@ describe("App Routing & Public / Protected Shells", () => {
     expect(screen.getByRole("heading", { name: /My Trip & Bookings/i })).toBeInTheDocument();
   });
 
-  it("renders Customer Profile with Verified Information when authenticated", async () => {
+  it("renders Customer Profile with Google-style account view when authenticated", async () => {
     localStorage.setItem("nc_access_token", "valid_test_token");
     localStorage.setItem("nc_user", JSON.stringify({ id: "usr-1", email: "test@example.com", full_name: "Test User", role: "customer", is_active: true, is_verified: true }));
     window.history.pushState({}, "Profile", "/app/profile");
     render(<App />);
-    expect(screen.getByRole("heading", { name: /Customer Profile/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Account Profile/i })).toBeInTheDocument();
     await waitFor(() => {
-      expect(screen.getByText(/Verified Information/i)).toBeInTheDocument();
-      expect(screen.getByRole("button", { name: /Request Change/i })).toBeInTheDocument();
+      expect(screen.getByText(/Basic Info/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Edit Profile/i })).toBeInTheDocument();
     });
   });
 
@@ -62,7 +61,7 @@ describe("App Routing & Public / Protected Shells", () => {
     localStorage.setItem("nc_access_token", "valid_test_token");
     window.history.pushState({}, "Become Partner", "/app/become-partner");
     render(<App />);
-    expect(await screen.findByRole("heading", { name: /Become a NammaConnect Partner/i })).toBeInTheDocument();
-    expect(screen.getByText(/Section 01: Personal Information/i)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /NammaConnect Provider Onboarding/i })).toBeInTheDocument();
+    expect(screen.getByText(/Welcome to NammaConnect Provider Network/i)).toBeInTheDocument();
   });
 });

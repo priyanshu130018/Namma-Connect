@@ -1,7 +1,5 @@
-"""Endpoints for Public Creator Discovery and Private Creator Studio."""
-
-from typing import List
-from fastapi import APIRouter, Depends, status
+from typing import List, Optional
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user
@@ -18,15 +16,81 @@ from app.services.creator import CreatorService
 router = APIRouter(prefix="/creators", tags=["Creators"])
 
 
+@router.get("/categories", response_model=APIResponse[List[dict]])
+def list_creator_categories(db: Session = Depends(get_db)):
+    """List static product taxonomy categories for Content Creators."""
+    categories = [
+        {
+            "id": "photography",
+            "slug": "photography",
+            "name": "Photography 📷",
+            "icon": "camera",
+            "description": "Landscape, travel portraits, and cultural event photography.",
+            "listingCount": 0,
+        },
+        {
+            "id": "videography",
+            "slug": "videography",
+            "name": "Videography 🎥",
+            "icon": "video",
+            "description": "Travel documentaries, promo videos, and cinematic films.",
+            "listingCount": 0,
+        },
+        {
+            "id": "drone-aerial",
+            "slug": "drone-aerial",
+            "name": "Drone & Aerial 🚁",
+            "icon": "navigation",
+            "description": "Aerial estate mapping, 4K landscape flyovers, and drone video.",
+            "listingCount": 0,
+        },
+        {
+            "id": "travel-reels",
+            "slug": "travel-reels",
+            "name": "Travel Reels 🎬",
+            "icon": "play",
+            "description": "Short-form social media reels, Instagram stories, and YouTube Shorts.",
+            "listingCount": 0,
+        },
+    ]
+    return APIResponse(
+        success=True,
+        message="Creator categories retrieved successfully",
+        data=categories,
+    )
+
+
 @router.get("", response_model=APIResponse[List[CreatorProfileResponse]])
-def list_public_creators(db: Session = Depends(get_db)):
-    """List publicly discoverable verified creators."""
+def list_public_creators(
+    category: Optional[str] = Query(None, description="Category filter (photography, videography, drone-aerial, travel-reels)"),
+    db: Session = Depends(get_db),
+):
+    """List publicly discoverable verified creators with optional category filtering."""
     creators = CreatorService.list_public_creators(db)
+
+    if category and category.strip() and category.lower() != "all":
+        cat_clean = category.strip().lower()
+        filtered = []
+        for c in creators:
+            specs = [s.lower() for s in (c.specialties or [])]
+            if cat_clean in specs or any(cat_clean in s for s in specs):
+                filtered.append(c)
+            elif cat_clean == "photography" and any("photo" in s for s in specs):
+                filtered.append(c)
+            elif cat_clean == "videography" and any("video" in s or "film" in s for s in specs):
+                filtered.append(c)
+            elif cat_clean == "drone-aerial" and any("drone" in s or "aerial" in s for s in specs):
+                filtered.append(c)
+            elif cat_clean == "travel-reels" and any("reel" in s or "short" in s for s in specs):
+                filtered.append(c)
+        creators = filtered
+
     return APIResponse(
         success=True,
         message=f"Retrieved {len(creators)} creators",
         data=creators,
     )
+
 
 
 @router.get("/me/profile", response_model=APIResponse[CreatorProfileResponse])

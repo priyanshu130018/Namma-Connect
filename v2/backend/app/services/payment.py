@@ -150,7 +150,7 @@ class PaymentService:
                 )
 
         service_title = booking.service.title if booking.service else "NammaConnect Experience"
-        public_key = settings.RAZORPAY_KEY_ID or "rzp_test_nammaconnect_public_key"
+        public_key = settings.RAZORPAY_KEY_ID or ("rzp_test_fixture_public_key" if settings.ENV in ["test", "testing"] else "")
 
         return PaymentOrderResponse(
             order_id=order_id,
@@ -231,7 +231,12 @@ class PaymentService:
             )
 
         # 4. Cryptographic HMAC-SHA256 Signature Verification
-        secret = settings.RAZORPAY_KEY_SECRET or "rzp_test_secret"
+        secret = settings.RAZORPAY_KEY_SECRET or ("rzp_test_fixture_secret" if settings.ENV in ["test", "testing"] else "")
+        if not secret:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Payment gateway signature verification is unconfigured.",
+            )
         message = f"{req.razorpay_order_id}|{req.razorpay_payment_id}"
         expected_signature = hmac.new(
             secret.encode("utf-8"),
@@ -240,7 +245,7 @@ class PaymentService:
         ).hexdigest()
 
         # Check signature (supports valid HMAC hash as well as test-mode mock signature)
-        is_mock_test = (
+        is_mock_test = settings.ENV in ["test", "testing"] and (
             req.razorpay_signature.startswith("mock_sig_")
             or req.razorpay_signature == "valid_signature_hash"
         )
@@ -390,7 +395,9 @@ class PaymentService:
         razorpay_signature: str,
     ) -> bool:
         """Verify HMAC SHA256 payment signature against key secret."""
-        key_secret = settings.RAZORPAY_KEY_SECRET or "test_secret_key"
+        key_secret = settings.RAZORPAY_KEY_SECRET or ("test_secret_key" if settings.ENV in ["test", "testing"] else "")
+        if not key_secret:
+            return False
         msg = f"{razorpay_order_id}|{razorpay_payment_id}".encode("utf-8")
         expected_signature = hmac.new(
             key_secret.encode("utf-8"),

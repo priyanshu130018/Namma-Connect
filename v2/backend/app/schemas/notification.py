@@ -14,6 +14,7 @@ class NotificationResponse(BaseModel):
     resource_type: Optional[str] = None
     resource_id: Optional[str] = None
     is_read: bool
+    is_deletable: bool = True
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

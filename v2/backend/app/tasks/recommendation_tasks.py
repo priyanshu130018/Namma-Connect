@@ -3,7 +3,7 @@
 import uuid
 from typing import Dict, Any, Optional, List
 from app.core.celery_app import celery_app
-from app.core.database import SessionLocal
+from app.core import database
 from app.core.logging import logger
 from app.services.recommendation_engine import RecommendationEngine
 from app.services.nc_score_engine import NCScoreEngine
@@ -23,7 +23,7 @@ def process_user_interaction_task(
     metadata: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """Asynchronously record user interaction signal and trigger profile refresh."""
-    db = SessionLocal()
+    db = database.SessionLocal()
     try:
         u_id = uuid.UUID(user_id_str)
         s_id = uuid.UUID(service_id_str) if service_id_str else None
@@ -56,7 +56,7 @@ def process_user_interaction_task(
 )
 def update_user_interest_profile_task(self, user_id_str: str) -> bool:
     """Asynchronously recalculate user interest profile with 7-day half-life decay."""
-    db = SessionLocal()
+    db = database.SessionLocal()
     try:
         u_id = uuid.UUID(user_id_str)
         RecommendationEngine.update_user_interest_profile(db=db, user_id=u_id)
@@ -80,7 +80,7 @@ def update_user_interest_profile_task(self, user_id_str: str) -> bool:
 )
 def precompute_home_recommendations_task(self, user_id_str: Optional[str] = None, location: Optional[str] = None) -> bool:
     """Precompute and refresh Home page recommendations payload in Redis cache."""
-    db = SessionLocal()
+    db = database.SessionLocal()
     try:
         from app.models.user import User
         user = None
@@ -113,7 +113,7 @@ def precompute_home_recommendations_task(self, user_id_str: Optional[str] = None
 )
 def compute_user_similarities_task(self) -> int:
     """Batch compute and persist user-to-user behavioral similarity pairs."""
-    db = SessionLocal()
+    db = database.SessionLocal()
     try:
         pairs_computed = RecommendationEngine.compute_all_user_similarities(db=db)
         return pairs_computed
@@ -136,7 +136,7 @@ def compute_user_similarities_task(self) -> int:
 )
 def recalculate_nc_score_task(self, provider_id_str: str, service_id_str: Optional[str] = None) -> bool:
     """Recalculate provider NC Score and update Redis cache."""
-    db = SessionLocal()
+    db = database.SessionLocal()
     try:
         p_id = uuid.UUID(provider_id_str)
         s_id = uuid.UUID(service_id_str) if service_id_str else None

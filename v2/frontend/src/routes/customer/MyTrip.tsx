@@ -14,6 +14,9 @@ import {
   RefreshCw,
   User as UserIcon,
   Star,
+  CreditCard,
+  Receipt,
+  Sparkles,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -27,19 +30,25 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { getCustomerBookings, cancelBooking } from "@/services/bookingService";
 import { LeaveReviewModal } from "@/components/reviews/LeaveReviewModal";
+import { TripPlannerModal } from "@/components/customer/TripPlannerModal";
 import { BookingItem } from "@/types";
 
 export function CustomerMyTripPage() {
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<string>(() => {
-    if (typeof window !== "undefined" && window.location.pathname.endsWith("/history")) return "completed";
-    if (typeof window !== "undefined" && window.location.pathname.endsWith("/cancelled")) return "cancelled";
+    if (typeof window !== "undefined") {
+      if (window.location.pathname.endsWith("/history")) return "completed";
+      if (window.location.pathname.endsWith("/payment") || window.location.pathname.endsWith("/payments")) return "payment";
+      if (window.location.pathname.endsWith("/cancelled")) return "cancelled";
+    }
     return "upcoming";
   });
 
   useEffect(() => {
     if (location.pathname.endsWith("/history")) {
       setActiveTab("completed");
+    } else if (location.pathname.endsWith("/payment") || location.pathname.endsWith("/payments")) {
+      setActiveTab("payment");
     } else if (location.pathname.endsWith("/cancelled")) {
       setActiveTab("cancelled");
     } else if (location.pathname.endsWith("/bookings") || location.pathname.endsWith("/trip") || location.pathname.endsWith("/my-trip")) {
@@ -57,6 +66,7 @@ export function CustomerMyTripPage() {
   const [isCancelling, setIsCancelling] = useState<boolean>(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [reviewModalOpen, setReviewModalOpen] = useState<boolean>(false);
+  const [plannerModalOpen, setPlannerModalOpen] = useState<boolean>(false);
 
   const loadBookings = async () => {
     setIsLoading(true);
@@ -327,20 +337,33 @@ export function CustomerMyTripPage() {
 
   return (
     <div className="space-y-6 pb-12">
-      <PageHeader
-        title="My Trip & Bookings"
-        subtitle="Manage upcoming agricultural stays, view check-in passes, and review past experiences."
-      />
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <PageHeader
+          title="My Trip & Bookings"
+          subtitle="Manage upcoming agricultural stays, view check-in passes, and review past experiences."
+        />
+        <Button
+          onClick={() => setPlannerModalOpen(true)}
+          className="gap-2 font-bold bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white rounded-xl shadow-md text-xs self-start sm:self-auto shrink-0"
+        >
+          <Sparkles className="h-4 w-4 text-emerald-200" />
+          <span>Plan Trip with AI</span>
+        </Button>
+      </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="upcoming" className="gap-1.5">
             <Clock className="h-3.5 w-3.5" />
-            <span>Upcoming ({upcomingBookings.length})</span>
+            <span>Trip ({upcomingBookings.length})</span>
           </TabsTrigger>
           <TabsTrigger value="completed" className="gap-1.5">
             <CheckCircle2 className="h-3.5 w-3.5" />
-            <span>Completed ({completedBookings.length})</span>
+            <span>History ({completedBookings.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="payment" className="gap-1.5">
+            <CreditCard className="h-3.5 w-3.5" />
+            <span>Payment ({bookings.length})</span>
           </TabsTrigger>
           <TabsTrigger value="cancelled" className="gap-1.5">
             <XCircle className="h-3.5 w-3.5" />
@@ -383,10 +406,10 @@ export function CustomerMyTripPage() {
               ) : (
                 <EmptyState
                   icon={Compass}
-                  title="No trips yet"
-                  description="Explore services to start planning your agricultural trip across Karnataka."
-                  actionLabel="Explore Marketplace"
-                  onAction={() => window.location.assign("/app/explore")}
+                  title="No active trips"
+                  description="Explore activities and farm experiences to plan your next agricultural journey across Karnataka."
+                  actionLabel="Explore Activities"
+                  onAction={() => window.location.assign("/app/activities")}
                 />
               )}
             </TabsContent>
@@ -398,7 +421,84 @@ export function CustomerMyTripPage() {
                 <EmptyState
                   icon={CheckCircle2}
                   title="No completed trips yet"
-                  description="Once you complete a farm stay or workshop experience, your past records will appear here."
+                  description="Once you complete an activity or workshop experience, your past trip records will appear here."
+                />
+              )}
+            </TabsContent>
+
+            <TabsContent value="payment" className="space-y-4 pt-2">
+              {bookings.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
+                    <Card className="p-5 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Total Spent</span>
+                      <p className="text-xl font-extrabold text-slate-900 dark:text-slate-100 mt-1">
+                        {formatCurrency(
+                          bookings
+                            .filter((b) => b.status === "COMPLETED" || b.status === "CONFIRMED")
+                            .reduce((sum, b) => sum + (b.total_amount || 0), 0)
+                        )}
+                      </p>
+                    </Card>
+                    <Card className="p-5 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Paid Transactions</span>
+                      <p className="text-xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-1">
+                        {bookings.filter((b) => b.status === "COMPLETED" || b.status === "CONFIRMED").length}
+                      </p>
+                    </Card>
+                    <Card className="p-5 rounded-2xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block">Pending / Refunds</span>
+                      <p className="text-xl font-extrabold text-amber-600 dark:text-amber-400 mt-1">
+                        {bookings.filter((b) => b.status === "PENDING" || b.status === "CANCELLED").length}
+                      </p>
+                    </Card>
+                  </div>
+
+                  {bookings.map((booking) => (
+                    <Card
+                      key={booking.id}
+                      className="p-5 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm"
+                    >
+                      <div className="flex items-center gap-3.5">
+                        <div className="h-12 w-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                          <Receipt className="h-6 w-6" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">{booking.service_title}</h4>
+                            {renderStatusBadge(booking.status)}
+                          </div>
+                          <p className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                            Booking #{booking.booking_code} • {formatDate(booking.start_date)}
+                          </p>
+                          <p className="text-xs text-slate-600 dark:text-slate-300">
+                            Host: {booking.provider_name}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 self-end sm:self-center">
+                        <div className="text-right">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">Amount</span>
+                          <span className="text-base font-black text-slate-900 dark:text-slate-100">
+                            {formatCurrency(booking.total_amount)}
+                          </span>
+                        </div>
+                        <Link to={`/app/bookings/${booking.id}`}>
+                          <Button size="sm" variant="outline" className="rounded-xl font-bold text-xs gap-1">
+                            <span>Receipt</span>
+                            <ArrowUpRight className="h-3 w-3" />
+                          </Button>
+                        </Link>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  icon={CreditCard}
+                  title="No payment records"
+                  description="When you book experiences or farm activities, your transaction invoices will appear here."
                 />
               )}
             </TabsContent>
@@ -528,6 +628,12 @@ export function CustomerMyTripPage() {
         onClose={() => setReviewModalOpen(false)}
         booking={selectedBooking}
         onSuccess={loadBookings}
+      />
+
+      {/* Agentic AI Trip Planner Modal */}
+      <TripPlannerModal
+        isOpen={plannerModalOpen}
+        onClose={() => setPlannerModalOpen(false)}
       />
     </div>
   );

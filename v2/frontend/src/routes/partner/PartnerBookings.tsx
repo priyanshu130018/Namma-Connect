@@ -277,7 +277,7 @@ export function PartnerBookingsPage() {
           )}
         </div>
 
-        <Link to={`/partner/bookings/${b.id}`}>
+        <Link to={`/provider/bookings/${b.id}`}>
           <Button size="sm" variant="outline" className="gap-1.5 text-xs font-bold rounded-xl">
             <span>View Manifest</span>
             <ArrowUpRight className="h-3.5 w-3.5" />

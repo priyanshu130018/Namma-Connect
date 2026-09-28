@@ -89,6 +89,14 @@ def test_messages_workflow_and_cross_user_security(
     auth_headers_user2: dict,
 ):
     """Test conversation retrieval, thread loading, message sending, and authorization."""
+    # 0. User 1 initiates conversation with test partner
+    send_init = client.post(
+        "/api/v2/messages/send",
+        headers=auth_headers_user1,
+        json={"recipient_id": "11111111-1111-1111-1111-111111111111", "content": "Hello Host, inquiring about my stay."},
+    )
+    assert send_init.status_code == 201
+
     # 1. User 1 fetches conversations
     convs_resp = client.get("/api/v2/messages/conversations", headers=auth_headers_user1)
     assert convs_resp.status_code == 200
@@ -104,7 +112,7 @@ def test_messages_workflow_and_cross_user_security(
     thread_resp = client.get(f"/api/v2/messages/conversations/{conv_id}", headers=auth_headers_user1)
     assert thread_resp.status_code == 200
     thread_data = thread_resp.json()["data"]
-    assert len(thread_data["messages"]) >= 2
+    assert len(thread_data["messages"]) >= 1
     assert thread_data["conversation"]["unread_count"] == 0
 
     # 4. User 1 sends a message

@@ -57,7 +57,7 @@ class EmailService:
         subject: str,
         html_content: str,
         text_content: Optional[str] = None,
-        from_email: str = "notifications@nammaconnect.in",
+        from_email: Optional[str] = None,
         is_test_data: bool = False,
         event_type: str = "general",
         user_id: Optional[uuid.UUID] = None,
@@ -70,7 +70,15 @@ class EmailService:
             cls._log_email(db, to_email, event_type, subject, "skipped", user_id=user_id)
             return {"id": "test_data_skipped", "status": "skipped", "to": to_email}
 
-        # 2. Mock mode if Resend API key is unconfigured or in automated test environments
+        effective_from = from_email or getattr(settings, "RESEND_FROM_EMAIL", "notifications@nammaconnect.in")
+
+        # 2. In Production: Must fail clearly if unconfigured
+        if settings.ENV in ["production", "prod"] and not cls.is_configured():
+            logger.error(f"Resend is unconfigured in production. Cannot send email to {to_email}")
+            cls._log_email(db, to_email, event_type, subject, "failed", user_id=user_id, error="Resend API key unconfigured in production.")
+            return {"id": None, "status": "failed", "error": "Resend API key unconfigured in production.", "to": to_email}
+
+        # Mock mode in development or automated tests when key unconfigured
         if not cls.is_configured() or settings.ENV in ["test", "testing"]:
             logger.info(f"[MOCK EMAIL] To: {to_email} | Subject: {subject}")
             cls._log_email(db, to_email, event_type, subject, "mock_sent", user_id=user_id, resend_message_id="mock_email_id")
@@ -80,8 +88,8 @@ class EmailService:
         try:
             import urllib.request
 
-            url = "https://api.resend.com/emails"
-            from_fmt = from_email if "<" in from_email else f"NammaConnect <{from_email}>"
+            url = getattr(settings, "RESEND_API_URL", "https://api.resend.com/emails")
+            from_fmt = effective_from if "<" in effective_from else f"NammaConnect <{effective_from}>"
             payload = {
                 "from": from_fmt,
                 "to": [to_email],

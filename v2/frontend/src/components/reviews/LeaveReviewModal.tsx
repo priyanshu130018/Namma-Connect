@@ -60,14 +60,11 @@ export function LeaveReviewModal({
       });
 
       setSuccessMessage("Review submitted successfully.");
-      setTimeout(() => {
-        setIsSubmitting(false);
-        setComment("");
-        setRating(5);
-        setSuccessMessage(null);
-        if (onSuccess) onSuccess();
-        onClose();
-      }, 1000);
+      setIsSubmitting(false);
+      setComment("");
+      setRating(5);
+      if (onSuccess) onSuccess();
+      onClose();
     } catch (err: any) {
       setErrorMessage(
         err.response?.data?.detail ||

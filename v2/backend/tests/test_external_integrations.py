@@ -52,7 +52,7 @@ def test_google_oauth_customer_creation(db_session: Session):
     test_token = "google_test_mock_token_123"
     result = AuthService.google_auth(db_session, test_token)
     assert result.user.email == "google.traveler@example.com"
-    assert result.user.role == "customer"
+    assert result.user.role in ["user", "customer"]
     assert result.user.is_verified is True
     assert result.access_token is not None
 
@@ -247,3 +247,119 @@ def test_background_trip_reminders(db_session: Session):
     assert res["status"] == "completed"
     assert "reminders_sent" in res
     assert "skipped" in res
+
+def test_cloudinary_production_unconfigured_fails_clearly():
+    """Verify production environment raises error if Cloudinary credentials missing (G1.7, G1.8, F1.1)."""
+    orig_env = settings.ENV
+    orig_cloud = settings.CLOUDINARY_CLOUD_NAME
+    orig_key = settings.CLOUDINARY_API_KEY
+    try:
+        settings.ENV = "production"
+        settings.CLOUDINARY_CLOUD_NAME = ""
+        settings.CLOUDINARY_API_KEY = ""
+        with pytest.raises(Exception) as exc_info:
+            CloudinaryService.upload_media(b"sample_bytes", "sample.jpg")
+        assert "Cloudinary is unconfigured in production" in str(exc_info.value)
+    finally:
+        settings.ENV = orig_env
+        settings.CLOUDINARY_CLOUD_NAME = orig_cloud
+        settings.CLOUDINARY_API_KEY = orig_key
+
+
+def test_cloudinary_mime_type_and_size_validation():
+    """Verify file format and size gates (G1.6, F1.5)."""
+    # 1. Reject invalid image format
+    with pytest.raises(Exception) as exc_info:
+        CloudinaryService.upload_media(
+            b"fake_exe_bytes",
+            "malicious.exe",
+            content_type="application/x-msdownload",
+        )
+    assert "Invalid image type" in str(exc_info.value)
+
+    # 2. Reject invalid KYC format
+    with pytest.raises(Exception) as exc_info:
+        CloudinaryService.upload_partner_kyc_document(
+            b"fake_script_bytes",
+            "p123",
+            "script.sh",
+            content_type="text/x-sh",
+        )
+    assert "Invalid KYC document type" in str(exc_info.value)
+
+
+def test_media_upload_endpoints(client: TestClient, db_session: Session):
+    """Verify media upload endpoints for image and private KYC documents."""
+    from app.core.security import create_access_token
+    # Create test provider user
+    provider = User(
+        email=f"media_provider_{int(datetime.utcnow().timestamp())}@test.com",
+        hashed_password="hash",
+        full_name="Media Provider",
+        role="provider",
+        is_verified=True,
+    )
+    db_session.add(provider)
+    db_session.commit()
+    db_session.refresh(provider)
+
+    token = create_access_token(subject=str(provider.id), role="provider")
+    auth_headers = {"Authorization": f"Bearer {token}"}
+
+    # 1. Upload public image
+    files = {"file": ("test_avatar.jpg", b"fake_jpg_binary_content", "image/jpeg")}
+    resp = client.post("/api/v2/media/upload/image", files=files, headers=auth_headers)
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    assert "url" in data
+    assert data["is_private"] is False
+
+    # 2. Upload private KYC document
+    kyc_files = {"file": ("gst_cert.pdf", b"fake_pdf_binary_content", "application/pdf")}
+    kyc_resp = client.post("/api/v2/media/upload/kyc", files=kyc_files, headers=auth_headers)
+    assert kyc_resp.status_code == 200
+    kyc_data = kyc_resp.json()["data"]
+    assert kyc_data["is_private"] is True
+    assert "kyc_private" in kyc_data["public_id"]
+
+
+def test_media_deletion_and_replacement_ownership_protection(client: TestClient, db_session: Session):
+    """Verify Provider A cannot delete or replace Provider B's media assets (F1.3)."""
+    from app.core.security import create_access_token
+    # Create Provider A and Provider B
+    provider_a = User(
+        email=f"prov_a_{int(datetime.utcnow().timestamp())}@test.com",
+        hashed_password="hash",
+        full_name="Provider A",
+        role="provider",
+        is_verified=True,
+    )
+    provider_b = User(
+        email=f"prov_b_{int(datetime.utcnow().timestamp())}@test.com",
+        hashed_password="hash",
+        full_name="Provider B",
+        role="provider",
+        is_verified=True,
+    )
+    db_session.add_all([provider_a, provider_b])
+    db_session.commit()
+    db_session.refresh(provider_a)
+    db_session.refresh(provider_b)
+
+    token_a = create_access_token(subject=str(provider_a.id), role="provider")
+    headers_a = {"Authorization": f"Bearer {token_a}"}
+
+    # Target asset owned by Provider B
+    provider_b_asset_id = f"nammaconnect/profiles/user_{str(provider_b.id)}_profile_123"
+
+    # 1. Provider A tries to delete Provider B's avatar
+    del_resp = client.delete(f"/api/v2/media/{provider_b_asset_id}", headers=headers_a)
+    assert del_resp.status_code == 403
+    assert "not authorized to delete another user" in del_resp.json()["detail"]
+
+    # 2. Provider A tries to replace Provider B's asset
+    files = {"file": ("new_pic.jpg", b"fake_bytes", "image/jpeg")}
+    data = {"old_public_id": provider_b_asset_id}
+    rep_resp = client.put("/api/v2/media/replace", data=data, files=files, headers=headers_a)
+    assert rep_resp.status_code == 403
+    assert "not authorized to replace another provider" in rep_resp.json()["detail"]

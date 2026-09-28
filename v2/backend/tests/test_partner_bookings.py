@@ -30,7 +30,7 @@ def auth_headers_other_partner(client: TestClient) -> dict:
         "email": "other.host@example.com",
         "password": "SecurePassword123!",
         "full_name": "Other Host",
-        "role": "farmer",
+        "role": "provider",
     }
     reg_resp = client.post("/api/v2/auth/register", json=user_payload)
     if reg_resp.status_code == 201:

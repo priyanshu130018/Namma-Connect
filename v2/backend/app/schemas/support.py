@@ -43,6 +43,24 @@ class SupportTicketResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PublicContactRequest(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100, description="Full name of sender")
+    email: str = Field(..., min_length=5, max_length=255, description="Email address for replies")
+    subject: str = Field(..., min_length=3, max_length=255, description="Inquiry subject")
+    category: str = Field("General Inquiry", description="Category of inquiry")
+    message: str = Field(..., min_length=10, max_length=5000, description="Detailed message content")
+
+
+class PublicContactResponse(BaseModel):
+    ticket_code: str
+    name: str
+    email: str
+    subject: str
+    category: str
+    message: str
+    created_at: Optional[datetime] = None
+
+
 class SupportTicketListResponse(BaseModel):
     tickets: List[SupportTicketResponse]
     total: int

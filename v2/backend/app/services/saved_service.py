@@ -22,7 +22,6 @@ class SavedServiceDomainService:
     @classmethod
     def _validate_service(cls, db: Session, service_id: str) -> Service:
         """Validate that a service exists in the catalog."""
-        MarketplaceService.ensure_seeded(db)
         service = ServiceRepository.get_by_id(db, service_id)
         if not service:
             service = ServiceRepository.get_by_slug(db, service_id)
@@ -49,6 +48,22 @@ class SavedServiceDomainService:
             user_id=str(current_user.id),
             service_id=str(service.id),
         )
+
+        try:
+            from app.services.recommendation_engine import RecommendationEngine
+            RecommendationEngine.record_interaction(
+                db=db,
+                user_id=current_user.id,
+                event_type="save",
+                service_id=service.id,
+                metadata={
+                    "category_slug": service.category_slug,
+                    "district": service.district,
+                    "price": service.price,
+                },
+            )
+        except Exception:
+            pass
 
         return SavedServiceStatusResponse(
             is_saved=True,
@@ -104,7 +119,6 @@ class SavedServiceDomainService:
         current_user: User,
     ) -> SavedServiceListResponse:
         """List all saved services for the authenticated customer."""
-        MarketplaceService.ensure_seeded(db)
         saved_records = SavedServiceRepository.list_by_user(db, str(current_user.id))
 
         services: List[ServiceResponse] = []

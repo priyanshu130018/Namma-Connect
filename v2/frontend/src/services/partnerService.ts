@@ -77,7 +77,7 @@ export async function updatePartnerService(
     ...payload,
     max_capacity: payload.max_capacity ?? payload.capacity,
   };
-  const response = await apiClient.put<ApiMessageResponse<MarketplaceService>>(
+  const response = await apiClient.patch<ApiMessageResponse<MarketplaceService>>(
     `/services/partner/${serviceId}`,
     reqPayload
   );
@@ -109,5 +109,5 @@ export async function submitVerificationChangeRequest(payload: {
   requested_value: string;
   reason: string;
 }) {
-  return apiClient.post<any>("/partner/profile/change-request", payload);
+  return apiClient.post<any>("/users/me/change-request", payload);
 }

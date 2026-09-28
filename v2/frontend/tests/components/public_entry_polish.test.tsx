@@ -107,7 +107,7 @@ describe("Public Website & Entry Flow Polish Suite", () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByRole("heading", { name: /Welcome to NammaConnect/i })).toBeInTheDocument();
+      expect(screen.getByPlaceholderText(/Search activities, places, experiences/i)).toBeInTheDocument();
     });
   });
 

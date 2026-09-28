@@ -65,17 +65,63 @@ def get_current_user_profile(
 
 
 @router.put("/me", response_model=APIResponse[UserResponse])
+@router.patch("/me", response_model=APIResponse[UserResponse])
 def update_current_user_profile(
     payload: UserProfileUpdateRequest,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Update editable fields (display name, location, language, avatar) on user profile."""
+    """Update editable fields (display name, location, language, avatar, bio, gender, date_of_birth, tags) on user profile."""
     updated_profile = UserService.update_user_profile(db, current_user, payload)
     return APIResponse(
         success=True,
         message="Profile updated.",
         data=updated_profile,
+    )
+
+
+@router.post("/me/avatar", response_model=APIResponse[UserResponse])
+def upload_current_user_avatar(
+    payload: UserProfileUpdateRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Upload or update profile avatar image for authenticated user."""
+    updated_profile = UserService.update_user_profile(db, current_user, payload)
+    return APIResponse(
+        success=True,
+        message="Avatar updated successfully.",
+        data=updated_profile,
+    )
+
+
+@router.post("/verify-email/request", response_model=APIResponse[Dict[str, Any]])
+def request_email_verification_otp(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Request email verification OTP for authenticated user."""
+    res = UserService.request_email_otp(db, current_user)
+    return APIResponse(
+        success=True,
+        message=res["message"],
+        data=res,
+    )
+
+
+@router.post("/verify-email/verify", response_model=APIResponse[Dict[str, Any]])
+def verify_email_with_otp(
+    payload: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Verify email with OTP code."""
+    otp = str(payload.get("otp", "")).strip()
+    res = UserService.verify_email_otp(db, current_user, otp)
+    return APIResponse(
+        success=True,
+        message=res["message"],
+        data=res,
     )
 
 
@@ -134,3 +180,4 @@ def get_my_saved_services(
         message="Saved services retrieved successfully.",
         data=saved_list,
     )
+

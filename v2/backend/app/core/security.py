@@ -25,7 +25,7 @@ def get_password_hash(password: str) -> str:
 
 def create_access_token(
     subject: Union[str, Any],
-    role: str = "customer",
+    role: str = "user",
     expires_delta: Optional[timedelta] = None,
 ) -> str:
     """Create a signed JWT access token with user ID and role claims."""
@@ -87,4 +87,23 @@ def create_verification_token(
     return jwt.encode(
         to_encode, settings.JWT_SECRET, algorithm=settings.JWT_ALGORITHM
     )
+
+
+def decode_token(token: str) -> Optional[dict]:
+    """Decode and validate a signed JWT token."""
+    try:
+        return jwt.decode(
+            token, settings.JWT_SECRET, algorithms=[settings.JWT_ALGORITHM]
+        )
+    except Exception:
+        return None
+
+
+def decode_access_token(token: str) -> Optional[dict]:
+    """Decode and validate an access JWT token."""
+    payload = decode_token(token)
+    if payload and payload.get("type") == "access":
+        return payload
+    return None
+
 

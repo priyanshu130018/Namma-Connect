@@ -44,12 +44,12 @@ class RefundService:
 
         if days_ahead >= 2:
             return (
-                payment.amount,
+                float(payment.amount),
                 "COMPLETED",
                 "Full 100% refund (Cancelled >= 48 hours before check-in).",
             )
         else:
-            partial_amount = round(payment.amount * 0.5, 2)
+            partial_amount = round(float(payment.amount) * 0.5, 2)
             return (
                 partial_amount,
                 "COMPLETED",

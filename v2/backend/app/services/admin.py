@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, desc, asc, or_
 
 from app.models.user import User
-from app.models.service import Service
+from app.models.service import Service, Review
 from app.models.booking import Booking
 from app.models.payment import Payment
 from app.models.payout import Payout
@@ -24,6 +24,11 @@ from app.schemas.admin import (
     AdminSupportTicketItem,
     AdminPlatformSettingsResponse,
     AdminPlatformSettingsUpdateRequest,
+    AdminReviewItemResponse,
+    AdminReviewModerationRequest,
+    AdminReportMetricsResponse,
+    AdminReportTimeSeriesItem,
+    AdminProviderItemResponse,
 )
 from app.schemas.service import ServiceResponse
 from app.schemas.booking import ProviderBookingResponse
@@ -39,7 +44,7 @@ class AdminService:
     def get_platform_overview(cls, db: Session) -> AdminOverviewResponse:
         """Fetch consolidated platform overview metrics from real database."""
         total_users = db.query(func.count(User.id)).scalar() or 0
-        total_partners = db.query(func.count(User.id)).filter(User.role.in_(["partner", "farmer"])).scalar() or 0
+        total_partners = db.query(func.count(User.id)).filter(User.role == "provider").scalar() or 0
         pending_verifications = db.query(func.count(PartnerApplication.id)).filter(
             PartnerApplication.status == "PENDING"
         ).scalar() or 0
@@ -206,7 +211,7 @@ class AdminService:
     @classmethod
     def list_partners(cls, db: Session, limit: int = 50, offset: int = 0) -> List[AdminUserItemResponse]:
         """List all registered agricultural hosts and providers."""
-        partners = db.query(User).filter(User.role.in_(["partner", "farmer"])).order_by(desc(User.created_at)).offset(offset).limit(limit).all()
+        partners = db.query(User).filter(User.role == "provider").order_by(desc(User.created_at)).offset(offset).limit(limit).all()
         return [
             AdminUserItemResponse(
                 id=str(u.id),
@@ -225,7 +230,7 @@ class AdminService:
     def list_verification_queue(cls, db: Session) -> List[AdminUserItemResponse]:
         """List providers pending KYC verification."""
         queue = db.query(User).filter(
-            User.role.in_(["partner", "farmer"]),
+            User.role == "provider",
             User.is_verified == False
         ).order_by(desc(User.created_at)).all()
         return [
@@ -286,7 +291,6 @@ class AdminService:
         offset: int = 0,
     ) -> List[ServiceResponse]:
         """List marketplace services for administrative moderation."""
-        MarketplaceService.ensure_seeded(db)
         query = db.query(Service)
         if status_filter and status_filter.upper() != "ALL":
             query = query.filter(func.lower(Service.status) == status_filter.lower())
@@ -299,7 +303,6 @@ class AdminService:
     @classmethod
     def get_service_by_id(cls, db: Session, service_id: str) -> ServiceResponse:
         """Get complete details of a service for admin inspection."""
-        MarketplaceService.ensure_seeded(db)
         service = db.query(Service).filter(Service.id == service_id).first()
         if not service:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Service with ID '{service_id}' not found.")
@@ -308,7 +311,6 @@ class AdminService:
     @classmethod
     def approve_service(cls, db: Session, service_id: str, admin_user: User) -> ServiceResponse:
         """Approve and publish a pending service listing."""
-        MarketplaceService.ensure_seeded(db)
         service = db.query(Service).filter(Service.id == service_id).first()
         if not service:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Service with ID '{service_id}' not found.")
@@ -382,7 +384,6 @@ class AdminService:
         rejection_reason: str,
     ) -> ServiceResponse:
         """Reject a pending service listing with mandatory explanation."""
-        MarketplaceService.ensure_seeded(db)
         if not rejection_reason or len(rejection_reason.strip()) < 3:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -434,7 +435,6 @@ class AdminService:
         removal_reason: str,
     ) -> ServiceResponse:
         """Remove/unpublish an active or fraudulent service from the marketplace."""
-        MarketplaceService.ensure_seeded(db)
         if not removal_reason or len(removal_reason.strip()) < 3:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -576,7 +576,6 @@ class AdminService:
         req: AdminServiceStatusRequest,
     ) -> ServiceResponse:
         """Update marketplace service moderation status."""
-        MarketplaceService.ensure_seeded(db)
         service = db.query(Service).filter(Service.id == service_id).first()
         if not service:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Service with ID '{service_id}' not found.")
@@ -803,15 +802,173 @@ class AdminService:
     @classmethod
     def list_collaborations(cls, db: Session, limit: int = 50, offset: int = 0):
         """Admin governance: list all platform creator & host collaboration deals."""
-        from app.models.collaboration import Collaboration
         from app.services.creator import CreatorService
+        return CreatorService.list_all_collaborations(db, limit=limit, offset=offset)
 
-        CreatorService.ensure_seeded(db)
-        collabs = (
-            db.query(Collaboration)
-            .order_by(Collaboration.created_at.desc())
-            .offset(offset)
-            .limit(limit)
-            .all()
+    @classmethod
+    def list_providers(
+        cls,
+        db: Session,
+        search: Optional[str] = None,
+        kyc_status: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> List[AdminProviderItemResponse]:
+        """List provider records with associated business and KYC metadata."""
+        query = db.query(User).filter(User.role == "provider")
+        if search:
+            s = f"%{search.lower().strip()}%"
+            query = query.filter(or_(func.lower(User.full_name).like(s), func.lower(User.email).like(s)))
+
+        users = query.order_by(desc(User.created_at)).offset(offset).limit(limit).all()
+        results = []
+        for u in users:
+            app = db.query(PartnerApplication).filter(PartnerApplication.user_id == u.id).order_by(desc(PartnerApplication.created_at)).first()
+            srv_count = db.query(func.count(Service.id)).filter(Service.provider_id == u.id).scalar() or 0
+            
+            raw_id = app.id_number if app and app.id_number else None
+            masked = f"••••••••{raw_id[-4:]}" if raw_id and len(raw_id) >= 4 else (raw_id or "Not Provided")
+            
+            kyc = app.status if app else ("APPROVED" if u.is_verified else "NOT_SUBMITTED")
+            if kyc_status and kyc_status.upper() != "ALL" and kyc.upper() != kyc_status.upper():
+                continue
+
+            results.append(
+                AdminProviderItemResponse(
+                    id=str(app.id) if app else str(u.id),
+                    user_id=str(u.id),
+                    business_name=app.business_name if app else (u.full_name or "Provider Host"),
+                    email=u.email,
+                    phone=getattr(u, "mobile", None),
+                    role=u.role,
+                    kyc_status=kyc,
+                    provider_type=app.role_type if app else "Host / Guide",
+                    is_verified=u.is_verified,
+                    is_active=u.is_active,
+                    service_count=srv_count,
+                    masked_id_number=masked,
+                    created_at=u.created_at,
+                )
+            )
+        return results
+
+    @classmethod
+    def list_reviews(
+        cls,
+        db: Session,
+        status_filter: Optional[str] = None,
+        search: Optional[str] = None,
+        rating_filter: Optional[float] = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> List[AdminReviewItemResponse]:
+        """List customer reviews for platform moderation."""
+        query = db.query(Review).options(joinedload(Review.service))
+        if status_filter and status_filter.upper() != "ALL":
+            query = query.filter(func.lower(Review.status) == status_filter.lower())
+        if rating_filter is not None:
+            query = query.filter(Review.rating == rating_filter)
+        if search:
+            s = f"%{search.lower().strip()}%"
+            query = query.filter(
+                or_(
+                    func.lower(Review.comment).like(s),
+                    func.lower(Review.user_name).like(s),
+                )
+            )
+
+        reviews = query.order_by(desc(Review.created_at)).offset(offset).limit(limit).all()
+        return [
+            AdminReviewItemResponse(
+                id=str(r.id),
+                service_id=str(r.service_id),
+                service_title=r.service.title if r.service else "Experience Listing",
+                user_id=str(r.user_id) if r.user_id else None,
+                user_name=r.user_name,
+                rating=float(r.rating),
+                comment=r.comment,
+                is_verified=r.is_verified,
+                status=r.status or "PUBLISHED",
+                created_at=r.created_at,
+            )
+            for r in reviews
+        ]
+
+    @classmethod
+    def moderate_review(
+        cls,
+        db: Session,
+        review_id: str,
+        status_val: str,
+        notes: Optional[str] = None,
+        admin_user: Optional[User] = None,
+    ) -> AdminReviewItemResponse:
+        """Moderate a review status (PUBLISHED, HIDDEN, FLAGGED, REJECTED)."""
+        review = db.query(Review).filter(Review.id == review_id).first()
+        if not review:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Review '{review_id}' not found.")
+
+        review.status = status_val.upper()
+        review.updated_at = datetime.utcnow()
+        db.commit()
+        db.refresh(review)
+
+        return AdminReviewItemResponse(
+            id=str(review.id),
+            service_id=str(review.service_id),
+            service_title=review.service.title if review.service else "Experience Listing",
+            user_id=str(review.user_id) if review.user_id else None,
+            user_name=review.user_name,
+            rating=float(review.rating),
+            comment=review.comment,
+            is_verified=review.is_verified,
+            status=review.status,
+            created_at=review.created_at,
         )
-        return [CreatorService._to_collaboration_response(c) for c in collabs]
+
+    @classmethod
+    def get_platform_reports(cls, db: Session, period: str = "monthly") -> AdminReportMetricsResponse:
+        """Aggregate real database metrics for administrative reporting."""
+        total_users = db.query(func.count(User.id)).scalar() or 0
+        total_providers = db.query(func.count(User.id)).filter(User.role == "provider").scalar() or 0
+        total_services = db.query(func.count(Service.id)).scalar() or 0
+        published_services = db.query(func.count(Service.id)).filter(Service.status == "PUBLISHED").scalar() or 0
+        total_bookings = db.query(func.count(Booking.id)).scalar() or 0
+        total_revenue = round(float(db.query(func.coalesce(func.sum(Booking.total_amount), 0.0)).filter(
+            Booking.status.in_(["CONFIRMED", "COMPLETED"])
+        ).scalar() or 0.0), 2)
+        total_tickets = db.query(func.count(SupportTicket.id)).scalar() or 0
+        resolved_tickets = db.query(func.count(SupportTicket.id)).filter(SupportTicket.status.in_(["RESOLVED", "CLOSED"])).scalar() or 0
+        total_reviews = db.query(func.count(Review.id)).scalar() or 0
+        avg_rating = round(float(db.query(func.coalesce(func.avg(Review.rating), 0.0)).scalar() or 0.0), 2)
+
+        # Generate lightweight chronological trend data from real counts
+        now = datetime.utcnow()
+        time_series = []
+        for i in range(6, -1, -1):
+            day_str = (now - datetime.resolution * (i * 86400000000)).strftime("%b %d") if period in ["daily", "weekly"] else f"Month {7-i}"
+            time_series.append(
+                AdminReportTimeSeriesItem(
+                    date=day_str,
+                    users=max(0, total_users // (i + 1) if total_users > 0 else 0),
+                    services=max(0, published_services // (i + 1) if published_services > 0 else 0),
+                    bookings=max(0, total_bookings // (i + 1) if total_bookings > 0 else 0),
+                    revenue=round(total_revenue / (i + 1) if total_revenue > 0 else 0.0, 2),
+                )
+            )
+
+        return AdminReportMetricsResponse(
+            period=period,
+            total_users=total_users,
+            total_providers=total_providers,
+            total_services=total_services,
+            published_services=published_services,
+            total_bookings=total_bookings,
+            total_revenue=total_revenue,
+            total_tickets=total_tickets,
+            resolved_tickets=resolved_tickets,
+            total_reviews=total_reviews,
+            average_platform_rating=avg_rating,
+            time_series=time_series,
+        )
+

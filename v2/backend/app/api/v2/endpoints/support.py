@@ -11,10 +11,26 @@ from app.schemas.support import (
     SupportTicketReplyRequest,
     SupportTicketResponse,
     SupportTicketListResponse,
+    PublicContactRequest,
+    PublicContactResponse,
 )
 from app.services.support import SupportService
 
 router = APIRouter(prefix="/support", tags=["Support"])
+
+
+@router.post("/contact", response_model=APIResponse[PublicContactResponse], status_code=status.HTTP_201_CREATED)
+def submit_public_contact(
+    payload: PublicContactRequest,
+    db: Session = Depends(get_db),
+):
+    """Submit a public inquiry or contact form message without requiring prior authentication."""
+    inquiry = SupportService.submit_public_contact(db, payload)
+    return APIResponse(
+        success=True,
+        message="Inquiry submitted successfully. A member of our team will contact you shortly.",
+        data=inquiry,
+    )
 
 
 @router.post("/tickets", response_model=APIResponse[SupportTicketResponse], status_code=status.HTTP_201_CREATED)

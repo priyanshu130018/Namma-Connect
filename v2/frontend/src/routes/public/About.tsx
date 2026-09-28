@@ -4,155 +4,212 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PageMetadata } from "@/components/seo/PageMetadata";
 import {
   Sprout,
   ShieldCheck,
-  Users,
-  HeartHandshake,
+  Compass,
   CheckCircle2,
+  Lock,
+  Bot,
 } from "lucide-react";
 
 export function AboutPage() {
-  const pillars = [
-    {
-      icon: Sprout,
-      title: "Sustainable Agriculture & Heritage",
-      desc: "We exclusively support chemical-free, regenerative, and shade-grown plantation ecosystems preserving South India's biodiversity.",
-    },
-    {
-      icon: HeartHandshake,
-      title: "Direct Living Income for Hosts",
-      desc: "Transparent 5% platform commission ensures 95% of booking fees reach rural farming families and local guides directly.",
-    },
-    {
-      icon: ShieldCheck,
-      title: "Rigorous Verification & Trust",
-      desc: "Physical farm audits, land title verification, and Aadhaar KYC checks ensure guest safety and legitimate rural experiences.",
-    },
-    {
-      icon: Users,
-      title: "Creator Storytelling Synergy",
-      desc: "Bridging the gap between digital creators and agricultural estates to produce viral rural storytelling and media kits.",
-    },
-  ];
-
   return (
     <Section className="py-8 sm:py-12 bg-slate-50 min-h-screen">
-      <Container className="space-y-10">
+      <PageMetadata
+        title="About Us - Community Tourism & Rural Discovery"
+        description="Namma Connect is a verified community tourism platform connecting conscious travelers with authentic rural experiences and local agro-hosts."
+      />
+
+      <Container className="space-y-12">
+
         <PageHeader
           title="About Namma Connect"
-          subtitle="Empowering farming communities, celebrating sustainable agriculture, and connecting urban travelers with authentic rural wisdom."
+          subtitle="A verified community tourism and agricultural discovery platform connecting conscious travelers with authentic rural experiences."
         />
 
         {/* 1. Core Mission Card */}
         <Card className="p-8 sm:p-12 bg-white rounded-3xl border-slate-200 shadow-sm space-y-6">
           <div className="max-w-3xl space-y-4">
-            <Badge variant="default">Our Founding Mission</Badge>
+            <Badge variant="default" className="bg-emerald-600 text-white font-bold">Our Founding Mission</Badge>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight leading-snug">
-              Bridging the gap between rural agricultural heritage and modern conscious travel.
+              Bridging the gap between rural agricultural wisdom and modern conscious travel.
             </h2>
             <p className="text-slate-600 text-sm leading-relaxed">
-              Namma Connect was established to build a sustainable, verified service marketplace for smallholder farmers, plantation estate owners, rural guides, and local artisans. By opening authentic farm stays, harvest workshops, and culinary heritage trails to conscious travelers, we ensure that tourism revenue directly enriches rural families.
+              Namma Connect V2 is engineered as a high-performance modular marketplace connecting travelers, organic farm hosts, naturalists, and local artisans. By pairing intelligent hybrid recommendations and an Agentic AI Trip Planner with verified provider services, we deliver authentic travel while ensuring economic empowerment reaches rural communities directly.
             </p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100 text-xs">
-            <div className="p-4 rounded-2xl bg-harvest-50/60 border border-harvest-100 space-y-1">
-              <span className="font-bold text-harvest-800 text-sm">For Travelers</span>
-              <p className="text-slate-600">Guaranteed real farm life, transparent pricing, verified host reviews, and memorable agro-trails.</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-harvest-50/60 border border-harvest-100 space-y-1">
-              <span className="font-bold text-harvest-800 text-sm">For Farm Hosts</span>
-              <p className="text-slate-600">Direct booking management, automated daily payouts, calendar controls, and guest manifests.</p>
-            </div>
-            <div className="p-4 rounded-2xl bg-harvest-50/60 border border-harvest-100 space-y-1">
-              <span className="font-bold text-harvest-800 text-sm">For Rural Creators</span>
-              <p className="text-slate-600">Direct brand deal negotiations, fixed rate cards, portfolio showcase, and countryside storytelling.</p>
-            </div>
           </div>
         </Card>
 
-        {/* 2. Four Platform Pillars */}
-        <div id="trust" className="space-y-4">
-          <div className="text-center max-w-xl mx-auto space-y-1">
-            <h3 className="text-xl font-bold text-slate-900">How We Ensure Marketplace Quality</h3>
-            <p className="text-xs text-slate-500">Four non-negotiable principles guiding the NammaConnect platform.</p>
+        {/* 2. Platform Roles Breakdown */}
+        <div className="space-y-6">
+          <div className="text-center max-w-2xl mx-auto space-y-2">
+            <Badge variant="secondary">Role Ecosystem</Badge>
+            <h2 className="text-2xl font-extrabold text-slate-900">How Different Roles Experience Namma Connect</h2>
+            <p className="text-xs sm:text-sm text-slate-500">Every participant in the Namma Connect ecosystem has dedicated tools and capabilities.</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {pillars.map((pillar, i) => {
-              const Icon = pillar.icon;
-              return (
-                <Card key={i} className="p-6 bg-white rounded-3xl border-slate-200 space-y-3">
-                  <div className="h-11 w-11 rounded-2xl bg-harvest-50 text-harvest-700 flex items-center justify-center">
-                    <Icon className="h-5 w-5" />
-                  </div>
-                  <h4 className="text-sm font-bold text-slate-900">{pillar.title}</h4>
-                  <p className="text-xs text-slate-600 leading-relaxed">{pillar.desc}</p>
-                </Card>
-              );
-            })}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Customer / User Role */}
+            <Card className="p-8 bg-white rounded-3xl border-slate-200 shadow-sm space-y-6 flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="h-12 w-12 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
+                  <Compass className="h-6 w-6" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900">Customer / Traveler</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Conscious travelers looking for genuine countryside stays, harvest activities, and seamless trip planning.
+                </p>
+
+                <ul className="space-y-2.5 pt-2 text-xs text-slate-700">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Discover & Search:</strong> Explore 6 verified categories including Farm Stays, Guided Trails, and Harvest Workshops.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>Personalized Feed:</strong> Receive tailored recommendations based on browsing affinity and verified ratings.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>AI Assistant & Trip Planner:</strong> Converse with AI to construct multi-day conflict-free itineraries.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span><strong>My Trips & Bookings:</strong> Save favorites, manage day-by-day itineraries, and complete secure reservations.</span>
+                  </li>
+                </ul>
+              </div>
+
+              <Link to="/register" className="pt-4">
+                <Button className="w-full font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl">
+                  Join as Traveler
+                </Button>
+              </Link>
+            </Card>
+
+            {/* Provider / Host Role */}
+            <Card className="p-8 bg-white rounded-3xl border-slate-200 shadow-sm space-y-6 flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="h-12 w-12 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
+                  <Sprout className="h-6 w-6" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900">Provider / Agro-Host</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Plantation owners, smallholder farmers, local naturalists, rural drivers, and artisans hosting guests.
+                </p>
+
+                <ul className="space-y-2.5 pt-2 text-xs text-slate-700">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <span><strong>Service Management:</strong> Create and publish listings with custom pricing, tier options, and photo galleries.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <span><strong>Live Availability:</strong> Manage weekly schedules and block private dates without double-booking.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <span><strong>Booking Manifests:</strong> Receive reservation requests, confirm guest slots, and communicate directly.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                    <span><strong>Provider Intelligence:</strong> Track earnings, view performance analytics, and improve NC Quality Scores.</span>
+                  </li>
+                </ul>
+              </div>
+
+              <Link to="/login?returnUrl=/app/become-partner" className="pt-4">
+                <Button variant="outline" className="w-full font-bold border-amber-300 text-amber-900 hover:bg-amber-50 rounded-2xl">
+                  Become a Partner
+                </Button>
+              </Link>
+            </Card>
+
+            {/* Platform / Admin Governance */}
+            <Card className="p-8 bg-white rounded-3xl border-slate-200 shadow-sm space-y-6 flex flex-col justify-between">
+              <div className="space-y-4">
+                <div className="h-12 w-12 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center font-bold">
+                  <ShieldCheck className="h-6 w-6" />
+                </div>
+                <h3 className="text-xl font-bold text-slate-900">Platform Governance</h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  The central coordination layer ensuring trust, identity verification, payment settlement, and safety standards.
+                </p>
+
+                <ul className="space-y-2.5 pt-2 text-xs text-slate-700">
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-slate-600 shrink-0 mt-0.5" />
+                    <span><strong>Partner Vetting:</strong> Verification of host profiles, property details, and listing authenticity.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-slate-600 shrink-0 mt-0.5" />
+                    <span><strong>Financial Integrity:</strong> Encrypted payment processing and verified refund management.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-slate-600 shrink-0 mt-0.5" />
+                    <span><strong>Service Moderation:</strong> Quality reviews, image sanitization, and category classification.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="h-4 w-4 text-slate-600 shrink-0 mt-0.5" />
+                    <span><strong>Support & Redressal:</strong> Dedicated ticketing queue to assist travelers and resolve host inquiries.</span>
+                  </li>
+                </ul>
+              </div>
+
+              <Link to="/faq" className="pt-4">
+                <Button variant="ghost" className="w-full font-bold text-slate-700 hover:bg-slate-100 rounded-2xl">
+                  Read Safety FAQ
+                </Button>
+              </Link>
+            </Card>
           </div>
         </div>
 
-        {/* 3. Service Offerings Overview */}
-        <Card id="services" className="p-8 sm:p-10 bg-white rounded-3xl border-slate-200 space-y-6">
-          <div className="space-y-2">
-            <Badge variant="warning">Service Breadth</Badge>
-            <h3 className="text-xl font-bold text-slate-900">Documented Service Offerings</h3>
-            <p className="text-xs text-slate-600 max-w-2xl leading-relaxed">
-              Available services span 6 verified categories including Farm Stays, Guided Trails, Agro-Workshops, Travel Transits, Organic Dining, and Seasonal Harvest Festivals.
-            </p>
+        {/* 3. Four Core Principles */}
+        <div className="space-y-4">
+          <div className="text-center max-w-xl mx-auto space-y-1">
+            <h3 className="text-xl font-bold text-slate-900">Our Quality Standards</h3>
+            <p className="text-xs text-slate-500">Core architectural and operational principles of Namma Connect.</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs">
-            <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-100">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-              <span>Plantation Cottages & Homestays</span>
-            </div>
-            <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-100">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-              <span>Guided Canopy Walks & Spice Trails</span>
-            </div>
-            <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-100">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-              <span>Organic Coffee & Honey Harvesting</span>
-            </div>
-            <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-100">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-              <span>4x4 Estate Jeeps & Rural Transits</span>
-            </div>
-            <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-100">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-              <span>Regional Farm-to-Table Dining</span>
-            </div>
-            <div className="flex items-center gap-2 p-3 rounded-2xl bg-slate-50 border border-slate-100">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-              <span>Traditional Pottery & Weaving Arts</span>
-            </div>
-          </div>
-        </Card>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="p-6 bg-white rounded-3xl border-slate-200 space-y-3">
+              <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <Sprout className="h-5 w-5" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-900">Ecological Heritage</h4>
+              <p className="text-xs text-slate-600 leading-relaxed">Dedicated focus on shade-grown, organic, and regenerative rural environments.</p>
+            </Card>
 
-        {/* 4. Bottom Action Banner */}
-        <div className="rounded-3xl bg-harvest-900 text-white p-8 sm:p-10 flex flex-col sm:flex-row items-center justify-between gap-6 shadow-md">
-          <div className="space-y-1 text-center sm:text-left">
-            <h3 className="text-xl font-bold">Join the NammaConnect Community</h3>
-            <p className="text-xs text-harvest-200">Start discovering verified farm retreats or list your agricultural estate today.</p>
-          </div>
-          <div className="flex items-center gap-3 shrink-0">
-            <Link to="/register">
-              <Button className="font-bold bg-white text-harvest-900 hover:bg-slate-100 rounded-2xl">
-                Create Account
-              </Button>
-            </Link>
-            <Link to="/contact">
-              <Button variant="outline" className="border-harvest-700 text-white hover:bg-harvest-800 rounded-2xl">
-                Contact Team
-              </Button>
-            </Link>
+            <Card className="p-6 bg-white rounded-3xl border-slate-200 space-y-3">
+              <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-900">Verified Providers</h4>
+              <p className="text-xs text-slate-600 leading-relaxed">Strict host vetting and real guest reviews ensure genuine hospitality.</p>
+            </Card>
+
+            <Card className="p-6 bg-white rounded-3xl border-slate-200 space-y-3">
+              <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <Bot className="h-5 w-5" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-900">Grounded AI</h4>
+              <p className="text-xs text-slate-600 leading-relaxed">Trip itineraries and AI recommendations derived strictly from real catalog availability.</p>
+            </Card>
+
+            <Card className="p-6 bg-white rounded-3xl border-slate-200 space-y-3">
+              <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <Lock className="h-5 w-5" />
+              </div>
+              <h4 className="text-sm font-bold text-slate-900">Secure Settlement</h4>
+              <p className="text-xs text-slate-600 leading-relaxed">Encrypted transactions, verified settlement, and structured refund processing.</p>
+            </Card>
           </div>
         </div>
       </Container>
     </Section>
   );
 }
+

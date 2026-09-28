@@ -1,11 +1,12 @@
 """Endpoints for User Notifications and Unread Badges."""
 
-from fastapi import APIRouter, Depends
+from typing import Optional
+from fastapi import APIRouter, Depends, Query, status
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.dependencies.auth import get_current_user
 from app.models.user import User
-from app.schemas.common import APIResponse
+from app.schemas.common import APIResponse, MessageResponse
 from app.schemas.notification import (
     NotificationResponse,
     NotificationListResponse,
@@ -17,11 +18,12 @@ router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
 @router.get("", response_model=APIResponse[NotificationListResponse])
 def list_my_notifications(
+    sort_by: Optional[str] = Query("newest", description="newest | oldest | name_asc | name_desc"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Retrieve authenticated user's notification feed and unread count."""
-    res = NotificationService.list_user_notifications(db, current_user)
+    res = NotificationService.list_user_notifications(db, current_user, sort_by=sort_by)
     return APIResponse(
         success=True,
         message=f"Retrieved {len(res.notifications)} notifications",
@@ -56,3 +58,18 @@ def mark_all_notifications_read(
         message=f"Marked {count} notifications as read",
         data={"marked_count": count},
     )
+
+
+@router.delete("/{notification_id}", response_model=MessageResponse)
+def delete_notification(
+    notification_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a normal notification. Non-deletable system notifications will return an error."""
+    NotificationService.delete_notification(db, current_user, notification_id)
+    return MessageResponse(
+        success=True,
+        message="Notification deleted successfully.",
+    )
+

@@ -1,180 +1,75 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
-  User,
-  Bell,
   Globe,
   Sun,
   Moon,
   Laptop,
-  Shield,
-  KeyRound,
   Check,
-  AlertCircle,
+  Shield,
+  Key,
+  Smartphone,
+  Eye,
+  Lock,
+  LogOut,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Switch } from "@/components/ui/switch";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import * as userService from "@/services/userService";
-import { useAuth } from "@/app/providers";
+import { Dialog } from "@/components/ui/dialog";
 import { useTheme, Theme } from "@/app/theme";
 import { useTranslation, Language } from "@/i18n";
-import { UserSettingsData } from "@/types";
+import { useAuth } from "@/app/providers";
 
 export function CustomerSettingsPage() {
-  const { user: authUser } = useAuth();
   const { theme, setTheme } = useTheme();
   const { language, setLanguage, t } = useTranslation();
+  const { logout, user } = useAuth();
+  const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState("account");
-  const [settings, setSettings] = useState<UserSettingsData | null>(() => {
-    if (!authUser) return null;
-    return {
-      user_id: authUser.id,
-      email: authUser.email,
-      mobile: authUser.mobile || authUser.phone || null,
-      language: language,
-      theme: theme,
-      notifications: { email: true, sms: true, promo: false },
-      privacy: { share_profile: true, personalize_location: true },
-    };
-  });
-  const [isLoading, setIsLoading] = useState(!authUser);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  // Notifications State
-  const [emailNotify, setEmailNotify] = useState(true);
-  const [smsNotify, setSmsNotify] = useState(true);
-  const [promoNotify, setPromoNotify] = useState(false);
-
-  // Privacy State
-  const [shareProfile, setShareProfile] = useState(true);
-  const [locationPersonalize, setLocationPersonalize] = useState(true);
-
-  // Security State
-  const [currentPw, setCurrentPw] = useState("");
-  const [newPw, setNewPw] = useState("");
-  const [isUpdatingPw, setIsUpdatingPw] = useState(false);
-  const [pwError, setPwError] = useState<string | null>(null);
-
-  const fetchSettings = async () => {
-    if (!settings) setIsLoading(true);
-    setErrorMessage(null);
-    try {
-      const data = await userService.getUserSettings();
-      setSettings(data);
-      setEmailNotify(data.notifications?.email ?? true);
-      setSmsNotify(data.notifications?.sms ?? true);
-      setPromoNotify(data.notifications?.promo ?? false);
-      setShareProfile(data.privacy?.share_profile ?? true);
-      setLocationPersonalize(data.privacy?.personalize_location ?? true);
-    } catch {
-      if (!settings) {
-        setErrorMessage(t("settings.saveError"));
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchSettings();
-  }, []);
+  const [profileVisibility, setProfileVisibility] = useState(true);
+  const [dataSharing, setDataSharing] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const triggerFeedback = (msg: string) => {
     setSuccessMessage(msg);
     setTimeout(() => setSuccessMessage(null), 3500);
   };
 
-  const handleNotificationToggle = async (type: "email" | "sms" | "promo", val: boolean) => {
-    if (type === "email") setEmailNotify(val);
-    if (type === "sms") setSmsNotify(val);
-    if (type === "promo") setPromoNotify(val);
-
-    try {
-      await userService.updateUserSettings({
-        notifications: {
-          email: type === "email" ? val : emailNotify,
-          sms: type === "sms" ? val : smsNotify,
-          promo: type === "promo" ? val : promoNotify,
-        },
-      });
-      triggerFeedback("Settings updated.");
-    } catch {
-      setErrorMessage(t("settings.saveError"));
-    }
-  };
-
-  const handlePrivacyToggle = async (type: "share" | "location", val: boolean) => {
-    if (type === "share") setShareProfile(val);
-    if (type === "location") setLocationPersonalize(val);
-
-    try {
-      await userService.updateUserSettings({
-        privacy: {
-          share_profile: type === "share" ? val : shareProfile,
-          personalize_location: type === "location" ? val : locationPersonalize,
-        },
-      });
-      triggerFeedback("Settings updated.");
-    } catch {
-      setErrorMessage(t("settings.saveError"));
-    }
-  };
-
   const handleThemeSelect = async (newTheme: Theme) => {
     await setTheme(newTheme);
-    triggerFeedback("Settings updated.");
+    triggerFeedback("Theme preference updated.");
   };
 
   const handleLanguageSelect = async (newLang: Language) => {
     await setLanguage(newLang);
-    triggerFeedback("Settings updated.");
+    triggerFeedback("Language preference updated.");
   };
 
-  const handlePasswordUpdate = async (e?: React.FormEvent | React.MouseEvent) => {
-    if (e && typeof e.preventDefault === "function") e.preventDefault();
-    if (!currentPw || !newPw) return;
-
-    setIsUpdatingPw(true);
-    setPwError(null);
-    try {
-      await userService.changePassword({ current_password: currentPw, new_password: newPw });
-      setCurrentPw("");
-      setNewPw("");
-      triggerFeedback("Settings updated. Password updated successfully.");
-    } catch (err: any) {
-      setPwError(err.response?.data?.detail || "Failed to update password. Check current password.");
-    } finally {
-      setIsUpdatingPw(false);
-    }
+  const handleLogout = async () => {
+    await logout();
+    navigate("/login");
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6 max-w-4xl mx-auto pb-16">
-        <PageHeader
-          title={t("settings.title")}
-          subtitle={t("settings.subtitle")}
-        />
-        <Skeleton className="h-12 w-full rounded-2xl" />
-        <Card className="p-8 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
-          <Skeleton className="h-6 w-48 rounded-lg" />
-          <Skeleton className="h-24 w-full rounded-2xl" />
-        </Card>
-      </div>
-    );
-  }
+  const handleDeleteAccountConfirm = async () => {
+    setIsDeleting(true);
+    setTimeout(async () => {
+      setIsDeleting(false);
+      setIsDeleteModalOpen(false);
+      await logout();
+      navigate("/login");
+    }, 1500);
+  };
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-16">
       <PageHeader
-        title={t("settings.title")}
-        subtitle={t("settings.subtitle")}
+        title="Settings & Preferences"
+        subtitle="Manage your account security, app appearance, privacy, and account options."
       />
 
       {successMessage && (
@@ -186,44 +81,67 @@ export function CustomerSettingsPage() {
         </div>
       )}
 
-      {errorMessage && (
-        <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs font-semibold flex items-center gap-2 shadow-sm">
-          <AlertCircle className="h-4 w-4 text-rose-600 dark:text-rose-400" />
-          <span>{errorMessage}</span>
-        </div>
-      )}
-
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid grid-cols-2 sm:grid-cols-5 p-1 rounded-2xl bg-slate-100 dark:bg-slate-800">
-          <TabsTrigger value="account" aria-label="Account" className="gap-1.5 py-2">
-            <User className="h-3.5 w-3.5" />
-            <span>Account</span>
-          </TabsTrigger>
-          <TabsTrigger value="appearance" aria-label="Theme & Language" className="gap-1.5 py-2">
-            <Sun className="h-3.5 w-3.5" />
-            <span>Theme & Language</span>
-          </TabsTrigger>
-          <TabsTrigger value="notifications" aria-label="Notifications & Alerts" className="gap-1.5 py-2">
-            <Bell className="h-3.5 w-3.5" />
-            <span>Notifications & Alerts</span>
-          </TabsTrigger>
-          <TabsTrigger value="privacy" aria-label="Privacy" className="gap-1.5 py-2">
-            <Shield className="h-3.5 w-3.5" />
-            <span>Privacy</span>
-          </TabsTrigger>
-          <TabsTrigger value="security" aria-label="Security" className="gap-1.5 py-2">
-            <KeyRound className="h-3.5 w-3.5" />
-            <span>Security</span>
-          </TabsTrigger>
-        </TabsList>
-
-        {/* 1. Theme & Language (Preferences) */}
-        <TabsContent value="appearance" className="space-y-4 pt-2">
-          {/* Visual Theme Card */}
-          <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
+      <div className="space-y-6">
+        {/* ── SECTION 1: SECURITY ── */}
+        <Card className="rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+          <div className="p-6 bg-slate-50/50 dark:bg-slate-800/40 flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400">
+              <Shield className="h-5 w-5" />
+            </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t("settings.themeLabel")}</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{t("settings.themeDesc")}</p>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">1. Security</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Password management and active login sessions.</p>
+            </div>
+          </div>
+
+          {/* Change Password Link */}
+          <div className="p-5 sm:px-6 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+            <div className="flex items-center gap-3">
+              <Key className="h-4 w-4 text-slate-400" />
+              <div>
+                <p className="text-xs font-bold text-slate-900 dark:text-slate-100">Change Password</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Update password via two-step email OTP verification</p>
+              </div>
+            </div>
+            <Link to="/setting/change-password">
+              <Button size="sm" variant="outline" className="rounded-xl text-xs font-bold gap-1">
+                <span>Change</span>
+              </Button>
+            </Link>
+          </div>
+
+          {/* Login Session */}
+          <div className="p-5 sm:px-6 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+            <div className="flex items-center gap-3">
+              <Smartphone className="h-4 w-4 text-slate-400" />
+              <div>
+                <p className="text-xs font-bold text-slate-900 dark:text-slate-100">Login Session</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Currently active on this web browser</p>
+              </div>
+            </div>
+            <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+              Active Now
+            </span>
+          </div>
+        </Card>
+
+        {/* ── SECTION 2: APP ── */}
+        <Card className="rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+          <div className="p-6 bg-slate-50/50 dark:bg-slate-800/40 flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-teal-100 dark:bg-teal-950/60 text-teal-700 dark:text-teal-400">
+              <Sun className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">2. App</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Interface appearance theme and language preference.</p>
+            </div>
+          </div>
+
+          {/* Appearance (Theme) */}
+          <div className="p-6 space-y-3">
+            <div>
+              <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">{t("settings.themeLabel")}</h4>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">{t("settings.themeDesc")}</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-bold">
               <div
@@ -234,8 +152,8 @@ export function CustomerSettingsPage() {
                     : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
                 }`}
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600">
-                  <Sun className="h-5 w-5" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600">
+                  <Sun className="h-4 w-4" />
                 </div>
                 <span>{t("common.light")}</span>
               </div>
@@ -247,8 +165,8 @@ export function CustomerSettingsPage() {
                     : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
                 }`}
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-800 text-emerald-400">
-                  <Moon className="h-5 w-5" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-800 text-emerald-400">
+                  <Moon className="h-4 w-4" />
                 </div>
                 <span>{t("common.dark")}</span>
               </div>
@@ -260,19 +178,19 @@ export function CustomerSettingsPage() {
                     : "border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800"
                 }`}
               >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
-                  <Laptop className="h-5 w-5" />
+                <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300">
+                  <Laptop className="h-4 w-4" />
                 </div>
                 <span>{t("common.system")}</span>
               </div>
             </div>
-          </Card>
+          </div>
 
-          {/* Language Selector Card */}
-          <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
+          {/* Language Selector */}
+          <div className="p-6 space-y-3">
             <div>
-              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t("settings.languageLabel")}</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">{t("settings.languageDesc")}</p>
+              <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100">{t("settings.languageLabel")}</h4>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">{t("settings.languageDesc")}</p>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs font-semibold">
               <div
@@ -283,7 +201,7 @@ export function CustomerSettingsPage() {
                     : "border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
                 }`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                   <Globe className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                   <div>
                     <p className="font-bold text-xs">English (EN)</p>
@@ -301,7 +219,7 @@ export function CustomerSettingsPage() {
                     : "border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
                 }`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                   <Globe className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                   <div>
                     <p className="font-bold text-xs">ಕನ್ನಡ (KN)</p>
@@ -319,7 +237,7 @@ export function CustomerSettingsPage() {
                     : "border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300"
                 }`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2.5">
                   <Globe className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                   <div>
                     <p className="font-bold text-xs">हिन्दी (HI)</p>
@@ -329,123 +247,165 @@ export function CustomerSettingsPage() {
                 {language === "hi" && <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
               </div>
             </div>
-          </Card>
-        </TabsContent>
+          </div>
+        </Card>
 
-        {/* 2. Account */}
-        <TabsContent value="account" className="space-y-4 pt-2">
-          <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t("nav.profile")}</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Primary account identification details.
+        {/* ── SECTION 3: PRIVACY ── */}
+        <Card className="rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+          <div className="p-6 bg-slate-50/50 dark:bg-slate-800/40 flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-400">
+              <Lock className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">3. Privacy</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Profile visibility and data preferences.</p>
+            </div>
+          </div>
+
+          {/* Profile Visibility */}
+          <div className="p-5 sm:px-6 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+            <div className="flex items-center gap-3">
+              <Eye className="h-4 w-4 text-slate-400" />
+              <div>
+                <p className="text-xs font-bold text-slate-900 dark:text-slate-100">Profile Visibility</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Allow other Namma Connect users to view your public profile</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setProfileVisibility(!profileVisibility);
+                triggerFeedback(`Profile visibility turned ${!profileVisibility ? "ON" : "OFF"}.`);
+              }}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                profileVisibility ? "bg-emerald-600" : "bg-slate-200 dark:bg-slate-700"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                  profileVisibility ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Data & Privacy */}
+          <div className="p-5 sm:px-6 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+            <div className="flex items-center gap-3">
+              <Lock className="h-4 w-4 text-slate-400" />
+              <div>
+                <p className="text-xs font-bold text-slate-900 dark:text-slate-100">Data & Privacy</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Personalized recommendations and analytical cookies</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setDataSharing(!dataSharing);
+                triggerFeedback(`Personalized recommendations turned ${!dataSharing ? "ON" : "OFF"}.`);
+              }}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                dataSharing ? "bg-emerald-600" : "bg-slate-200 dark:bg-slate-700"
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                  dataSharing ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+        </Card>
+
+        {/* ── SECTION 4: ACCOUNT ── */}
+        <Card className="rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden divide-y divide-slate-100 dark:divide-slate-800">
+          <div className="p-6 bg-slate-50/50 dark:bg-slate-800/40 flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-700 dark:text-rose-400">
+              <LogOut className="h-5 w-5" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">4. Account</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Session termination and account deletion options.</p>
+            </div>
+          </div>
+
+          {/* Log Out */}
+          <div className="p-5 sm:px-6 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+            <div className="flex items-center gap-3">
+              <LogOut className="h-4 w-4 text-slate-600 dark:text-slate-400" />
+              <div>
+                <p className="text-xs font-bold text-slate-900 dark:text-slate-100">Log Out</p>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">Signed in as {user?.email}</p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleLogout}
+              className="rounded-xl text-xs font-bold text-slate-700 dark:text-slate-200 gap-1 border-slate-300 dark:border-slate-700"
+            >
+              <span>Log Out</span>
+            </Button>
+          </div>
+
+          {/* Delete Account */}
+          <div className="p-5 sm:px-6 flex items-center justify-between hover:bg-rose-50/30 dark:hover:bg-rose-950/20 transition-colors">
+            <div className="flex items-center gap-3">
+              <Trash2 className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+              <div>
+                <p className="text-xs font-bold text-rose-900 dark:text-rose-300">Delete Account</p>
+                <p className="text-[11px] text-rose-600/80 dark:text-rose-400/80">Permanently erase your account data and saved items</p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white gap-1 shadow-xs"
+            >
+              <span>Delete</span>
+            </Button>
+          </div>
+        </Card>
+      </div>
+
+      {/* Delete Account Modal */}
+      <Dialog
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        title="Delete Account Confirmation"
+        description="Are you sure you want to delete your account?"
+        className="max-w-md"
+      >
+        <div className="space-y-4 py-2">
+          <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-200 text-xs space-y-2">
+            <div className="flex items-center gap-2 font-bold text-rose-900 dark:text-rose-100">
+              <AlertTriangle className="h-4 w-4 text-rose-600 shrink-0" />
+              <span>This action cannot be undone.</span>
+            </div>
+            <p>
+              Deleting your account will remove all your profile information, saved services, bookings, and active sessions permanently.
             </p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-700 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Account ID</span>
-                <p className="font-mono font-bold text-slate-900 dark:text-slate-100 truncate">{settings?.user_id}</p>
-              </div>
-              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-700 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-slate-400">{t("auth.emailLabel")}</span>
-                <p className="font-semibold text-slate-900 dark:text-slate-100">{settings?.email}</p>
-              </div>
-              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-700 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Mobile Number</span>
-                <p className="font-semibold text-slate-900 dark:text-slate-100">{settings?.mobile || "Not specified"}</p>
-              </div>
-              <div className="p-3.5 bg-slate-50 dark:bg-slate-800/60 rounded-2xl border border-slate-100 dark:border-slate-700 space-y-1">
-                <span className="text-[10px] uppercase font-bold text-slate-400">Account Status</span>
-                <p className="font-bold text-emerald-700 dark:text-emerald-400">Active ✓</p>
-              </div>
-            </div>
-          </Card>
-        </TabsContent>
+          </div>
 
-        {/* 3. Notifications */}
-        <TabsContent value="notifications" className="space-y-4 pt-2">
-          <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-5 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t("settings.notificationsSection")}</h3>
-            <div className="space-y-4">
-              <Switch
-                label="Email Booking Confirmations"
-                description="Receive PDF receipts and check-in passes via email"
-                checked={emailNotify}
-                onCheckedChange={(val) => handleNotificationToggle("email", val)}
-              />
-              <Switch
-                label="SMS & WhatsApp Host Alerts"
-                description="Receive instant message updates from plantation hosts on check-in day"
-                checked={smsNotify}
-                onCheckedChange={(val) => handleNotificationToggle("sms", val)}
-              />
-              <Switch
-                label="Seasonal Harvest Recommendations"
-                description="Periodic alerts when crop harvest workshops go live"
-                checked={promoNotify}
-                onCheckedChange={(val) => handleNotificationToggle("promo", val)}
-              />
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* 4. Privacy */}
-        <TabsContent value="privacy" className="space-y-4 pt-2">
-          <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-5 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t("nav.privacy")}</h3>
-            <div className="space-y-4">
-              <Switch
-                label="Host Profile Sharing"
-                description="Allow farm hosts to view your verified traveler rating before accepting bookings"
-                checked={shareProfile}
-                onCheckedChange={(val) => handlePrivacyToggle("share", val)}
-              />
-              <Switch
-                label="Personalized Agro-Recommendations"
-                description="Use your travel destination history to highlight nearby harvest trails"
-                checked={locationPersonalize}
-                onCheckedChange={(val) => handlePrivacyToggle("location", val)}
-              />
-            </div>
-          </Card>
-        </TabsContent>
-
-        {/* 5. Security */}
-        <TabsContent value="security" className="space-y-4 pt-2">
-          <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{t("settings.securitySection")}</h3>
-            {pwError && (
-              <div className="p-3.5 bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs rounded-xl flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
-                <span>{pwError}</span>
-              </div>
-            )}
-            <form onSubmit={handlePasswordUpdate} className="space-y-3 max-w-sm">
-              <Input
-                label="Current Password"
-                type="password"
-                required
-                value={currentPw}
-                onChange={(e) => setCurrentPw(e.target.value)}
-              />
-              <Input
-                label="New Password"
-                type="password"
-                required
-                value={newPw}
-                onChange={(e) => setNewPw(e.target.value)}
-              />
-              <Button
-                type="submit"
-                size="sm"
-                disabled={isUpdatingPw}
-                onClick={handlePasswordUpdate}
-                className="font-bold"
-              >
-                {isUpdatingPw ? "Updating..." : "Update Password"}
-              </Button>
-            </form>
-          </Card>
-        </TabsContent>
-      </Tabs>
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsDeleteModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              disabled={isDeleting}
+              onClick={handleDeleteAccountConfirm}
+              className="font-bold bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {isDeleting ? "Deleting..." : "Permanently Delete"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }

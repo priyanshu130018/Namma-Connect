@@ -7,8 +7,11 @@ export interface AppNotification {
   resource_type?: "booking" | "service" | "collaboration" | "payout" | null;
   resource_id?: string | null;
   is_read: boolean;
+  is_deletable?: boolean;
   created_at?: string | null;
 }
+
+export type NotificationItem = AppNotification;
 
 export interface NotificationListResponseData {
   notifications: AppNotification[];

@@ -231,7 +231,7 @@ export function PartnerServiceNewPage() {
               : `Your listing "${title}" has entered the compliance verification queue with status UNDER REVIEW. You will be notified once published.`}
           </p>
           <div className="flex justify-center gap-3 pt-2">
-            <Button variant="outline" onClick={() => navigate("/partner/services")}>
+            <Button variant="outline" onClick={() => navigate("/provider/services")}>
               Return to Services
             </Button>
             <Button onClick={() => { setSubmittedStatus(null); setSelectedType(null); setTitle(""); setPrice(""); }}>

@@ -172,6 +172,7 @@ def test_list_services_empty_db_and_response_shape(client: TestClient, db_sessio
         assert data["data"]["total_pages"] == 1
     finally:
         # Re-seed catalog so subsequent test suites retain required seed services
-        MarketplaceService.ensure_seeded(db_session)
+        from tests.conftest import seed_test_fixture_services
+        seed_test_fixture_services(db_session)
 
 

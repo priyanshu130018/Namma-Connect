@@ -13,12 +13,9 @@ def auth_headers_customer1(client: TestClient) -> dict:
         "full_name": "Customer One",
         "role": "customer",
     }
-    reg_resp = client.post("/api/v2/auth/register", json=user_payload)
-    if reg_resp.status_code == 201:
-        token = reg_resp.json()["access_token"]
-    else:
-        login_resp = client.post("/api/v2/auth/login", json={"email": user_payload["email"], "password": user_payload["password"]})
-        token = login_resp.json()["access_token"]
+    client.post("/api/v2/auth/register", json=user_payload)
+    login_resp = client.post("/api/v2/auth/login", json={"email": user_payload["email"], "password": user_payload["password"]})
+    token = login_resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -31,12 +28,9 @@ def auth_headers_customer2(client: TestClient) -> dict:
         "full_name": "Customer Two",
         "role": "customer",
     }
-    reg_resp = client.post("/api/v2/auth/register", json=user_payload)
-    if reg_resp.status_code == 201:
-        token = reg_resp.json()["access_token"]
-    else:
-        login_resp = client.post("/api/v2/auth/login", json={"email": user_payload["email"], "password": user_payload["password"]})
-        token = login_resp.json()["access_token"]
+    client.post("/api/v2/auth/register", json=user_payload)
+    login_resp = client.post("/api/v2/auth/login", json={"email": user_payload["email"], "password": user_payload["password"]})
+    token = login_resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -49,13 +43,11 @@ def auth_headers_admin(client: TestClient) -> dict:
         "full_name": "Admin Support Lead",
         "role": "admin",
     }
-    reg_resp = client.post("/api/v2/auth/register", json=user_payload)
-    if reg_resp.status_code == 201:
-        token = reg_resp.json()["access_token"]
-    else:
-        login_resp = client.post("/api/v2/auth/login", json={"email": user_payload["email"], "password": user_payload["password"]})
-        token = login_resp.json()["access_token"]
+    client.post("/api/v2/auth/register", json=user_payload)
+    login_resp = client.post("/api/v2/auth/login", json={"email": user_payload["email"], "password": user_payload["password"]})
+    token = login_resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
 
 
 def test_support_tickets_unauthenticated_fails(client: TestClient):

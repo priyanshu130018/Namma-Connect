@@ -205,7 +205,7 @@ export function PartnerServiceDetailPage() {
     return (
       <div className="space-y-6 max-w-4xl mx-auto pb-16">
         <Link
-          to="/partner/services"
+          to="/provider/services"
           className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-slate-900"
         >
           <ArrowLeft className="h-4 w-4" /> Back to My Services
@@ -227,7 +227,7 @@ export function PartnerServiceDetailPage() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-16">
       <Link
-        to="/partner/services"
+        to="/provider/services"
         className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-slate-900"
       >
         <ArrowLeft className="h-4 w-4" /> Back to My Services
@@ -370,7 +370,7 @@ export function PartnerServiceDetailPage() {
             <h4 className="text-xs font-bold uppercase tracking-wider">Protected Verification Credentials</h4>
           </div>
           <p className="text-xs text-slate-500">
-            Land title deed, host Aadhaar KYC, and bank payout account are locked to prevent unauthorized alterations. To modify, visit <Link to="/partner/profile" className="text-harvest-700 font-bold underline">Partner Profile → Request Change</Link>.
+            Land title deed, host Aadhaar KYC, and bank payout account are locked to prevent unauthorized alterations. To modify, visit <Link to="/provider/profile" className="text-harvest-700 font-bold underline">Provider Profile → Request Change</Link>.
           </p>
         </Card>
       </form>

@@ -9,9 +9,10 @@ import {
   ApiMessageResponse,
 } from "@/types";
 
-export async function getNotifications(): Promise<NotificationListResponseData> {
+export async function getNotifications(sortBy?: string): Promise<NotificationListResponseData> {
   const response = await apiClient.get<ApiMessageResponse<NotificationListResponseData>>(
-    "/notifications"
+    "/notifications",
+    { params: { sort_by: sortBy } }
   );
   return response.data.data;
 }
@@ -23,12 +24,23 @@ export async function markNotificationRead(notificationId: string): Promise<AppN
   return response.data.data;
 }
 
+export const markNotificationAsRead = markNotificationRead;
+
 export async function markAllNotificationsRead(): Promise<{ marked_count: number }> {
   const response = await apiClient.post<ApiMessageResponse<{ marked_count: number }>>(
     "/notifications/read-all"
   );
   return response.data.data;
 }
+
+export const markAllNotificationsAsRead = markAllNotificationsRead;
+
+export async function deleteNotification(notificationId: string): Promise<boolean> {
+  await apiClient.delete<ApiMessageResponse<void>>(`/notifications/${notificationId}`);
+  return true;
+}
+
+export type { NotificationItem } from "@/types/communication";
 
 export async function getConversations(): Promise<ConversationItem[]> {
   const response = await apiClient.get<ApiMessageResponse<ConversationItem[]>>(

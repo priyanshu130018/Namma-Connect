@@ -1,22 +1,19 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   Star,
   MapPin,
   CheckCircle2,
-  Users,
   ShieldCheck,
-  Sprout,
   ArrowLeft,
   Share2,
   Bookmark,
   Check,
-  AlertCircle,
-  Clock,
-  ChevronRight,
-  Calendar as CalendarIcon,
-  RefreshCw,
   MessageSquare,
+  Navigation,
+  Calendar,
+  Clock,
+  CreditCard,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,15 +21,14 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AppImage } from "@/components/ui/image";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/error-state";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { getServiceDetail, getServiceAvailability } from "@/services/marketplaceService";
+import { getServiceDetail } from "@/services/marketplaceService";
 import { getSavedStatus, saveService, removeSavedService } from "@/services/savedService";
-import { ServiceDetailData, ServiceAvailabilityData, TimeSlot } from "@/types";
-import { AvailabilityCalendar } from "@/components/availability/AvailabilityCalendar";
-import { TimeSlotSelector } from "@/components/availability/TimeSlotSelector";
-import { BookingReviewModal } from "@/components/booking/BookingReviewModal";
+import { ServiceDetailData, TimeSlot } from "@/types";
 import { TomTomMap, RouteInfo } from "@/components/map/TomTomMap";
 import { calculateRoute, geocodeLocation } from "@/services/locationService";
+import { BookingReviewModal } from "@/components/booking/BookingReviewModal";
 
 export function CustomerServiceDetailPage() {
   const { service_id } = useParams<{ service_id: string }>();
@@ -45,24 +41,14 @@ export function CustomerServiceDetailPage() {
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [selectedImageIdx, setSelectedImageIdx] = useState<number>(0);
 
-  const handleMessageHost = () => {
-    if (!detail?.service) return;
-    const { provider_id, title } = detail.service;
-    navigate(`/app/messages?provider_id=${provider_id}&subject=${encodeURIComponent(title)}`);
-  };
-
-
-  // Availability Workflow State
-  const [showAvailability, setShowAvailability] = useState<boolean>(false);
-  const [availabilityData, setAvailabilityData] = useState<ServiceAvailabilityData | null>(null);
-  const [isAvailabilityLoading, setIsAvailabilityLoading] = useState<boolean>(false);
-  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
-
-  // Selected schedule state
-  const [selectedStartDate, setSelectedStartDate] = useState<string>("");
-  const [selectedEndDate, setSelectedEndDate] = useState<string>("");
+  // Booking Selection State
+  const [bookingModalOpen, setBookingModalOpen] = useState<boolean>(false);
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split("T")[0];
+  });
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
-  const [isReviewModalOpen, setIsReviewModalOpen] = useState<boolean>(false);
 
   // Map & Directions State
   const [routeInfo, setRouteInfo] = useState<RouteInfo | null>(null);
@@ -70,6 +56,12 @@ export function CustomerServiceDetailPage() {
   const [routingError, setRoutingError] = useState<string | null>(null);
   const [manualOrigin, setManualOrigin] = useState<string>("");
   const [showManualInput, setShowManualInput] = useState<boolean>(false);
+
+  const handleMessageHost = () => {
+    if (!detail?.service) return;
+    const { provider_id, title } = detail.service;
+    navigate(`/app/messages?provider_id=${provider_id}&subject=${encodeURIComponent(title)}`);
+  };
 
   const handleGetDirections = async () => {
     if (!detail?.service) return;
@@ -140,29 +132,28 @@ export function CustomerServiceDetailPage() {
     }
   };
 
-  useEffect(() => {
+  const loadDetail = async () => {
     if (!service_id) return;
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const [data, savedState] = await Promise.all([
+        getServiceDetail(service_id),
+        getSavedStatus(service_id).catch(() => false),
+      ]);
+      setDetail(data);
+      setIsSaved(savedState);
+    } catch (err: any) {
+      setErrorMessage(
+        err.response?.data?.detail ||
+          "Service not found. The listing may have been moved or archived."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    const loadDetail = async () => {
-      setIsLoading(true);
-      setErrorMessage(null);
-      try {
-        const [data, savedState] = await Promise.all([
-          getServiceDetail(service_id),
-          getSavedStatus(service_id).catch(() => false),
-        ]);
-        setDetail(data);
-        setIsSaved(savedState);
-      } catch (err: any) {
-        setErrorMessage(
-          err.response?.data?.detail ||
-            "Unable to load service details. The listing may have been moved or archived."
-        );
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
+  useEffect(() => {
     loadDetail();
   }, [service_id]);
 
@@ -181,67 +172,6 @@ export function CustomerServiceDetailPage() {
     }
   };
 
-  const loadAvailability = async () => {
-    if (!service_id) return;
-    setIsAvailabilityLoading(true);
-    setAvailabilityError(null);
-    try {
-      const data = await getServiceAvailability(service_id);
-      setAvailabilityData(data);
-
-      // Auto-select first available date if none selected
-      const firstAvail = data.days.find((d) => d.is_available);
-      if (firstAvail && !selectedStartDate) {
-        setSelectedStartDate(firstAvail.date);
-        if (firstAvail.time_slots && firstAvail.time_slots.length > 0) {
-          const firstSlot = firstAvail.time_slots.find((s) => s.is_available);
-          if (firstSlot) setSelectedSlot(firstSlot);
-        }
-      }
-    } catch (err: any) {
-      setAvailabilityError(
-        err.response?.data?.detail ||
-          "Unable to fetch live availability calendar. Please try again."
-      );
-    } finally {
-      setIsAvailabilityLoading(false);
-    }
-  };
-
-  const handleOpenAvailability = () => {
-    setShowAvailability(true);
-    if (!availabilityData) {
-      loadAvailability();
-    }
-  };
-
-  // Find day object for the currently selected date to extract time slots
-  const currentDayAvailability = useMemo(() => {
-    if (!availabilityData || !selectedStartDate) return null;
-    return availabilityData.days.find((d) => d.date === selectedStartDate) || null;
-  }, [availabilityData, selectedStartDate]);
-
-  const handleSelectDate = (dateStr: string) => {
-    setSelectedStartDate(dateStr);
-    setSelectedEndDate("");
-
-    // Update slots for new date
-    if (availabilityData) {
-      const day = availabilityData.days.find((d) => d.date === dateStr);
-      if (day && day.time_slots && day.time_slots.length > 0) {
-        const availSlot = day.time_slots.find((s) => s.is_available);
-        setSelectedSlot(availSlot || null);
-      } else {
-        setSelectedSlot(null);
-      }
-    }
-  };
-
-  const handleSelectDateRange = (startDate: string, endDate: string) => {
-    setSelectedStartDate(startDate);
-    setSelectedEndDate(endDate);
-  };
-
   if (isLoading) {
     return (
       <div className="space-y-6 pb-16">
@@ -249,256 +179,211 @@ export function CustomerServiceDetailPage() {
           <Skeleton className="h-4 w-32 rounded-md" />
           <Skeleton className="h-8 w-20 rounded-xl" />
         </div>
-        <div className="space-y-2">
-          <Skeleton className="h-6 w-24 rounded-full" />
-          <Skeleton className="h-9 w-3/4 rounded-xl" />
-          <Skeleton className="h-4 w-1/3 rounded-md" />
-        </div>
-        <Skeleton className="aspect-[16/8] w-full rounded-3xl" />
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          <div className="lg:col-span-8 space-y-4">
-            <Skeleton className="h-32 w-full rounded-3xl" />
-            <Skeleton className="h-40 w-full rounded-3xl" />
-          </div>
-          <div className="lg:col-span-4">
-            <Skeleton className="h-64 w-full rounded-3xl" />
+        <Skeleton className="h-8 w-3/4 rounded-xl" />
+        <Skeleton className="h-4 w-1/3 rounded-md" />
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-[420px]">
+          <Skeleton className="md:col-span-3 h-full rounded-3xl" />
+          <div className="flex flex-col gap-4">
+            <Skeleton className="h-1/2 rounded-2xl" />
+            <Skeleton className="h-1/2 rounded-2xl" />
           </div>
         </div>
       </div>
     );
   }
 
-  if (errorMessage || !detail) {
+  if (errorMessage || !detail || !detail.service) {
     return (
-      <div className="py-16 text-center space-y-4 max-w-md mx-auto">
-        <div className="h-14 w-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
-          <AlertCircle className="h-8 w-8" />
-        </div>
-        <h2 className="text-xl font-bold text-slate-900">Service Not Found</h2>
-        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">{errorMessage}</p>
-        <Link to="/app/explore">
-          <Button variant="outline" className="mt-2 font-bold">
-            Back to Marketplace Catalog
-          </Button>
+      <div className="space-y-6 pb-16">
+        <Link
+          to="/app/activities"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Back to marketplace</span>
         </Link>
+        <ErrorState
+          title="Service not found"
+          description={errorMessage || "The requested service listing could not be found."}
+          onRetry={loadDetail}
+        />
       </div>
     );
   }
 
-  const { service, reviews } = detail;
-  const images = service.images && service.images.length > 0 ? service.images : [service.primary_image];
-  const activeImage = images[selectedImageIdx] || service.primary_image;
-
-  const isStay = service.category_slug === "stay";
-  const requiresTimeSlot = availabilityData?.booking_model === "time_slot";
-  const isValidSelection =
-    selectedStartDate &&
-    (!isStay || selectedEndDate) &&
-    (!requiresTimeSlot || selectedSlot);
+  const { service, reviews = [] } = detail;
+  const gallery = service.images && service.images.length > 0 ? service.images : [service.primary_image || "/images/services/fallback.jpg"];
 
   return (
     <div className="space-y-8 pb-16">
-      {/* ── 1. Top Navigation & Actions ── */}
+      {/* ── 1. Top Navigation & Action Header ── */}
       <div className="flex items-center justify-between">
         <Link
-          to="/app/explore"
-          className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-slate-900"
+          to="/app/activities"
+          className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
         >
-          <ArrowLeft className="h-4 w-4" /> Back to Catalog
+          <ArrowLeft className="h-4 w-4" />
+          <span>Back to marketplace</span>
         </Link>
+
         <div className="flex items-center gap-2">
-          <button
+          <Button
+            variant="outline"
+            size="sm"
             onClick={handleSaveToggle}
-            aria-label={isSaved ? "Remove saved service" : "Save service"}
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
+            className={`rounded-xl gap-1.5 text-xs font-bold ${
+              isSaved ? "text-rose-600 border-rose-200 dark:border-rose-900 bg-rose-50/50" : ""
+            }`}
           >
-            <Bookmark className={`h-4 w-4 ${isSaved ? "fill-rose-500 text-rose-500" : ""}`} />
-          </button>
-          <button
-            onClick={() => navigator.clipboard?.writeText(window.location.href)}
-            aria-label="Share listing"
-            className="flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors shadow-sm"
+            <Bookmark className={`h-3.5 w-3.5 ${isSaved ? "fill-rose-500 text-rose-500" : ""}`} />
+            <span>{isSaved ? "Saved" : "Save Listing"}</span>
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (navigator.clipboard) {
+                navigator.clipboard.writeText(window.location.href);
+                alert("Listing URL copied to clipboard!");
+              }
+            }}
+            className="rounded-xl gap-1.5 text-xs font-bold"
           >
-            <Share2 className="h-4 w-4" />
-          </button>
+            <Share2 className="h-3.5 w-3.5" />
+            <span>Share</span>
+          </Button>
         </div>
       </div>
 
-      {/* ── 2. Main Title & Badges ── */}
-      <div className="space-y-2">
+      {/* ── 2. Header Title, Rating & Host Badges ── */}
+      <div className="space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="default" className="text-xs bg-harvest-600 text-white">
+          <Badge variant="secondary" className="bg-harvest-50 dark:bg-harvest-950/60 text-harvest-800 dark:text-harvest-300 border-harvest-200 dark:border-harvest-800 font-bold text-xs uppercase tracking-wider">
             {service.category}
           </Badge>
-          <div className="flex items-center gap-1 text-xs font-bold text-slate-700">
-            <Star className="h-4 w-4 fill-amber-400 text-amber-500" />
-            <span>{Number(service.rating).toFixed(2)}</span>
-            <span className="text-slate-400 font-normal">({service.reviews_count} verified reviews)</span>
-          </div>
+          {service.is_verified && (
+            <Badge variant="default" className="bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 font-bold text-xs gap-1">
+              <CheckCircle2 className="h-3 w-3" />
+              <span>Verified Provider</span>
+            </Badge>
+          )}
         </div>
 
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-slate-900 tracking-tight">
+        <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">
           {service.title}
         </h1>
 
-        <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-600">
-          <MapPin className="h-4 w-4 text-harvest-700 shrink-0" />
-          <span>{service.location}</span>
+        <div className="flex flex-wrap items-center gap-4 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-1 font-bold text-slate-800 dark:text-slate-200">
+            <Star className="h-4 w-4 fill-amber-400 text-amber-500" />
+            <span>{Number(service.rating || 5.0).toFixed(2)}</span>
+            <span className="text-slate-400 font-normal">({reviews.length} reviews)</span>
+          </div>
+          <span>•</span>
+          <div className="flex items-center gap-1 text-slate-700 dark:text-slate-300">
+            <MapPin className="h-4 w-4 text-harvest-700 dark:text-harvest-400 shrink-0" />
+            <span>{service.location}</span>
+          </div>
+          <span>•</span>
+          <div>
+            Hosted by <strong className="text-slate-800 dark:text-slate-200">{service.provider_name || "Verified Host"}</strong>
+          </div>
         </div>
       </div>
 
-      {/* ── 3. Media Gallery ── */}
-      <div className="space-y-3">
-        <div className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-100 shadow-sm max-h-[480px]">
+      {/* ── 3. Photo Gallery ── */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 h-[360px] sm:h-[420px] rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-800">
+        <div className="md:col-span-3 h-full relative cursor-pointer overflow-hidden">
           <AppImage
-            src={activeImage}
+            src={gallery[selectedImageIdx] || gallery[0]}
             alt={service.title}
             aspectRatio="wide"
-            className="w-full object-cover"
+            className="h-full w-full object-cover hover:scale-105 transition-transform duration-500"
           />
         </div>
 
-        {images.length > 1 && (
-          <div className="flex gap-3 overflow-x-auto pb-2">
-            {images.map((img, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => setSelectedImageIdx(idx)}
-                className={`relative h-16 w-24 flex-shrink-0 overflow-hidden rounded-2xl border-2 transition-all ${
-                  selectedImageIdx === idx
-                    ? "border-harvest-600 shadow-sm scale-105"
-                    : "border-transparent opacity-70 hover:opacity-100"
-                }`}
-              >
-                <img src={img} alt={`${service.title} ${idx + 1}`} className="h-full w-full object-cover" />
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="hidden md:flex flex-col gap-4 h-full">
+          {gallery.slice(0, 3).map((imgUrl, idx) => (
+            <div
+              key={idx}
+              onClick={() => setSelectedImageIdx(idx)}
+              className={`flex-1 rounded-2xl overflow-hidden cursor-pointer border-2 transition-all ${
+                selectedImageIdx === idx ? "border-harvest-600 scale-[0.98]" : "border-transparent opacity-80 hover:opacity-100"
+              }`}
+            >
+              <AppImage
+                src={imgUrl}
+                alt={`${service.title} thumbnail ${idx + 1}`}
+                aspectRatio="wide"
+                className="h-full w-full object-cover"
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* ── 4. Main Content Layout ── */}
+      {/* ── 4. Main Two-Column Layout ── */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-        {/* Left Column: Details & Host Bio */}
-        <div className="lg:col-span-7 space-y-6">
-          {/* Host Profile Card */}
-          <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="h-14 w-14 rounded-2xl bg-harvest-100 dark:bg-harvest-950/80 text-harvest-800 dark:text-harvest-300 flex items-center justify-center font-black text-lg shadow-sm">
-                {service.provider_name.charAt(0)}
-              </div>
-              <div>
-                <div className="flex items-center gap-1.5">
-                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">{service.provider_name}</h3>
-                  {service.is_verified && (
-                    <span title="Verified Agricultural Host">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{service.provider_type}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleMessageHost}
-                className="gap-1.5 font-bold border-harvest-200 text-harvest-800 hover:bg-harvest-50 dark:border-harvest-800 dark:text-harvest-300 dark:hover:bg-harvest-950/60 rounded-xl"
-              >
-                <MessageSquare className="h-4 w-4 text-harvest-600 dark:text-harvest-400" />
-                <span>Message Host</span>
-              </Button>
-              <div className="hidden sm:flex items-center gap-2 rounded-2xl bg-emerald-50 dark:bg-emerald-950/80 px-3.5 py-2 text-xs font-bold text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                <ShieldCheck className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                <span>Aadhaar & Land Verified</span>
-              </div>
-            </div>
-          </Card>
-
-
-          {/* About Experience */}
+        {/* Left Column: Details, Description, Location, Amenities, Reviews */}
+        <div className="lg:col-span-7 space-y-8">
+          {/* Overview & Description */}
           <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
-            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">About This Agricultural Experience</h3>
-            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-slate-100">About this Experience</h2>
+            <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed whitespace-pre-line">
               {service.description}
             </p>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-4 border-t border-slate-100 dark:border-slate-800 text-xs">
-              {service.duration_hours && (
-                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                  <Clock className="h-4 w-4 text-harvest-700 dark:text-harvest-400" />
-                  <span>Duration: {service.duration_hours}h</span>
-                </div>
-              )}
-              {service.max_capacity && (
-                <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                  <Users className="h-4 w-4 text-harvest-700 dark:text-harvest-400" />
-                  <span>Max Capacity: {service.max_capacity} guests</span>
-                </div>
-              )}
-              <div className="flex items-center gap-2 text-slate-700 dark:text-slate-300">
-                <Sprout className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                <span>100% Organic Farm</span>
-              </div>
-            </div>
           </Card>
 
-          {/* Inclusions & Highlights */}
-          {service.inclusions && service.inclusions.length > 0 && (
-            <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
-              <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">What's Included in This Experience</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {service.inclusions.map((inc, i) => (
-                  <div key={i} className="flex items-start gap-2 text-xs text-slate-700 dark:text-slate-300">
-                    <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                    <span>{inc}</span>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          )}
-
-          {/* TomTom Service Location & Navigation Card */}
+          {/* Location & Interactive Directions */}
           <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                  <span>Service Location & Map</span>
-                </h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                  {service.formatted_address || service.location}
-                </p>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Location & Getting There</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{service.location}</p>
               </div>
+
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleGetDirections}
                 disabled={isRouting}
-                className="gap-1.5 font-bold border-emerald-300 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-950/60 rounded-xl"
+                className="gap-1.5 font-bold text-xs rounded-xl"
               >
-                <ChevronRight className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                <span>{isRouting ? "Calculating..." : "Get Directions"}</span>
+                <Navigation className={`h-3.5 w-3.5 text-harvest-700 ${isRouting ? "animate-spin" : ""}`} />
+                <span>{isRouting ? "Calculating..." : "Directions (GPS)"}</span>
               </Button>
             </div>
 
-            {/* Manual starting location input fallback */}
+            {routeInfo && (
+              <div className="p-4 rounded-2xl bg-emerald-50/80 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-900 dark:text-emerald-300 flex items-center justify-between">
+                <div>
+                  <strong>Distance:</strong> {routeInfo.distanceText} • <strong>Estimated Travel Time:</strong> {routeInfo.durationText}
+                </div>
+                <button onClick={() => setRouteInfo(null)} className="text-emerald-700 font-bold hover:underline">
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {routingError && (
+              <div className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-300">
+                {routingError}
+              </div>
+            )}
+
             {showManualInput && (
-              <form onSubmit={handleManualRouteSubmit} className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 space-y-2 text-xs">
-                <p className="font-semibold text-amber-900 dark:text-amber-300">
-                  {routingError || "Enter your starting city or location to calculate directions:"}
-                </p>
+              <form onSubmit={handleManualRouteSubmit} className="space-y-2 pt-2">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">Starting Location</span>
                 <div className="flex gap-2">
                   <input
                     type="text"
                     value={manualOrigin}
                     onChange={(e) => setManualOrigin(e.target.value)}
-                    placeholder="e.g. Indiranagar Bengaluru"
-                    className="flex-1 rounded-xl border border-amber-300 dark:border-amber-800 px-3 py-1.5 text-xs text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    placeholder="Enter starting city or address (e.g. Majestic, Bengaluru)"
+                    className="flex-1 h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3 text-xs text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-harvest-500/20"
                   />
-                  <Button type="submit" size="sm" disabled={isRouting || !manualOrigin.trim()} className="font-bold text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-xl">
+                  <Button type="submit" size="sm" disabled={isRouting || !manualOrigin.trim()} className="font-bold text-xs bg-harvest-600 hover:bg-harvest-700 text-white rounded-xl">
                     Calculate
                   </Button>
                 </div>
@@ -548,7 +433,7 @@ export function CustomerServiceDetailPage() {
               <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Verified Customer Reviews</h3>
               <div className="flex items-center gap-1 text-xs font-bold text-slate-700 dark:text-slate-300">
                 <Star className="h-4 w-4 fill-amber-400 text-amber-500" />
-                <span>{Number(service.rating).toFixed(2)} / 5.0</span>
+                <span>{Number(service.rating || 5.0).toFixed(2)} / 5.0</span>
               </div>
             </div>
 
@@ -561,7 +446,7 @@ export function CustomerServiceDetailPage() {
                         <span className="text-xs font-bold text-slate-900 dark:text-slate-100">{rev.user_name}</span>
                         {rev.is_verified !== false && (
                           <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.2 rounded-full">
-                            Verified Booking
+                            Verified Guest
                           </span>
                         )}
                       </div>
@@ -589,18 +474,18 @@ export function CustomerServiceDetailPage() {
               </div>
             ) : (
               <p className="text-xs text-slate-500 dark:text-slate-400 py-4 text-center">
-                No reviews published yet for this new farm listing.
+                No reviews published yet for this listing.
               </p>
             )}
           </Card>
         </div>
 
-        {/* Right Column: Pricing & Availability Workspace */}
+        {/* Right Column: Pricing & Booking Card */}
         <div className="lg:col-span-5 sticky top-20 space-y-4">
-          <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-card space-y-6">
+          <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-card space-y-5">
             {/* Pricing Header */}
             <div>
-              <span className="text-xs text-slate-400 font-medium block">Starting Price</span>
+              <span className="text-xs text-slate-400 font-medium block">Listed Rate</span>
               <div className="flex items-baseline gap-1.5 mt-1">
                 <span className="text-3xl font-extrabold text-slate-900 dark:text-slate-100">
                   {formatCurrency(service.price)}
@@ -609,124 +494,120 @@ export function CustomerServiceDetailPage() {
               </div>
             </div>
 
-            <div className="p-3.5 rounded-2xl bg-harvest-50/70 border border-harvest-100 space-y-1 text-xs text-harvest-950">
-              <div className="flex items-center gap-2 font-bold">
-                <ShieldCheck className="h-4 w-4 text-harvest-700" />
-                <span>Authoritative Backend Pricing</span>
+            {/* Date Selection */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-harvest-700" />
+                <span>Select Experience Date</span>
+              </label>
+              <input
+                type="date"
+                min={new Date().toISOString().split("T")[0]}
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full h-11 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3.5 text-xs font-semibold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-harvest-500/20"
+              />
+            </div>
+
+            {/* Time Slot Selection */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Clock className="h-3.5 w-3.5 text-harvest-700" />
+                <span>Select Time Slot</span>
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  { id: "slot-morning", start_time: "09:00 AM", end_time: "11:30 AM", label: "Morning Session" },
+                  { id: "slot-afternoon", start_time: "02:00 PM", end_time: "04:30 PM", label: "Afternoon Session" },
+                ].map((s) => {
+                  const isSel = selectedSlot?.id === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() =>
+                        setSelectedSlot({
+                          id: s.id,
+                          start_time: s.start_time,
+                          end_time: s.end_time,
+                          is_available: true,
+                          capacity: service.max_capacity || 10,
+                          remaining_capacity: service.max_capacity || 10,
+                        })
+                      }
+                      className={`p-2.5 rounded-xl border text-left text-xs transition-all ${
+                        isSel
+                          ? "border-harvest-600 bg-harvest-50 dark:bg-harvest-950/40 text-harvest-950 dark:text-harvest-200 font-bold ring-2 ring-harvest-600/30"
+                          : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 hover:border-harvest-400"
+                      }`}
+                    >
+                      <div className="font-bold">{s.start_time}</div>
+                      <div className="text-[10px] text-slate-400">{s.label}</div>
+                    </button>
+                  );
+                })}
               </div>
-              <p className="text-[11px] text-slate-600 leading-relaxed">
-                Direct bank settlement ensures 95% reaches the host family.
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900 space-y-1 text-xs text-emerald-950 dark:text-emerald-200">
+              <div className="flex items-center gap-2 font-bold">
+                <ShieldCheck className="h-4 w-4 text-emerald-700 dark:text-emerald-400" />
+                <span>Verified Direct Marketplace</span>
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+                Connect directly with verified local hosts and agricultural producers.
               </p>
             </div>
 
-            {/* Step 1: Trigger Check Availability if not already opened */}
-            {!showAvailability && (
+            {/* Host Details */}
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 space-y-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Host Information</span>
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">{service.provider_name || "Verified Host"}</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{service.location}</p>
+                </div>
+                {service.is_verified && (
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+                )}
+              </div>
+            </div>
+
+            {/* Action Buttons: Book Service & Message Host */}
+            <div className="space-y-2.5 pt-1">
               <Button
                 size="lg"
-                onClick={handleOpenAvailability}
-                className="w-full font-bold bg-harvest-600 hover:bg-harvest-700 text-white rounded-2xl gap-2 shadow-md"
+                onClick={() => setBookingModalOpen(true)}
+                className="w-full font-bold bg-harvest-600 hover:bg-harvest-700 text-white rounded-2xl gap-2 shadow-md shadow-harvest-600/20"
               >
-                <CalendarIcon className="h-4 w-4" />
-                <span>Check Availability</span>
+                <CreditCard className="h-4 w-4" />
+                <span>Reserve / Book Experience</span>
               </Button>
-            )}
 
-            {/* Step 2: Interactive Availability Calendar & Slot Matrix */}
-            {showAvailability && (
-              <div className="space-y-4 pt-2 border-t border-slate-100">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold uppercase tracking-wider text-slate-700">
-                    Live Schedule Matrix
-                  </span>
-                  <button
-                    onClick={loadAvailability}
-                    disabled={isAvailabilityLoading}
-                    title="Refresh availability"
-                    className="p-1 text-slate-400 hover:text-harvest-700 transition-colors"
-                  >
-                    <RefreshCw className={`h-3.5 w-3.5 ${isAvailabilityLoading ? "animate-spin" : ""}`} />
-                  </button>
-                </div>
-
-                {/* Availability Error Banner */}
-                {availabilityError && (
-                  <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-2">
-                    <p>{availabilityError}</p>
-                    <Button size="sm" variant="outline" onClick={loadAvailability}>
-                      Retry
-                    </Button>
-                  </div>
-                )}
-
-                {/* Calendar Component */}
-                {availabilityData && (
-                  <AvailabilityCalendar
-                    days={availabilityData.days}
-                    bookingModel={availabilityData.booking_model}
-                    selectedDate={selectedStartDate}
-                    selectedEndDate={selectedEndDate}
-                    onSelectDate={handleSelectDate}
-                    onSelectDateRange={handleSelectDateRange}
-                    isLoading={isAvailabilityLoading}
-                  />
-                )}
-
-                {/* Time Slots Selector (For Experiences, Tours, Workshops) */}
-                {requiresTimeSlot && currentDayAvailability && (
-                  <TimeSlotSelector
-                    slots={currentDayAvailability.time_slots}
-                    selectedSlotId={selectedSlot?.id}
-                    onSelectSlot={(slot) => {
-                      setSelectedSlot(slot);
-                    }}
-                    isLoading={isAvailabilityLoading}
-                  />
-                )}
-
-                {/* Selected Schedule Summary */}
-                {selectedStartDate && (
-                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-1 text-xs text-slate-700">
-                    <div className="font-bold text-slate-900 flex items-center justify-between">
-                      <span>Selected Schedule:</span>
-                      <span className="text-emerald-700 font-bold">Valid & Available</span>
-                    </div>
-                    <div>
-                      <strong>Date:</strong> {selectedStartDate}
-                      {selectedEndDate && ` to ${selectedEndDate}`}
-                    </div>
-                    {selectedSlot && (
-                      <div>
-                        <strong>Slot:</strong> {selectedSlot.start_time} – {selectedSlot.end_time} ({selectedSlot.remaining_capacity} spots remaining)
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Stage 3: Continue to Booking Review Action */}
-                <Button
-                  size="lg"
-                  disabled={!isValidSelection || isAvailabilityLoading}
-                  onClick={() => setIsReviewModalOpen(true)}
-                  className="w-full font-bold bg-harvest-600 hover:bg-harvest-700 text-white rounded-2xl gap-2 shadow-md disabled:opacity-50"
-                >
-                  <span>Continue to Booking</span>
-                  <ChevronRight className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleMessageHost}
+                className="w-full font-semibold text-slate-700 dark:text-slate-300 rounded-xl gap-2"
+              >
+                <MessageSquare className="h-3.5 w-3.5" />
+                <span>Message Host / Inquire</span>
+              </Button>
+            </div>
           </Card>
         </div>
       </div>
 
-      {/* ── 5. Booking Review & Confirmation Modal ── */}
-      <BookingReviewModal
-        isOpen={isReviewModalOpen}
-        onClose={() => setIsReviewModalOpen(false)}
-        service={service}
-        startDate={selectedStartDate}
-        endDate={selectedEndDate}
-        selectedSlot={selectedSlot}
-      />
+      {/* Interactive Booking & Payment Modal */}
+      {bookingModalOpen && (
+        <BookingReviewModal
+          isOpen={bookingModalOpen}
+          onClose={() => setBookingModalOpen(false)}
+          service={service}
+          startDate={selectedDate}
+          selectedSlot={selectedSlot}
+        />
+      )}
     </div>
   );
 }

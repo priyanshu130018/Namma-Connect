@@ -3,9 +3,11 @@ import { Container, Section } from "@/components/ui/container";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { ChevronDown, HelpCircle } from "lucide-react";
+import { PageMetadata } from "@/components/seo/PageMetadata";
 
 export function FAQPage() {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
+
 
   const faqCategories = [
     {
@@ -13,11 +15,11 @@ export function FAQPage() {
       items: [
         {
           q: "How do I create an account and explore farm stays?",
-          a: "You can create a free NammaConnect account on the /register page using your email and password. Once signed in to the customer portal (/app), you can explore verified estates, compare amenities, and filter by harvest seasons.",
+          a: "You can create a free Namma Connect account on the /register page using your email and password. Once signed in to the customer portal, you can explore verified estates, compare amenities, and filter by harvest seasons.",
         },
         {
           q: "Are farm meals and regional cuisine included in stays?",
-          a: "Most homestays and agro-cottages include traditional home-cooked breakfast (such as Malnad Akki Rotti or Coorg Kadambuttu). Inclusions for lunch and dinner are clearly marked in each service listing.",
+          a: "Most homestays and agro-cottages include traditional home-cooked breakfast. Specific inclusions for lunch and dinner are clearly detailed in each listing's description and pricing tiers.",
         },
       ],
     },
@@ -25,12 +27,12 @@ export function FAQPage() {
       category: "2. Partners & Agro-Hosts",
       items: [
         {
-          q: "Who can register as a NammaConnect partner?",
-          a: "We welcome plantation owners, smallholder farmers, local drivers, certified naturalists/guides, homestay families, and rural artisans located across South India.",
+          q: "Who can register as a Namma Connect partner?",
+          a: "We welcome plantation owners, smallholder farmers, local drivers, naturalists, guides, homestay families, and rural artisans located across South India.",
         },
         {
-          q: "What is the fee to list an experience or stay?",
-          a: "Listing your property or activity is 100% free with no monthly subscription. A nominal 5% platform fee is deducted only on confirmed guest check-outs to cover payment gateway and server operations.",
+          q: "What is the process to list an experience or stay?",
+          a: "Hosts can apply through the Become a Partner portal. Once basic identity and listing details are verified, hosts can set pricing, availability schedules, and capacity limits directly.",
         },
       ],
     },
@@ -39,24 +41,24 @@ export function FAQPage() {
       items: [
         {
           q: "How does live availability work?",
-          a: "Our backend manages authoritative real-time inventory calendars. When you select dates and complete your reservation, your booking is confirmed instantly with a reservation manifest.",
+          a: "Our backend manages authoritative real-time inventory calendars. When you select dates and complete your reservation, your booking is confirmed with a verified reservation manifest.",
         },
         {
           q: "Can I make special requests or dietary adjustments?",
-          a: "Yes. During checkout and inside the reservation view, you can enter specific host requests, such as vegetarian meals, spice preferences, or estate jeep pickup.",
+          a: "Yes. During checkout and inside the reservation view, you can enter specific host requests, such as dietary preferences or transportation assistance.",
         },
       ],
     },
     {
-      category: "4. Payments & Escrow Payouts",
+      category: "4. Payments & Settlements",
       items: [
         {
           q: "Which payment methods are supported?",
-          a: "NammaConnect supports all major Indian UPI apps (Google Pay, PhonePe, Paytm), Net Banking, RuPay, Visa, and Mastercard credit/debit cards via secure Razorpay checkout.",
+          a: "Namma Connect supports major Indian payment options including UPI (Google Pay, PhonePe, Paytm), Net Banking, and credit/debit cards via secure payment gateway processing.",
         },
         {
-          q: "When are payouts released to farm hosts?",
-          a: "To protect travelers and ensure service delivery, host payouts are held in escrow and settled directly into the host's verified bank account (T+1) within 24 hours after check-in.",
+          q: "How are host payouts managed?",
+          a: "Provider earnings are tracked transparently in the provider dashboard and settled directly to the host's verified bank account following confirmed service fulfillment.",
         },
       ],
     },
@@ -64,21 +66,25 @@ export function FAQPage() {
       category: "5. Verification & Safety Standards",
       items: [
         {
-          q: "How does NammaConnect verify hosts and land ownership?",
-          a: "Every host undergoes a 2-step verification process: physical inspection of land revenue records / survey numbers, and digital Aadhaar/PAN KYC matching.",
+          q: "How does Namma Connect verify hosts and listings?",
+          a: "Host partner applications are reviewed and verified with basic identity and property details before listings are approved for public booking.",
         },
         {
-          q: "Are the farms safe for families and children?",
-          a: "Yes. Listings highlight family suitability, fenced plantation boundaries, child-friendly agro-activities, and hygiene standards.",
+          q: "Are the farms suitable for families and groups?",
+          a: "Yes. Listings highlight suitability for families, groups, or solo travelers, along with detailed amenity lists and safety guidelines.",
         },
       ],
     },
     {
-      category: "6. Content Creators & Storytellers",
+      category: "6. AI Assistant & Trip Planner",
       items: [
         {
-          q: "How can videographers and creators collaborate with hosts?",
-          a: "Verified digital creators can create media packages, showcase portfolios, and submit storytelling proposals to hosts for complimentary stays and promotional compensation.",
+          q: "How does the Agentic AI Trip Planner work?",
+          a: "The Agentic AI Trip Planner uses your destination, duration, party size, budget, and travel preferences to generate conflict-free multi-day schedules grounded strictly in live catalog services and real-time availability.",
+        },
+        {
+          q: "Can I customize the generated trip plan?",
+          a: "Yes. You can add, replace, or reorder activities in your day-by-day itinerary inside My Trips before proceeding to book.",
         },
       ],
     },
@@ -86,8 +92,8 @@ export function FAQPage() {
       category: "7. Cancellations & Refunds",
       items: [
         {
-          q: "What is the standard cancellation timeline?",
-          a: "Full 100% refunds are provided for cancellations made at least 48 hours prior to the scheduled check-in date. Cancellations within 48 hours receive a 50% refund to compensate the host for reserved preparations.",
+          q: "What is the cancellation and refund policy?",
+          a: "Cancellations and refunds are managed according to individual service policies and booking status. Eligible cancellations can be initiated from the Bookings page in the customer portal, with refunds processed through the original payment method.",
         },
       ],
     },
@@ -96,19 +102,27 @@ export function FAQPage() {
       items: [
         {
           q: "How do I contact customer support in case of an issue?",
-          a: "You can reach our dedicated support desk via support@nammaconnect.in or submit a grievance directly through the Contact Support page.",
+          a: "You can submit an inquiry through our public Contact page or file a support ticket from your account portal for direct assistance from our operations team.",
         },
       ],
     },
   ];
 
+
   return (
     <Section className="py-8 sm:py-12 bg-slate-50 min-h-screen">
+      <PageMetadata
+        title="Frequently Asked Questions"
+        description="Answers to questions about booking rural stays, host onboarding, verified availability, payments, and the AI Trip Planner."
+      />
+
       <Container size="sm" className="space-y-8">
+
         <PageHeader
           title="Frequently Asked Questions"
-          subtitle="Everything you need to know about booking stays, hosting on your farm, payments, and creator partnerships."
+          subtitle="Everything you need to know about booking stays, hosting on your farm, payments, and AI trip planning."
         />
+
 
         <div className="space-y-8">
           {faqCategories.map((group, gIdx) => (

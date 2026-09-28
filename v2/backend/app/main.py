@@ -24,17 +24,14 @@ async def lifespan(app: FastAPI):
     try:
         import app.models
         from app.core.database import Base, engine, SessionLocal
-        Base.metadata.create_all(bind=engine)
-
-        # Deterministic startup database seeding
-        db = SessionLocal()
-        try:
-            from app.services.marketplace import MarketplaceService
-            MarketplaceService.ensure_seeded(db)
-        finally:
-            db.close()
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            if conn.dialect.name == "postgresql":
+                conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+                conn.commit()
+        # Schema creation is strictly handled by Alembic migrations (Base.metadata.create_all disabled)
     except Exception as e:
-        logger.warning("Database schema initialization warning: %s", e)
+        logger.warning("Database startup initialization warning: %s", e)
     yield
     logger.info("Shutting down %s", settings.PROJECT_NAME)
 

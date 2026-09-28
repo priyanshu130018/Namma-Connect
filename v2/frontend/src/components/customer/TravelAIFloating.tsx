@@ -1,469 +1,342 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Sparkles,
   X,
-  Send,
   Bot,
-  User as UserIcon,
-  Loader2,
-  Maximize2,
-  Minimize2,
-  ExternalLink,
-  MapPin,
+  Send,
+  Calendar,
+  Compass,
+  ArrowRight,
+  RefreshCw,
+  AlertCircle,
 } from "lucide-react";
-import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { sendTravelChatMessage, ChatMessage } from "@/services/aiService";
-import { useTranslation, useLanguage } from "@/i18n";
-
-const CHAT_SIZE_STORAGE_KEY = "namma_connect_chat_size";
-
-interface ChatDimensions {
-  width: number;
-  height: number;
-}
-
-const DEFAULT_DIMENSIONS: ChatDimensions = {
-  width: 420,
-  height: 650,
-};
-
-const MIN_WIDTH = 340;
-const MIN_HEIGHT = 460;
-const MAX_WIDTH = 800;
-const MAX_HEIGHT = 900;
+import { formatCurrency } from "@/lib/utils";
+import {
+  createAIConversation,
+  sendMessageToAI,
+  AIMessageResponse,
+} from "@/services/aiService";
+import { TripPlannerModal } from "./TripPlannerModal";
 
 export function TravelAIFloating() {
-  const { t } = useTranslation();
-  const { language } = useLanguage();
-
   const [isOpen, setIsOpen] = useState(false);
-  const [isMaximized, setIsMaximized] = useState(false);
-  const [inputMessage, setInputMessage] = useState("");
+  const [plannerModalOpen, setPlannerModalOpen] = useState(false);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<AIMessageResponse[]>([]);
+  const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [conversationId, setConversationId] = useState<string | undefined>(undefined);
-
-  // Read saved dimensions from localStorage
-  const [dimensions, setDimensions] = useState<ChatDimensions>(() => {
-    if (typeof window === "undefined") return DEFAULT_DIMENSIONS;
-    try {
-      const stored = localStorage.getItem(CHAT_SIZE_STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.width && parsed.height) {
-          return {
-            width: Math.min(Math.max(parsed.width, MIN_WIDTH), MAX_WIDTH),
-            height: Math.min(Math.max(parsed.height, MIN_HEIGHT), MAX_HEIGHT),
-          };
-        }
-      }
-    } catch {
-      // Storage parse fallback
-    }
-    return DEFAULT_DIMENSIONS;
-  });
-
-  const [isMobile, setIsMobile] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const resizingRef = useRef<{
-    isResizing: boolean;
-    startX: number;
-    startY: number;
-    startWidth: number;
-    startHeight: number;
-  }>({
-    isResizing: false,
-    startX: 0,
-    startY: 0,
-    startWidth: dimensions.width,
-    startHeight: dimensions.height,
-  });
 
-  const [messages, setMessages] = useState<ChatMessage[]>(() => [
-    {
-      id: "msg-welcome",
-      sender: "ai",
-      content: t("chat.welcomeMessage"),
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    },
-  ]);
-
-  // Update initial welcome message if language changes while conversation is untouched
+  // Initialize conversation session on first open
   useEffect(() => {
-    setMessages((prev) => {
-      if (prev.length === 1 && prev[0].id === "msg-welcome") {
-        return [
-          {
-            ...prev[0],
-            content: t("chat.welcomeMessage"),
-          },
-        ];
-      }
-      return prev;
-    });
-  }, [language, t]);
-
-  // Handle mobile viewport detection
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 640);
-    };
-    checkMobile();
-    window.addEventListener("resize", checkMobile);
-    return () => window.removeEventListener("resize", checkMobile);
-  }, []);
-
-  // Save dimensions when changed
-  const saveDimensions = useCallback((newDims: ChatDimensions) => {
-    setDimensions(newDims);
-    try {
-      localStorage.setItem(CHAT_SIZE_STORAGE_KEY, JSON.stringify(newDims));
-    } catch {
-      // Ignore storage errors
+    if (isOpen && !conversationId) {
+      initConversation();
     }
-  }, []);
+  }, [isOpen]);
 
-  // Scroll to bottom on new message
+  // Scroll to bottom when messages update
   useEffect(() => {
-    if (isOpen && typeof messagesEndRef.current?.scrollIntoView === "function") {
-      messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, isOpen, isLoading]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-  // Resize handler (bottom-left or top-left corner dragging)
-  const startResizing = (e: React.MouseEvent) => {
-    e.preventDefault();
-    if (isMaximized || isMobile) return;
-
-    resizingRef.current = {
-      isResizing: true,
-      startX: e.clientX,
-      startY: e.clientY,
-      startWidth: dimensions.width,
-      startHeight: dimensions.height,
-    };
-
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      if (!resizingRef.current.isResizing) return;
-      const deltaX = resizingRef.current.startX - moveEvent.clientX;
-      const deltaY = resizingRef.current.startY - moveEvent.clientY;
-
-      const newWidth = Math.min(
-        Math.max(resizingRef.current.startWidth + deltaX, MIN_WIDTH),
-        Math.min(window.innerWidth - 32, MAX_WIDTH)
-      );
-      const newHeight = Math.min(
-        Math.max(resizingRef.current.startHeight + deltaY, MIN_HEIGHT),
-        Math.min(window.innerHeight - 80, MAX_HEIGHT)
-      );
-
-      setDimensions({ width: newWidth, height: newHeight });
-    };
-
-    const handleMouseUp = () => {
-      if (resizingRef.current.isResizing) {
-        resizingRef.current.isResizing = false;
-        setDimensions((curr) => {
-          saveDimensions(curr);
-          return curr;
-        });
-      }
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
-  };
-
-  const handleSend = async (messageText?: string) => {
-    const textToSend = messageText || inputMessage.trim();
-    if (!textToSend || isLoading) return;
-
-    const userMsg: ChatMessage = {
-      id: "user-" + Date.now(),
-      sender: "user",
-      content: textToSend,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    setInputMessage("");
+  const initConversation = async () => {
     setIsLoading(true);
-
+    setError(null);
     try {
-      const res = await sendTravelChatMessage({
-        conversation_id: conversationId,
-        message: textToSend,
-        language: language,
+      const conv = await createAIConversation({
+        title: "Namma Travel Assistant",
+        context_type: "TRAVEL",
       });
-
-      if (res.data) {
-        setConversationId(res.data.conversation_id);
-        const aiMsg: ChatMessage = {
-          id: "ai-" + Date.now(),
-          sender: "ai",
-          content: res.data.reply,
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          suggested_services: res.data.suggested_services,
-        };
-        setMessages((prev) => [...prev, aiMsg]);
-      }
-    } catch (err: any) {
-      const statusCode = err?.response?.status;
-      let errorText = "Unable to process request. Please try again.";
-
-      if (statusCode === 401) {
-        errorText = "Authentication required. Please sign in to continue using Namma AI.";
-      } else if (statusCode === 403) {
-        errorText = "Access restricted. You do not have permission to access Namma AI.";
-      } else if (statusCode === 404) {
-        errorText = "AI endpoint not found (404). Please verify backend router registration.";
-      } else if (statusCode === 422) {
-        errorText = "Invalid request format (422). Please rephrase your query.";
-      } else if (statusCode === 429) {
-        errorText = "Too many requests (429). Please wait a moment before sending another prompt.";
-      } else if (statusCode === 503) {
-        errorText = "Gemini service is temporarily unavailable (503). Platform search remains functional.";
-      } else if (statusCode === 500) {
-        errorText = "Backend AI service error (500). Please try again in a few moments.";
-      } else if (err?.message === "Network Error") {
-        errorText = "Network error. Please check your internet connection.";
-      }
-
-      setMessages((prev) => [
-        ...prev,
+      setConversationId(conv.id);
+      // Initial welcome message
+      setMessages([
         {
-          id: "ai-err-" + Date.now(),
-          sender: "ai",
-          content: errorText,
-          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          id: "welcome-msg",
+          conversation_id: conv.id,
+          role: "assistant",
+          content:
+            "Namaskara! I am your Namma Connect AI assistant. I can help you discover authentic farm stays, heritage workshops, or plan a multi-day Karnataka itinerary.",
+          created_at: new Date().toISOString(),
         },
       ]);
+    } catch (err: any) {
+      console.error("Failed to initialize AI conversation:", err);
+      setError("Unable to connect to AI Assistant. Please check connection.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSendMessage = async (textToSend?: string) => {
+    const text = textToSend || inputValue.trim();
+    if (!text || isLoading) return;
+
+    let convId = conversationId;
+    if (!convId) {
+      try {
+        const conv = await createAIConversation({ title: "Travel Chat" });
+        convId = conv.id;
+        setConversationId(convId);
+      } catch (err) {
+        setError("Failed to create conversation session.");
+        return;
+      }
+    }
+
+    const optimisticUserMsg: AIMessageResponse = {
+      id: `temp-${Date.now()}`,
+      conversation_id: convId,
+      role: "user",
+      content: text,
+      created_at: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, optimisticUserMsg]);
+    setInputValue("");
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const aiReply = await sendMessageToAI(convId, { content: text });
+      setMessages((prev) => [...prev, aiReply]);
+    } catch (err: any) {
+      setError(
+        err.response?.data?.detail ||
+          err.message ||
+          "Failed to get AI response. Please try again."
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   const quickPrompts = [
-    t("chat.quickPrompt1"),
-    t("chat.quickPrompt2"),
-    t("chat.quickPrompt3"),
+    "Plan a 2-day trip to Coorg",
+    "Find organic farm stays in Chikkamagaluru",
+    "Show traditional craft workshops in Mysuru",
   ];
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
-      {/* Floating Trigger Button */}
-      {!isOpen && (
-        <button
-          type="button"
-          onClick={() => setIsOpen(true)}
-          className="group flex items-center gap-2.5 rounded-full bg-gradient-to-r from-emerald-600 to-teal-700 px-5 py-3 text-sm font-bold text-white shadow-xl shadow-emerald-700/25 transition-all hover:scale-105 hover:shadow-2xl active:scale-95 border border-emerald-500/30"
-          aria-label="Open Travel AI Assistant (Namma AI)"
-        >
-          <Sparkles className="h-4 w-4 text-emerald-200 animate-pulse" />
-          <span>{t("chat.title")}</span>
-        </button>
-      )}
+    <>
+      <div className="fixed bottom-6 right-6 z-50">
+        {/* Floating Trigger Button */}
+        {!isOpen && (
+          <button
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className="group flex items-center gap-2.5 rounded-full bg-gradient-to-r from-emerald-600 to-teal-700 px-5 py-3 text-sm font-bold text-white shadow-xl shadow-emerald-700/25 transition-all hover:scale-105 hover:shadow-2xl active:scale-95 border border-emerald-500/30"
+            aria-label="Open Namma AI"
+          >
+            <Sparkles className="h-4 w-4 text-emerald-200" />
+            <span>Namma AI</span>
+          </button>
+        )}
 
-      {/* Floating / Responsive Resizable Chat Window */}
-      {isOpen && (
-        <div
-          style={{
-            width: isMobile || isMaximized ? "calc(100vw - 24px)" : `${dimensions.width}px`,
-            height: isMobile || isMaximized ? "calc(100vh - 32px)" : `${dimensions.height}px`,
-            maxWidth: isMaximized ? "100vw" : `${MAX_WIDTH}px`,
-            maxHeight: isMaximized ? "100vh" : `${MAX_HEIGHT}px`,
-          }}
-          className={`flex flex-col rounded-3xl border border-slate-200/80 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden transition-all duration-200 ${
-            isMaximized
-              ? "fixed inset-3 z-50 rounded-2xl"
-              : "fixed bottom-4 right-4 sm:bottom-6 sm:right-6"
-          }`}
-        >
-          {/* Resize Corner Handle (Top-Left corner for floating window) */}
-          {!isMaximized && !isMobile && (
-            <div
-              onMouseDown={startResizing}
-              className="absolute top-0 left-0 w-6 h-6 cursor-nwse-resize z-50 flex items-center justify-center group opacity-40 hover:opacity-100"
-              title="Drag to resize"
-            >
-              <div className="w-2 h-2 border-t-2 border-l-2 border-slate-400 dark:border-slate-500 group-hover:border-emerald-500 transition-colors" />
-            </div>
-          )}
-
-          {/* Header */}
-          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/90 px-4 py-3 select-none">
-            <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-md shadow-emerald-500/20">
-                <Bot className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  {t("chat.title")}
-                </h3>
-                <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
-                  {t("chat.subtitle")}
-                </p>
-              </div>
-            </div>
-
-            {/* Window Controls */}
-            <div className="flex items-center gap-1">
-              {!isMobile && (
-                <button
-                  type="button"
-                  onClick={() => setIsMaximized(!isMaximized)}
-                  className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors"
-                  aria-label={isMaximized ? t("chat.restore") : t("chat.maximize")}
-                  title={isMaximized ? t("chat.restore") : t("chat.maximize")}
-                >
-                  {isMaximized ? (
-                    <Minimize2 className="h-4 w-4" />
-                  ) : (
-                    <Maximize2 className="h-4 w-4" />
-                  )}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setIsOpen(false)}
-                className="p-1.5 rounded-xl text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100 hover:bg-slate-200/60 dark:hover:bg-slate-800 transition-colors"
-                aria-label={t("chat.close")}
-                title={t("chat.close")}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* Messages Feed */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3.5 bg-slate-50/40 dark:bg-slate-950/40">
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex gap-2.5 ${msg.sender === "user" ? "justify-end" : "justify-start"}`}
-              >
-                {msg.sender === "ai" && (
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300">
-                    <Sparkles className="h-3.5 w-3.5" />
-                  </div>
-                )}
-                <div
-                  className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed ${
-                    msg.sender === "user"
-                      ? "bg-emerald-600 dark:bg-emerald-600 text-white font-medium rounded-tr-none shadow-sm"
-                      : "bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-tl-none shadow-sm"
-                  }`}
-                >
-                  <p className="whitespace-pre-wrap">{msg.content}</p>
-
-                  {/* Suggested Services Cards */}
-                  {msg.suggested_services && msg.suggested_services.length > 0 && (
-                    <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-700 space-y-2">
-                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
-                        {t("chat.recommendedServices")}
-                      </p>
-                      {msg.suggested_services.map((service: any, idx: number) => (
-                        <Link
-                          key={service.id || idx}
-                          to={`/app/services/${service.slug || service.id}`}
-                          onClick={() => !isMaximized && setIsOpen(false)}
-                          className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/60 dark:border-slate-700/80 hover:border-emerald-500 dark:hover:border-emerald-500 transition-all group"
-                        >
-                          <div className="truncate pr-2">
-                            <p className="font-bold text-[11px] text-slate-900 dark:text-slate-100 truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
-                              {service.title}
-                            </p>
-                            <div className="flex items-center gap-2 mt-0.5 text-[10px] text-slate-500 dark:text-slate-400">
-                              <span className="flex items-center gap-0.5">
-                                <MapPin className="h-3 w-3" />
-                                {service.location}
-                              </span>
-                              {service.price && (
-                                <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                                  ₹{service.price}/{service.unit || "unit"}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <ExternalLink className="h-3.5 w-3.5 text-slate-400 group-hover:text-emerald-600 shrink-0" />
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-
-                  <span className="mt-1 block text-[9px] text-slate-400 dark:text-slate-500 text-right">
-                    {msg.timestamp}
+        {/* Floating AI Assistant Chat Window */}
+        {isOpen && (
+          <div className="w-[340px] sm:w-[390px] h-[520px] flex flex-col rounded-3xl border border-slate-200/90 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-2xl overflow-hidden animate-fade-in fixed bottom-6 right-6">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-emerald-700 to-teal-800 px-4 py-3 text-white select-none">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm text-white shadow-sm">
+                  <Bot className="h-4 w-4" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-bold leading-tight">Namma AI Assistant</h3>
+                  <span className="text-[10px] text-emerald-200 font-medium">
+                    Grounded & Verified Recommendations
                   </span>
                 </div>
-                {msg.sender === "user" && (
-                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200">
-                    <UserIcon className="h-3.5 w-3.5" />
-                  </div>
-                )}
               </div>
-            ))}
 
-            {isLoading && (
-              <div className="flex gap-2.5 items-center text-xs text-slate-500 dark:text-slate-400">
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-emerald-100 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                </div>
-                <span className="italic">{t("chat.typing")}</span>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Quick Prompts */}
-          {messages.length <= 2 && (
-            <div className="px-4 py-2 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-wrap gap-1.5">
-              {quickPrompts.map((prompt) => (
+              <div className="flex items-center gap-1">
                 <button
-                  key={prompt}
                   type="button"
-                  onClick={() => handleSend(prompt)}
-                  className="rounded-full bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900 transition-colors border border-emerald-200/50 dark:border-emerald-800/50 text-left"
+                  onClick={() => {
+                    setIsOpen(false);
+                    setPlannerModalOpen(true);
+                  }}
+                  title="Open Trip Planner"
+                  className="p-1.5 rounded-xl text-emerald-100 hover:text-white hover:bg-white/10 transition-colors"
                 >
-                  {prompt}
+                  <Calendar className="h-4 w-4" />
                 </button>
-              ))}
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="p-1.5 rounded-xl text-emerald-100 hover:text-white hover:bg-white/10 transition-colors"
+                  aria-label="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
             </div>
-          )}
 
-          {/* Input Footer */}
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              handleSend();
-            }}
-            className="p-3 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-2"
-          >
-            <input
-              type="text"
-              value={inputMessage}
-              onChange={(e) => setInputMessage(e.target.value)}
-              placeholder={t("chat.inputPlaceholder")}
-              disabled={isLoading}
-              className="flex-1 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-800/80 px-3.5 py-2.5 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:opacity-50"
-            />
-            <Button
-              type="submit"
-              size="sm"
-              disabled={!inputMessage.trim() || isLoading}
-              className="rounded-xl px-3 bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
-              aria-label={t("chat.send")}
-            >
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Send className="h-4 w-4" />
+            {/* Quick Action Trip Planner Bar */}
+            <div className="bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900/40 px-3 py-2 flex items-center justify-between text-xs">
+              <span className="text-emerald-900 dark:text-emerald-300 font-bold flex items-center gap-1 text-[11px]">
+                <Compass className="h-3.5 w-3.5" />
+                <span>Multi-Day Itinerary?</span>
+              </span>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setIsOpen(false);
+                  setPlannerModalOpen(true);
+                }}
+                className="h-6 px-2 text-[10px] font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-none"
+              >
+                Plan Trip
+              </Button>
+            </div>
+
+            {/* Messages Body */}
+            <div className="flex-1 p-3.5 overflow-y-auto space-y-3 bg-slate-50/50 dark:bg-slate-950/40 text-xs">
+              {messages.map((msg) => {
+                const isUser = msg.role === "user";
+                return (
+                  <div
+                    key={msg.id}
+                    className={`flex flex-col ${isUser ? "items-end" : "items-start"}`}
+                  >
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 shadow-sm text-xs leading-relaxed ${
+                        isUser
+                          ? "bg-emerald-600 text-white font-medium rounded-br-none"
+                          : "bg-white dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 text-slate-900 dark:text-slate-100 rounded-bl-none"
+                      }`}
+                    >
+                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    </div>
+
+                    {/* Grounded Recommended Services */}
+                    {!isUser &&
+                      msg.recommended_services &&
+                      msg.recommended_services.length > 0 && (
+                        <div className="mt-2 space-y-1.5 w-full max-w-[90%]">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block pl-1">
+                            Verified Offerings
+                          </span>
+                          {msg.recommended_services.map((svc: any, idx: number) => (
+                            <a
+                              key={svc.service_id || svc.id || idx}
+                              href={`/app/services/${svc.service_id || svc.id}`}
+                              className="p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-emerald-500 flex items-center justify-between gap-2 shadow-xs transition-colors"
+                            >
+                              <div className="truncate">
+                                <p className="font-bold text-slate-900 dark:text-slate-100 truncate text-[11px]">
+                                  {svc.title}
+                                </p>
+                                <p className="text-[10px] text-slate-500 truncate">
+                                  {svc.location || svc.district} • {svc.category}
+                                </p>
+                              </div>
+                              <span className="text-[11px] font-black text-emerald-700 dark:text-emerald-400 shrink-0">
+                                {formatCurrency(svc.price)}
+                              </span>
+                            </a>
+                          ))}
+                        </div>
+                      )}
+
+                    {/* Trip Planner Handoff Action in Chat */}
+                    {!isUser && msg.trip_planner_handoff && (
+                      <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-xs w-full max-w-[90%] space-y-1.5">
+                        <p className="font-bold text-emerald-900 dark:text-emerald-300 text-[11px]">
+                          Ready to build this itinerary?
+                        </p>
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            setIsOpen(false);
+                            setPlannerModalOpen(true);
+                          }}
+                          className="w-full h-7 text-[11px] font-bold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg gap-1"
+                        >
+                          <span>Launch Agentic Trip Planner</span>
+                          <ArrowRight className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Loading indicator */}
+              {isLoading && (
+                <div className="flex items-center gap-1.5 text-slate-400 text-xs pl-2">
+                  <RefreshCw className="h-3 w-3 animate-spin text-emerald-600" />
+                  <span>Namma AI is thinking...</span>
+                </div>
               )}
-            </Button>
-          </form>
-        </div>
-      )}
-    </div>
+
+              {/* Error indicator */}
+              {error && (
+                <div className="p-2 rounded-xl bg-rose-50 text-rose-800 text-[11px] flex items-center gap-1.5 border border-rose-200">
+                  <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* Quick Prompts (if chat is fresh) */}
+              {messages.length <= 1 && (
+                <div className="pt-2 space-y-1.5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block pl-1">
+                    Try Asking
+                  </span>
+                  {quickPrompts.map((prompt, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => handleSendMessage(prompt)}
+                      className="w-full text-left p-2 rounded-xl bg-white dark:bg-slate-800 border border-slate-200/70 dark:border-slate-700 hover:border-emerald-500 hover:bg-emerald-50/50 text-[11px] text-slate-700 dark:text-slate-300 transition-colors block font-medium"
+                    >
+                      💡 {prompt}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div ref={messagesEndRef} />
+            </div>
+
+            {/* Input Bar */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSendMessage();
+              }}
+              className="p-2.5 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex items-center gap-1.5"
+            >
+              <input
+                type="text"
+                placeholder="Ask about farm stays, activities, or trips..."
+                value={inputValue}
+                onChange={(e) => setInputValue(e.target.value)}
+                disabled={isLoading}
+                className="flex-1 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+              <Button
+                type="submit"
+                size="sm"
+                disabled={!inputValue.trim() || isLoading}
+                className="h-8 w-8 p-0 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white shrink-0"
+              >
+                <Send className="h-3.5 w-3.5" />
+              </Button>
+            </form>
+          </div>
+        )}
+      </div>
+
+      {/* Embedded Agentic Trip Planner Modal */}
+      <TripPlannerModal
+        isOpen={plannerModalOpen}
+        onClose={() => setPlannerModalOpen(false)}
+      />
+    </>
   );
 }
+

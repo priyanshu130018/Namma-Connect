@@ -452,16 +452,16 @@ class SemanticSearchService:
 
         # Multilingual Location & Category Mappings
         KANNADA_DISTRICT_MAP = {
-            "coorg": ["coorg", "kodagu", "ಕೊಡಗು", "ಕೊಡಗಿನಲ್ಲಿ", "ಕೊಡಗಿನ", "कूर्ग"],
-            "chikmagalur": ["chikmagalur", "chikkamagaluru", "ಚಿಕ್ಕಮಗಳೂರು", "ಚಿಕ್ಕಮಗಳೂರಿನ", "चिकमगलूर"],
+            "coorg": ["coorg", "kodagu", "kodava", "kodavu", "madikeri", "somwarpet", "virajpet", "kushalnagar", "ಕೊಡಗು", "ಕೊಡಗಿನಲ್ಲಿ", "ಕೊಡಗಿನ", "कूर्ग"],
+            "chikmagalur": ["chikmagalur", "chikkamagaluru", "mudigere", "kudremukh", "ಚಿಕ್ಕಮಗಳೂರು", "ಚಿಕ್ಕಮಗಳೂರಿನ", "चिकमगलूर"],
             "bangalore": ["bangalore", "bengaluru", "ಬೆಂಗಳೂರು", "ಬೆಂಗಳೂರಿನಲ್ಲಿ", "बंगलौर", "बैंगलोर"],
-            "mandya": ["mandya", "ಮಂಡ್ಯ", "ಮಂಡ್ಯದ", "मांड्या"],
-            "mysore": ["mysore", "mysuru", "ಮೈಸೂರು", "ಮೈಸೂರಿನ", "मैसूर"],
-            "shimoga": ["shimoga", "shivamogga", "ಶಿವಮೊಗ್ಗ", "ಶಿಮೋಗಾ", "शिमोगा"],
+            "mandya": ["mandya", "maddur", "ಮಂಡ್ಯ", "ಮಂಡ್ಯದ", "मांड्या"],
+            "mysore": ["mysore", "mysuru", "kabini", "ಮೈಸೂರು", "ಮೈಸೂರಿನ", "मैसूर"],
+            "shimoga": ["shimoga", "shivamogga", "thirthahalli", "ಶಿವಮೊಗ್ಗ", "ಶಿಮೋಗಾ", "शिमोगा"],
             "ramanagara": ["ramanagara", "ರಾಮನಗರ", "ರಾಮನಗರದ", "रामनगर"],
             "hampi": ["hampi", "ಹಂಪಿ", "हम्पी"],
             "kabini": ["kabini", "ಕಬಿನಿ", "कबिनी"],
-            "sakleshpur": ["sakleshpur", "ಸಕಲೇಶಪುರ", "सकलेशपुर"],
+            "sakleshpur": ["sakleshpur", "hassan", "ಸಕಲೇಶಪುರ", "सकलेशपुर"],
             "sirsi": ["sirsi", "ಶಿರಸಿ", "सिरसी"],
             "wayanad": ["wayanad", "ವಯನಾಡ್", "वायनाड"],
         }
@@ -557,9 +557,9 @@ class SemanticSearchService:
             )
 
             # Threshold check: require semantic similarity to meet the threshold,
-            # or allow high hybrid relevance match (e.g. cross-lingual queries matching both location and category)
-            is_cross_lingual_match = (loc_match > 0 and cat_match > 0 and final_score >= sim_threshold)
-            if semantic_score < sim_threshold and not is_cross_lingual_match:
+            # or allow high hybrid relevance match (e.g. queries matching location, category, or keywords)
+            is_relevant_match = ((loc_match > 0 or cat_match > 0 or kw_match) and final_score >= sim_threshold)
+            if semantic_score < sim_threshold and not is_relevant_match:
                 continue
 
             valid_candidates.append((s, final_score, semantic_score, loc_match, cat_match, kw_match))

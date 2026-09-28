@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   Send,
@@ -7,8 +7,8 @@ import {
   AlertCircle,
   MessageSquare,
   ArrowLeft,
+  ShieldCheck,
 } from "lucide-react";
-import { useTranslation } from "@/i18n";
 
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
@@ -23,7 +23,6 @@ import {
 import { ConversationItem, ChatMessage } from "@/types";
 
 export function CustomerMessagesPage() {
-  const { t } = useTranslation();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const providerIdParam = searchParams.get("provider_id");
@@ -56,16 +55,12 @@ export function CustomerMessagesPage() {
       const list = data || [];
       setConversations(list);
 
-      // If provider_id param passed, select or target thread with that provider
+      // If provider_id param passed, select matching thread
       if (providerIdParam) {
         const existing = list.find((c) => c.participant_id === providerIdParam);
         if (existing) {
           setActiveThreadId(existing.id);
-        } else if (list.length > 0 && !activeThreadId) {
-          setActiveThreadId(list[0].id);
         }
-      } else if (list.length > 0 && !activeThreadId) {
-        setActiveThreadId(list[0].id);
       }
     } catch (err: unknown) {
       console.error("Failed to load conversations:", err);
@@ -73,13 +68,13 @@ export function CustomerMessagesPage() {
     } finally {
       setIsLoadingConversations(false);
     }
-  }, [activeThreadId, providerIdParam]);
+  }, [providerIdParam]);
 
   useEffect(() => {
     loadConversations();
   }, [loadConversations]);
 
-  // Establish WebSocket connection for real-time messages & presence
+  // Establish WebSocket connection for real-time messages
   useEffect(() => {
     const token = localStorage.getItem("nc_access_token");
     if (!token) return;
@@ -226,12 +221,11 @@ export function CustomerMessagesPage() {
     return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   };
 
-
   return (
     <div className="space-y-6 pb-12">
       <PageHeader
-        title="Host & Partner Messages"
-        subtitle="Chat directly with your plantation hosts and experience coordinators."
+        title="Messages & Support"
+        subtitle="Chat directly with host partners, content creators, and Namma Connect support."
         actions={
           <Button
             variant="outline"
@@ -267,7 +261,7 @@ export function CustomerMessagesPage() {
             }`}
           >
             <p className="px-3 text-[10px] uppercase font-bold text-slate-400 mb-2">
-              {t("messages.activeConversations")} ({conversations.length})
+              Conversations ({conversations.length})
             </p>
 
             {isLoadingConversations && (
@@ -282,14 +276,13 @@ export function CustomerMessagesPage() {
               <div className="p-8 text-center space-y-2">
                 <MessageSquare className="h-8 w-8 text-slate-300 mx-auto" />
                 <p className="text-xs font-bold text-slate-700 dark:text-slate-300">
-                  {t("messages.noConversations")}
+                  No conversations yet
                 </p>
                 <p className="text-[11px] text-slate-400">
-                  {t("messages.noConversationsDesc")}
+                  Start a inquiry with an activity provider or creator to view chat messages here.
                 </p>
               </div>
             )}
-
 
             {conversations.map((tItem) => (
               <div
@@ -397,15 +390,15 @@ export function CustomerMessagesPage() {
                         </span>
                       </div>
                       <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                        {currentConv.subject || "Verified Host Conversation"}
+                        {currentConv.subject || "Verified Conversation"}
                       </p>
                     </div>
                   </div>
                   <Badge variant="outline" className="text-[10px] text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/50 border-emerald-200 dark:border-emerald-800">
-                    Host Partner
+                    <ShieldCheck className="h-3 w-3 mr-1" />
+                    <span>Verified</span>
                   </Badge>
                 </div>
-
 
                 {/* Messages Feed */}
                 <div className="flex-1 overflow-y-auto py-4 space-y-3 min-h-[340px] max-h-[460px]">
@@ -460,7 +453,7 @@ export function CustomerMessagesPage() {
                 >
                   <input
                     type="text"
-                    placeholder={t("messages.typePlaceholder")}
+                    placeholder="Type a message..."
                     value={messageInput}
                     onChange={(e) => setMessageInput(e.target.value)}
                     disabled={isSending}
@@ -473,18 +466,23 @@ export function CustomerMessagesPage() {
                     className="h-10 px-4 font-bold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm"
                   >
                     <Send className="h-4 w-4" />
-                    <span className="hidden sm:inline">{t("messages.send")}</span>
+                    <span className="hidden sm:inline">Send</span>
                   </Button>
                 </form>
               </>
             ) : (
-              <div className="flex flex-col items-center justify-center h-full text-center space-y-2 text-slate-400">
-                <MessageSquare className="h-10 w-10 text-slate-300" />
-                <p className="text-xs font-semibold">{t("messages.selectToChat")}</p>
+              <div className="flex flex-col items-center justify-center h-full text-center space-y-3 py-16 text-slate-400">
+                <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-slate-100 dark:bg-slate-800 text-slate-400">
+                  <MessageSquare className="h-7 w-7" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-slate-200">Select a conversation</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 max-w-xs mt-1">
+                    Choose a conversation from the left panel or start a new inquiry with host partners.
+                  </p>
+                </div>
               </div>
             )}
-
-
           </div>
         </div>
       </Card>

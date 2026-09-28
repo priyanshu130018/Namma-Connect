@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ServiceCard } from "@/components/cards/ServiceCard";
 import { ServiceCardSkeleton } from "@/components/cards/ServiceCardSkeleton";
@@ -50,7 +50,7 @@ describe("Customer Marketplace Discovery & Search Component Suite", () => {
     expect(screen.getByText("₹2,800")).toBeInTheDocument();
     expect(screen.getByText("4.92")).toBeInTheDocument();
     expect(screen.getByText("Bopaiah Muthappa")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /View/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Coorg Heritage Coffee Estate/i })).toBeInTheDocument();
   });
 
   it("renders ServiceCardSkeleton correctly", () => {
@@ -58,13 +58,16 @@ describe("Customer Marketplace Discovery & Search Component Suite", () => {
     expect(container.getElementsByClassName("animate-pulse").length).toBeGreaterThan(0);
   });
 
-  it("renders CustomerHomePage with Search Bar and Categories", async () => {
-    vi.spyOn(marketplaceService, "getMarketplaceServices").mockResolvedValue({
-      services: [mockService],
-      total: 1,
-      page: 1,
-      limit: 6,
-      total_pages: 1,
+  it("renders CustomerHomePage with Search Bar and Discovery Sections", async () => {
+    vi.spyOn(marketplaceService, "getHomeRecommendations").mockResolvedValue({
+      recommended_for_you: [mockService],
+      top_rated: [mockService],
+      most_visited: [mockService],
+      near_you: [mockService],
+      nearby: [mockService],
+      things_to_visit: [mockService],
+      things_to_do: [mockService],
+      categories: [],
     });
 
     render(
@@ -73,11 +76,11 @@ describe("Customer Marketplace Discovery & Search Component Suite", () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByText(/Agricultural Tourism Marketplace/i)).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Place \(e\.g\. Coorg, Wayanad\)/i)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Search activities, places, experiences/i)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Search/i })).toBeInTheDocument();
-    expect(screen.getByText(/Explore Categories/i)).toBeInTheDocument();
-    expect(screen.getByText(/Recommended for You/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Nearby$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Top Rated$/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Most Visited$/i })).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getAllByText("Coorg Heritage Coffee Estate")[0]).toBeInTheDocument();
@@ -109,7 +112,7 @@ describe("Customer Marketplace Discovery & Search Component Suite", () => {
     });
   });
 
-  it("renders CustomerServiceDetailPage with details, host profile, reviews, and Check Availability button", async () => {
+  it("renders CustomerServiceDetailPage with details, host profile, amenities, reviews, and Message Host button", async () => {
     vi.spyOn(marketplaceService, "getServiceDetail").mockResolvedValue({
       service: mockService,
       reviews: [
@@ -121,35 +124,6 @@ describe("Customer Marketplace Discovery & Search Component Suite", () => {
           comment: "Breathtaking estate walk and lovely hosts!",
         },
       ],
-    });
-
-    vi.spyOn(marketplaceService, "getServiceAvailability").mockResolvedValue({
-      service_id: "srv-001",
-      service_title: "Coorg Heritage Coffee Estate",
-      booking_model: "date_range",
-      min_guests: 1,
-      max_guests: 6,
-      min_days_notice: 1,
-      max_days_advance: 60,
-      start_date: "2026-09-01",
-      end_date: "2026-09-30",
-      days: [
-        {
-          date: "2026-09-01",
-          is_available: true,
-          status: "AVAILABLE",
-          remaining_capacity: 6,
-          time_slots: [],
-        },
-        {
-          date: "2026-09-02",
-          is_available: true,
-          status: "AVAILABLE",
-          remaining_capacity: 6,
-          time_slots: [],
-        },
-      ],
-      blackout_dates: [],
     });
 
     window.history.pushState({}, "Detail", "/app/services/srv-001");
@@ -164,19 +138,11 @@ describe("Customer Marketplace Discovery & Search Component Suite", () => {
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { name: "Coorg Heritage Coffee Estate" })).toBeInTheDocument();
-      expect(screen.getByText(/Bopaiah Muthappa/i)).toBeInTheDocument();
-      expect(screen.getByText("Breakfast included")).toBeInTheDocument();
+      expect(screen.getAllByText(/Bopaiah Muthappa/i).length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText("Solar Heated Water")).toBeInTheDocument();
       expect(screen.getByText("Kavita Nair")).toBeInTheDocument();
       expect(screen.getByText("Breathtaking estate walk and lovely hosts!")).toBeInTheDocument();
-    });
-
-    const checkBtn = screen.getByRole("button", { name: /Check Availability/i });
-    expect(checkBtn).toBeInTheDocument();
-    fireEvent.click(checkBtn);
-
-    await waitFor(() => {
-      expect(screen.getByText(/Live Schedule Matrix/i)).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Message Host \/ Inquire/i })).toBeInTheDocument();
     });
   });
 });

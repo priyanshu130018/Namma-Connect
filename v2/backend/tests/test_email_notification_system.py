@@ -31,7 +31,6 @@ from app.models.payment import Payment
 from app.models.notification import Notification
 from app.models.email_log import EmailLog
 from app.models.partner_application import PartnerApplication
-from app.models.creator import CreatorProfile
 from app.services.email import EmailService
 from app.services.communication import NotificationService
 from app.services.auth import AuthService

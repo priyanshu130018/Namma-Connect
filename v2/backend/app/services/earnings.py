@@ -63,7 +63,7 @@ class EarningsService:
                     if (b.start_date == d_str or (b.created_at and b.created_at.date() == d))
                 ]
                 filtered_period_bookings.extend(day_bookings)
-                day_net = sum(round(b.total_amount * 0.95, 2) for b in day_bookings)
+                day_net = sum(round(float(b.total_amount or 0.0) * 0.95, 2) for b in day_bookings)
                 data_points.append(
                     EarningsDataPoint(
                         date=d.strftime("%b %d"),
@@ -81,7 +81,7 @@ class EarningsService:
                     if (b.start_date == d_str or (b.created_at and b.created_at.date() == d))
                 ]
                 filtered_period_bookings.extend(day_bookings)
-                day_net = sum(round(b.total_amount * 0.95, 2) for b in day_bookings)
+                day_net = sum(round(float(b.total_amount or 0.0) * 0.95, 2) for b in day_bookings)
                 data_points.append(
                     EarningsDataPoint(
                         date=d.strftime("%b %d"),
@@ -106,7 +106,7 @@ class EarningsService:
                     m_key = b_date_str[:7]
                     if m_key in data_dict:
                         filtered_period_bookings.append(b)
-                        net = round(b.total_amount * 0.95, 2)
+                        net = round(float(b.total_amount or 0.0) * 0.95, 2)
                         data_dict[m_key]["amount"] += net
                         data_dict[m_key]["count"] += 1
 

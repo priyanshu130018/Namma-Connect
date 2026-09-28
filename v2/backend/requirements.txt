@@ -17,9 +17,9 @@ pytest-asyncio>=0.23.5
 python-multipart>=0.0.9
 google-auth
 requests
-python-jose
 pydantic[email]
 email-validator
 pgvector
-psycopg2-binary
 celery>=5.3.6
+cloudinary>=1.39.0
+razorpay>=1.4.1

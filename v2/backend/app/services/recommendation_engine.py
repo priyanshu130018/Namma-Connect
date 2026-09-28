@@ -559,13 +559,33 @@ class RecommendationEngine:
         most_visited_items = sorted(candidates, key=lambda s: s.reviews_count, reverse=True)[:4]
         most_visited = [serialize_service(s) for s in most_visited_items]
 
-        # Section D: Near You
+        # Section D: Nearby / Near You
         near_you_items = [s for s in candidates if location and (location.lower() in s.location.lower() or location.lower() in s.district.lower())]
         if not near_you_items:
             near_you_items = candidates[:4]
-        near_you = [serialize_service(s) for s in near_you_items[:4]]
+        nearby = [serialize_service(s) for s in near_you_items[:4]]
 
-        # Section E: Categories
+        # Section E: Things to Visit (places, historical, farms, nature tours)
+        visit_candidates = [
+            s for s in candidates 
+            if any(k in (s.category_slug or "").lower() or k in (s.category or "").lower() or k in (s.description or "").lower() 
+                   for k in ["visit", "trail", "tour", "farm", "heritage", "historical", "nature"])
+        ]
+        if not visit_candidates:
+            visit_candidates = candidates[:4]
+        things_to_visit = [serialize_service(s) for s in visit_candidates[:4]]
+
+        # Section F: Things to Do (hands-on activities, experiences, cooking, farming)
+        do_candidates = [
+            s for s in candidates 
+            if any(k in (s.category_slug or "").lower() or k in (s.category or "").lower() or k in (s.description or "").lower() 
+                   for k in ["experience", "activity", "activities", "workshop", "cooking", "learn", "craft"])
+        ]
+        if not do_candidates:
+            do_candidates = candidates[:4]
+        things_to_do = [serialize_service(s) for s in do_candidates[:4]]
+
+        # Section G: Categories
         categories = [
             {"name": "Stays", "slug": "stay", "icon": "Home"},
             {"name": "Experiences", "slug": "experiences", "icon": "Sparkles"},
@@ -579,7 +599,10 @@ class RecommendationEngine:
             "recommended_for_you": recommended_for_you,
             "top_rated": top_rated,
             "most_visited": most_visited,
-            "near_you": near_you,
+            "near_you": nearby,
+            "nearby": nearby,
+            "things_to_visit": things_to_visit,
+            "things_to_do": things_to_do,
             "categories": categories,
         }
 

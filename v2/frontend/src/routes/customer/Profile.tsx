@@ -1,23 +1,30 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import {
-  ShieldCheck,
-  Globe,
+  Mail,
+  Phone,
   MapPin,
   Edit3,
   CheckCircle2,
   AlertCircle,
-  FileText,
-  RefreshCw,
   Check,
+  RefreshCw,
+  Camera,
+  ShieldCheck,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getUserProfile, updateUserProfile, submitChangeRequest } from "@/services/userService";
+import { Badge } from "@/components/ui/badge";
+import {
+  getUserProfile,
+  updateUserProfile,
+  uploadAvatar,
+  requestEmailVerificationOTP,
+  verifyEmailOTP,
+} from "@/services/userService";
 import { useAuth } from "@/app/providers";
 import { User } from "@/types";
 
@@ -28,89 +35,167 @@ export function CustomerProfilePage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Edit Mode State
-  const [isEditingPersonal, setIsEditingPersonal] = useState(false);
+  // Edit Profile Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({
     name: authUser?.full_name || "",
+    mobile: authUser?.mobile || authUser?.phone || "",
     location: authUser?.location || "Bengaluru, Karnataka",
-    language: authUser?.language || "English, Kannada",
+    bio: authUser?.bio || "",
+    gender: authUser?.gender || "not_specified",
+    date_of_birth: authUser?.date_of_birth || "",
+    tagsInput: (authUser?.tags || ["Verified", "Traveller"]).join(", "),
   });
 
-  // Change Request Modal State
-  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-  const [isSubmittingRequest, setIsSubmittingRequest] = useState(false);
-  const [requestSubmitted, setRequestSubmitted] = useState(false);
-  const [changeRequest, setChangeRequest] = useState({
-    field: "Verified Name",
-    requestedValue: "",
-    reason: "",
-  });
+  // Avatar Upload Modal State
+  const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false);
+  const [avatarUrlInput, setAvatarUrlInput] = useState("");
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+
+  // Email Verification OTP Modal State
+  const [isEmailOtpModalOpen, setIsEmailOtpModalOpen] = useState(false);
+  const [emailOtp, setEmailOtp] = useState("");
+  const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [otpMessage, setOtpMessage] = useState<string | null>(null);
+  const [otpError, setOtpError] = useState<string | null>(null);
 
   const fetchProfile = async () => {
-    if (!profile) setIsLoading(true);
+    if (!profile && !authUser) setIsLoading(true);
     setErrorMessage(null);
     try {
       const data = await getUserProfile();
-      setProfile(data);
-      setEditForm({
-        name: data.full_name || "",
-        location: data.location || "Bengaluru, Karnataka",
-        language: data.language || "English, Kannada",
-      });
+      if (data) {
+        setProfile(data);
+        syncEditForm(data);
+      }
     } catch {
-      if (!profile) {
-        setErrorMessage("Unable to load profile information. Please check your connection and try again.");
+      // Gracefully fall back to authenticated context user
+      if (authUser) {
+        setProfile(authUser);
+        syncEditForm(authUser);
+      } else {
+        setErrorMessage("Unable to load profile information. Please try again.");
       }
     } finally {
       setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchProfile();
-  }, []);
+  const syncEditForm = (data: User) => {
+    setEditForm({
+      name: data.full_name || "",
+      mobile: data.mobile || data.phone || "",
+      location: data.location || "Bengaluru, Karnataka",
+      bio: data.bio || "",
+      gender: data.gender || "not_specified",
+      date_of_birth: data.date_of_birth || "",
+      tagsInput: (data.tags && data.tags.length > 0 ? data.tags : ["Verified", "Traveller"]).join(", "),
+    });
+  };
 
-  const handlePersonalSave = async (e: React.FormEvent) => {
+  useEffect(() => {
+    if (authUser && !profile) {
+      setProfile(authUser);
+      syncEditForm(authUser);
+      setIsLoading(false);
+    }
+    fetchProfile();
+  }, [authUser]);
+
+
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editForm.name.trim()) return;
+    if (!editForm.name.trim()) {
+      setFormError("Full name is required.");
+      return;
+    }
 
     setIsSaving(true);
-    setErrorMessage(null);
+    setFormError(null);
+
+    const tagsArray = editForm.tagsInput
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
+
     try {
       const updated = await updateUserProfile({
         full_name: editForm.name.trim(),
-        location: editForm.location.trim(),
-        language: editForm.language.trim(),
+        mobile: editForm.mobile.trim() || undefined,
+        location: editForm.location.trim() || undefined,
+        bio: editForm.bio.trim() || undefined,
+        gender: editForm.gender,
+        date_of_birth: editForm.date_of_birth || undefined,
+        tags: tagsArray.length > 0 ? tagsArray : ["Verified", "Traveller"],
       });
       setProfile(updated);
-      setIsEditingPersonal(false);
-      setSuccessMessage("Profile updated.");
+      setIsEditModalOpen(false);
+      setSuccessMessage("Profile updated successfully.");
       refreshUser?.();
       setTimeout(() => setSuccessMessage(null), 4000);
-    } catch {
-      setErrorMessage("Failed to update profile. Please try again.");
+    } catch (err: any) {
+      setFormError(err?.response?.data?.message || err?.message || "Failed to update profile. Please check your inputs.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleRequestSubmit = async (e: React.FormEvent) => {
+  const handleAvatarSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!changeRequest.requestedValue.trim() || !changeRequest.reason.trim()) return;
+    if (!avatarUrlInput.trim()) return;
 
-    setIsSubmittingRequest(true);
+    setIsUploadingAvatar(true);
     try {
-      await submitChangeRequest({
-        field: changeRequest.field,
-        requested_value: changeRequest.requestedValue.trim(),
-        reason: changeRequest.reason.trim(),
-      });
-      setRequestSubmitted(true);
-    } catch {
-      setErrorMessage("Failed to submit change request. Please try again later.");
+      const updated = await uploadAvatar(avatarUrlInput.trim());
+      setProfile(updated);
+      setIsAvatarModalOpen(false);
+      setAvatarUrlInput("");
+      setSuccessMessage("Avatar image updated successfully.");
+      refreshUser?.();
+      setTimeout(() => setSuccessMessage(null), 4000);
+    } catch (err: any) {
+      setFormError(err?.response?.data?.message || "Failed to update avatar.");
     } finally {
-      setIsSubmittingRequest(false);
+      setIsUploadingAvatar(false);
+    }
+  };
+
+  const handleStartEmailVerification = async () => {
+    setIsSendingOtp(true);
+    setOtpError(null);
+    setOtpMessage(null);
+    try {
+      const res = await requestEmailVerificationOTP();
+      setIsEmailOtpModalOpen(true);
+      setOtpMessage(res.message + (res.otp_dev ? ` (Dev OTP: ${res.otp_dev})` : ""));
+    } catch (err: any) {
+      setErrorMessage(err?.response?.data?.message || "Failed to send verification email OTP.");
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleVerifyEmailOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!emailOtp.trim()) return;
+
+    setIsVerifyingOtp(true);
+    setOtpError(null);
+    try {
+      await verifyEmailOTP(emailOtp.trim());
+      setIsEmailOtpModalOpen(false);
+      setEmailOtp("");
+      setSuccessMessage("Email successfully verified!");
+      fetchProfile();
+      refreshUser?.();
+      setTimeout(() => setSuccessMessage(null), 4000);
+    } catch (err: any) {
+      setOtpError(err?.response?.data?.message || "Invalid or expired OTP code.");
+    } finally {
+      setIsVerifyingOtp(false);
     }
   };
 
@@ -118,45 +203,40 @@ export function CustomerProfilePage() {
     return (
       <div className="space-y-6 max-w-4xl mx-auto pb-16">
         <PageHeader
-          title="Customer Profile"
-          subtitle="Manage your personal preferences, contact details, and inspect verified KYC records."
+          title="Account Profile"
+          subtitle="Manage your personal info and account security preferences."
         />
-        <Card className="p-8 rounded-3xl border-slate-200 bg-white space-y-4">
+        <Card className="p-8 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
           <div className="flex gap-4 items-center">
-            <Skeleton className="h-20 w-20 rounded-3xl" />
+            <Skeleton className="h-20 w-20 rounded-full" />
             <div className="space-y-2 flex-1">
               <Skeleton className="h-6 w-48 rounded-lg" />
               <Skeleton className="h-4 w-32 rounded-lg" />
             </div>
           </div>
         </Card>
-        <Card className="p-8 rounded-3xl border-slate-200 bg-white space-y-4">
-          <Skeleton className="h-5 w-40 rounded-lg" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <Skeleton className="h-16 w-full rounded-2xl" />
-            <Skeleton className="h-16 w-full rounded-2xl" />
-          </div>
-        </Card>
       </div>
     );
   }
 
-  if (errorMessage && !profile) {
+  const activeUser = profile || authUser;
+
+  if (errorMessage && !activeUser) {
     return (
       <div className="space-y-6 max-w-4xl mx-auto pb-16">
         <PageHeader
-          title="Customer Profile"
-          subtitle="Manage your personal preferences, contact details, and inspect verified KYC records."
+          title="Account Profile"
+          subtitle="Manage your personal info and account security preferences."
         />
-        <div className="p-8 rounded-3xl bg-rose-50 border border-rose-200 text-center space-y-4 max-w-md mx-auto my-8">
-          <AlertCircle className="h-8 w-8 text-rose-600 mx-auto" />
-          <h3 className="text-sm font-bold text-rose-900">Unable to load profile.</h3>
-          <p className="text-xs text-rose-600">{errorMessage}</p>
+        <div className="p-8 rounded-3xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-center space-y-4 max-w-md mx-auto my-8">
+          <AlertCircle className="h-8 w-8 text-rose-600 dark:text-rose-400 mx-auto" />
+          <h3 className="text-sm font-bold text-rose-900 dark:text-rose-200">Unable to load profile</h3>
+          <p className="text-xs text-rose-600 dark:text-rose-400">{errorMessage}</p>
           <Button
             variant="outline"
             size="sm"
             onClick={fetchProfile}
-            className="gap-1.5 font-bold text-xs bg-white text-rose-700 border-rose-300 rounded-xl"
+            className="gap-1.5 font-bold text-xs bg-white dark:bg-slate-800 text-rose-700 dark:text-rose-300 border-rose-300 dark:border-rose-700 rounded-xl"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             <span>Retry</span>
@@ -166,276 +246,460 @@ export function CustomerProfilePage() {
     );
   }
 
-  const displayName = profile?.full_name || "User";
-  const displayEmail = profile?.email || "customer@example.com";
-  const displayPhone = profile?.mobile || profile?.phone || "+91 98765 43210";
-  const displayLocation = profile?.location || "Bengaluru, Karnataka";
-  const displayLanguage = profile?.language || "English, Kannada";
-  const isVerified = profile?.is_verified ?? false;
+  const displayName = activeUser?.full_name || "User";
+  const displayEmail = activeUser?.email || "user@example.com";
+  const displayPhone = activeUser?.mobile || activeUser?.phone || "";
+  const displayLocation = activeUser?.location || "Bengaluru, Karnataka";
+  const displayBio = activeUser?.bio || "No bio added yet. Tell us about your travel experiences!";
+  const displayGender = activeUser?.gender ? activeUser.gender.replace("_", " ") : "Not specified";
+  const displayDOB = activeUser?.date_of_birth || "Not specified";
+  const isEmailVerified = activeUser?.is_verified ?? false;
+
+  // Calculate member since year
+  const memberSinceYear = activeUser?.created_at
+    ? new Date(activeUser.created_at).getFullYear()
+    : new Date().getFullYear();
+
+  // User tags default
+  const userTags = activeUser?.tags && activeUser.tags.length > 0
+    ? activeUser.tags
+    : ["Verified", "Traveller"];
+
+  // Gender fallback indicator or avatar
+  const renderAvatar = () => {
+    if (activeUser?.avatar_url) {
+      return (
+        <img
+          src={activeUser.avatar_url}
+          alt={displayName}
+
+          className="h-24 w-24 rounded-full object-cover shadow-lg ring-4 ring-white dark:ring-slate-800"
+        />
+      );
+    }
+
+    // Gender fallback styling
+    let bgGradient = "from-emerald-600 to-teal-700";
+    if (profile?.gender === "female") bgGradient = "from-rose-500 to-pink-600";
+    if (profile?.gender === "male") bgGradient = "from-indigo-600 to-blue-600";
+
+    return (
+      <div
+        className={`flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${bgGradient} text-3xl font-black text-white shadow-lg ring-4 ring-white dark:ring-slate-800`}
+      >
+        {displayName[0] ? displayName[0].toUpperCase() : "U"}
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-16">
       <PageHeader
-        title="Customer Profile"
-        subtitle="Manage your personal preferences, contact details, and inspect verified KYC records."
+        title="Account Profile"
+        subtitle="Manage your personal profile, bio, tags, and email verification status."
       />
 
       {successMessage && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2 shadow-xs">
+        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-2 shadow-xs">
           <Check className="h-4 w-4 text-emerald-600 shrink-0" />
           <span>{successMessage}</span>
         </div>
       )}
 
       {/* ── 1. Profile Header Card ── */}
-      <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5 text-center sm:text-left">
-          <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-emerald-600 to-teal-700 text-2xl font-black text-white shadow-md shadow-emerald-600/20">
-            {displayName[0] ? displayName[0].toUpperCase() : "U"}
+      <Card className="p-8 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 text-center sm:text-left">
+          {/* Avatar Photo with Change button */}
+          <div className="relative group cursor-pointer" onClick={() => setIsAvatarModalOpen(true)}>
+            {renderAvatar()}
+            <div className="absolute bottom-0 right-0 p-1.5 rounded-full bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 shadow-md border border-slate-200 dark:border-slate-700 hover:bg-emerald-50 transition-colors">
+              <Camera className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            </div>
           </div>
-          <div className="space-y-1 flex-1">
+
+          {/* User Basic Summary */}
+          <div className="space-y-2 flex-1">
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 dark:text-slate-100">
+              <h2 className="text-2xl font-black text-slate-900 dark:text-slate-100">
                 {displayName}
               </h2>
-              {isVerified ? (
-                <Badge variant="default" dot className="bg-emerald-50 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
-                  Verified Customer
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700">
-                  Standard Member
-                </Badge>
-              )}
+              {/* Member Since Badge */}
+              <Badge variant="outline" className="text-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700">
+                Member since {memberSinceYear}
+              </Badge>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400">{displayEmail}</p>
+
+            <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{displayEmail}</p>
+
+            {/* Bio */}
+            <p className="text-xs text-slate-700 dark:text-slate-300 italic max-w-xl">
+              "{displayBio}"
+            </p>
+
+            {/* User Tags */}
+            <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 pt-1">
+              {userTags.map((tag, idx) => (
+                <span
+                  key={idx}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800"
+                >
+                  <ShieldCheck className="h-3 w-3" />
+                  <span>{tag}</span>
+                </span>
+              ))}
+            </div>
+
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 pt-2 text-xs text-slate-600 dark:text-slate-300">
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-800 px-3 py-1 rounded-xl">
                 <MapPin className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                 <span>{displayLocation}</span>
               </div>
-              <div className="flex items-center gap-1">
-                <Globe className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                <span>{displayLanguage}</span>
-              </div>
             </div>
           </div>
-        </div>
-      </Card>
 
-      {/* ── 2. Personal Information (Editable) ── */}
-      <Card className="p-6 sm:p-8 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-6 shadow-sm">
-        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
-          <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Personal Information</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Your general account and communication preferences</p>
-          </div>
           <Button
             size="sm"
-            variant="outline"
-            onClick={() => setIsEditingPersonal(!isEditingPersonal)}
-            className="gap-1.5 font-bold"
+            onClick={() => {
+              if (profile) syncEditForm(profile);
+              setIsEditModalOpen(true);
+            }}
+            className="rounded-2xl font-bold bg-harvest-600 hover:bg-harvest-700 text-white gap-1.5 shadow-sm"
           >
             <Edit3 className="h-4 w-4" />
-            <span>{isEditingPersonal ? "Cancel" : "Edit Profile"}</span>
+            <span>Edit Profile</span>
           </Button>
         </div>
-
-        {isEditingPersonal ? (
-          <form onSubmit={handlePersonalSave} className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                label="Full Name"
-                value={editForm.name}
-                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                required
-              />
-              <Input
-                label="Location"
-                value={editForm.location}
-                onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
-                required
-              />
-              <Input
-                label="Languages Spoken"
-                value={editForm.language}
-                onChange={(e) => setEditForm({ ...editForm, language: e.target.value })}
-                required
-              />
-              <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Email Address (Protected)</label>
-                <div className="h-10 rounded-xl bg-slate-100 dark:bg-slate-800 px-3.5 flex items-center text-xs text-slate-500 dark:text-slate-400 font-semibold border border-slate-200 dark:border-slate-700">
-                  {displayEmail}
-                </div>
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="outline" size="sm" onClick={() => setIsEditingPersonal(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" size="sm" disabled={isSaving} className="font-bold">
-                {isSaving ? "Saving..." : "Save Changes"}
-              </Button>
-            </div>
-          </form>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div className="rounded-2xl bg-slate-50/80 dark:bg-slate-800/80 p-4 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Full Name</span>
-              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{displayName}</p>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50/80 dark:bg-slate-800/80 p-4 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Email Address</span>
-              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{displayEmail}</p>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50/80 dark:bg-slate-800/80 p-4 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Location</span>
-              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{displayLocation}</p>
-            </div>
-
-            <div className="rounded-2xl bg-slate-50/80 dark:bg-slate-800/80 p-4 space-y-1">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Language Preferences</span>
-              <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{displayLanguage}</p>
-            </div>
-          </div>
-        )}
       </Card>
 
-      {/* ── 3. Verified Information (Strictly Protected) ── */}
-      <Card className="p-6 sm:p-8 rounded-3xl border-emerald-200/80 dark:border-emerald-900/60 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-6 shadow-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-emerald-200/60 dark:border-emerald-800/60 pb-4">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
+      {/* ── 2. Email Verification Card (If Unverified) ── */}
+      {!isEmailVerified && (
+        <Card className="p-5 rounded-3xl border-amber-200 dark:border-amber-900 bg-amber-50/80 dark:bg-amber-950/40 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3 text-amber-900 dark:text-amber-200">
+            <AlertCircle className="h-6 w-6 text-amber-600 dark:text-amber-400 shrink-0" />
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Verified Information</h3>
-              <p className="text-xs text-slate-600 dark:text-slate-400">
-                Protected government KYC credentials (Cannot be edited directly)
+              <p className="text-xs font-bold">Email Verification Required</p>
+              <p className="text-xs text-amber-700 dark:text-amber-400">
+                Verify your email address <span className="font-semibold">{displayEmail}</span> to ensure account security.
               </p>
             </div>
           </div>
-
           <Button
             size="sm"
-            variant="outline"
-            onClick={() => {
-              setRequestSubmitted(false);
-              setIsRequestModalOpen(true);
-            }}
-            className="border-emerald-300 dark:border-emerald-700 bg-white dark:bg-slate-800 text-emerald-800 dark:text-emerald-300 hover:bg-emerald-50 dark:hover:bg-emerald-950 text-xs font-bold"
+            onClick={handleStartEmailVerification}
+            disabled={isSendingOtp}
+            className="rounded-xl font-bold bg-amber-600 hover:bg-amber-700 text-white shrink-0"
           >
-            Request Change
+            {isSendingOtp ? "Sending OTP..." : "Verify Email"}
+          </Button>
+        </Card>
+      )}
+
+      {/* ── 3. Personal & Contact Details Table ── */}
+      <Card className="rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden">
+        <div className="p-6 flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Basic Info & Contact Details</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Your profile information displayed across Namma Connect.</p>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (profile) syncEditForm(profile);
+              setIsEditModalOpen(true);
+            }}
+            className="rounded-xl text-xs font-bold gap-1"
+          >
+            <Edit3 className="h-3.5 w-3.5" />
+            <span>Edit</span>
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="rounded-2xl bg-white dark:bg-slate-900 p-4 border border-emerald-200/80 dark:border-emerald-800/60 space-y-1 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Verified Name</span>
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{displayName}</p>
-            <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">Matched via Aadhaar</span>
-          </div>
-
-          <div className="rounded-2xl bg-white dark:bg-slate-900 p-4 border border-emerald-200/80 dark:border-emerald-800/60 space-y-1 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Verified Phone</span>
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{displayPhone}</p>
-            <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">Verified via OTP</span>
-          </div>
-
-          <div className="rounded-2xl bg-white dark:bg-slate-900 p-4 border border-emerald-200/80 dark:border-emerald-800/60 space-y-1 shadow-sm">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] uppercase font-bold text-slate-400">Verified Email</span>
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            </div>
-            <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{displayEmail}</p>
-            <span className="text-[10px] text-emerald-700 dark:text-emerald-400 font-medium">Secure Primary Account</span>
+        {/* Profile Photo */}
+        <div className="p-5 sm:px-6 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider w-1/3">Profile Photo</span>
+          <div className="w-2/3 flex items-center justify-between">
+            <span className="text-xs text-slate-600 dark:text-slate-400">Custom avatar or gender avatar</span>
+            <button
+              onClick={() => setIsAvatarModalOpen(true)}
+              className="text-xs font-bold text-harvest-700 dark:text-harvest-400 hover:underline flex items-center gap-1"
+            >
+              <Camera className="h-3.5 w-3.5" />
+              <span>Change Photo</span>
+            </button>
           </div>
         </div>
 
-        <div className="flex items-start gap-2.5 rounded-2xl bg-amber-50/90 border border-amber-200 p-3 text-xs text-amber-900">
-          <AlertCircle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
-          <p>
-            To prevent identity fraud, changes to verified identity records require admin document review and take up to 24 hours.
-          </p>
+        {/* Name */}
+        <div className="p-5 sm:px-6 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider w-1/3">Full Name</span>
+          <div className="w-2/3 flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-900 dark:text-slate-100">{displayName}</span>
+          </div>
+        </div>
+
+        {/* Member Since */}
+        <div className="p-5 sm:px-6 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider w-1/3">Member Since</span>
+          <div className="w-2/3 flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-800 dark:text-slate-200">{memberSinceYear}</span>
+          </div>
+        </div>
+
+        {/* Gender */}
+        <div className="p-5 sm:px-6 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider w-1/3">Gender</span>
+          <div className="w-2/3 flex items-center justify-between">
+            <span className="text-xs font-semibold capitalize text-slate-800 dark:text-slate-200">{displayGender}</span>
+          </div>
+        </div>
+
+        {/* Date of Birth */}
+        <div className="p-5 sm:px-6 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider w-1/3">Date of Birth</span>
+          <div className="w-2/3 flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">{displayDOB}</span>
+          </div>
+        </div>
+
+        {/* Location */}
+        <div className="p-5 sm:px-6 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+          <span className="text-xs font-bold text-slate-500 uppercase tracking-wider w-1/3">Location</span>
+          <div className="w-2/3 flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">{displayLocation}</span>
+          </div>
+        </div>
+
+        {/* Email & Status */}
+        <div className="p-5 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+          <div className="flex items-center gap-2.5 sm:w-1/3">
+            <Mail className="h-4 w-4 text-slate-400" />
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Email</span>
+          </div>
+          <div className="sm:w-2/3 flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">{displayEmail}</span>
+            {isEmailVerified ? (
+              <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2.5 py-1 rounded-full border border-emerald-200 dark:border-emerald-800">
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span>Verified</span>
+              </span>
+            ) : (
+              <button
+                onClick={handleStartEmailVerification}
+                disabled={isSendingOtp}
+                className="inline-flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/60 px-2.5 py-1 rounded-full border border-amber-300 dark:border-amber-700 hover:bg-amber-100"
+              >
+                <AlertCircle className="h-3.5 w-3.5" />
+                <span>Verify Now</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile */}
+        <div className="p-5 sm:px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors">
+          <div className="flex items-center gap-2.5 sm:w-1/3">
+            <Phone className="h-4 w-4 text-slate-400" />
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Mobile</span>
+          </div>
+          <div className="sm:w-2/3 flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">
+              {displayPhone || "No mobile added"}
+            </span>
+          </div>
         </div>
       </Card>
 
-      {/* ── 4. Request Change Workflow Modal ── */}
+      {/* ── Edit Profile Modal ── */}
       <Dialog
-        isOpen={isRequestModalOpen}
-        onClose={() => setIsRequestModalOpen(false)}
-        title="Request Verified Information Update"
-        description="Submit a verified credential change request for administrator compliance review."
-        className="max-w-lg"
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title="Edit Personal Details"
+        description="Update your display name, contact, bio, gender, and tags."
+        className="max-w-md"
       >
-        {requestSubmitted ? (
-          <div className="py-8 text-center space-y-3">
-            <div className="h-12 w-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
-              <CheckCircle2 className="h-7 w-7" />
+        <form onSubmit={handleSaveProfile} className="space-y-4 py-2">
+          {formError && (
+            <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 text-xs font-medium border border-rose-200 dark:border-rose-800">
+              {formError}
             </div>
-            <h4 className="text-base font-bold text-slate-900">Change Request Submitted</h4>
-            <div className="rounded-xl bg-slate-50 p-3 text-xs text-slate-600 text-left space-y-1 max-w-sm mx-auto">
-              <p>1. Request Received ✓</p>
-              <p>2. Admin Compliance Review (In Progress)</p>
-              <p>3. Approval Notification via Email / SMS</p>
-            </div>
-            <Button
-              onClick={() => setIsRequestModalOpen(false)}
-              className="mt-4"
+          )}
+
+          <Input
+            id="edit-profile-name"
+            label="Full Name *"
+            value={editForm.name}
+            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+            placeholder="Your full name"
+            required
+          />
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Gender</label>
+            <select
+              value={editForm.gender}
+              onChange={(e) => setEditForm({ ...editForm, gender: e.target.value })}
+              className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             >
-              Done
+              <option value="not_specified">Not Specified</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+
+          <Input
+            id="edit-profile-dob"
+            type="date"
+            label="Date of Birth"
+            value={editForm.date_of_birth}
+            onChange={(e) => setEditForm({ ...editForm, date_of_birth: e.target.value })}
+          />
+
+          <Input
+            id="edit-profile-mobile"
+            label="Mobile Phone"
+            value={editForm.mobile}
+            onChange={(e) => setEditForm({ ...editForm, mobile: e.target.value })}
+            placeholder="+91 98765 43210"
+          />
+
+          <Input
+            id="edit-profile-location"
+            label="Location"
+            value={editForm.location}
+            onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+            placeholder="e.g. Bengaluru, Karnataka"
+          />
+
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Bio</label>
+            <textarea
+              value={editForm.bio}
+              onChange={(e) => setEditForm({ ...editForm, bio: e.target.value })}
+              placeholder="Tell other travelers about yourself..."
+              rows={3}
+              className="w-full p-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+
+          <Input
+            id="edit-profile-tags"
+            label="User Tags (comma-separated)"
+            value={editForm.tagsInput}
+            onChange={(e) => setEditForm({ ...editForm, tagsInput: e.target.value })}
+            placeholder="Verified, Traveller, Explorer"
+          />
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isSaving}
+              className="font-bold bg-harvest-600 hover:bg-harvest-700 text-white"
+            >
+              {isSaving ? "Saving..." : "Save Changes"}
             </Button>
           </div>
-        ) : (
-          <form onSubmit={handleRequestSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase text-slate-700">Select Field to Update</label>
-              <select
-                value={changeRequest.field}
-                onChange={(e) => setChangeRequest({ ...changeRequest, field: e.target.value })}
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-900"
-              >
-                <option value="Verified Name">Verified Legal Name</option>
-                <option value="Verified Phone">Verified Phone Number</option>
-                <option value="Verified Email">Verified Email Address</option>
-              </select>
-            </div>
+        </form>
+      </Dialog>
 
-            <Input
-              label="New Value"
-              placeholder={`Enter new ${changeRequest.field.toLowerCase()}...`}
-              required
-              value={changeRequest.requestedValue}
-              onChange={(e) => setChangeRequest({ ...changeRequest, requestedValue: e.target.value })}
-            />
+      {/* ── Avatar Upload Modal ── */}
+      <Dialog
+        isOpen={isAvatarModalOpen}
+        onClose={() => setIsAvatarModalOpen(false)}
+        title="Update Profile Photo"
+        description="Provide an image URL for your profile picture."
+        className="max-w-md"
+      >
+        <form onSubmit={handleAvatarSubmit} className="space-y-4 py-2">
+          <Input
+            id="avatar-url-input"
+            label="Image URL"
+            value={avatarUrlInput}
+            onChange={(e) => setAvatarUrlInput(e.target.value)}
+            placeholder="https://images.unsplash.com/photo-..."
+            required
+          />
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAvatarModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isUploadingAvatar || !avatarUrlInput.trim()}
+              className="font-bold bg-harvest-600 hover:bg-harvest-700 text-white"
+            >
+              {isUploadingAvatar ? "Updating..." : "Update Image"}
+            </Button>
+          </div>
+        </form>
+      </Dialog>
 
-            <Input
-              label="Reason for Change & Document Proof"
-              placeholder="e.g. Legal name update or corrected typo on Aadhaar"
-              required
-              value={changeRequest.reason}
-              onChange={(e) => setChangeRequest({ ...changeRequest, reason: e.target.value })}
-            />
+      {/* ── Email Verification OTP Modal ── */}
+      <Dialog
+        isOpen={isEmailOtpModalOpen}
+        onClose={() => setIsEmailOtpModalOpen(false)}
+        title="Verify Email Address"
+        description="Enter the 6-digit OTP code sent to your email."
+        className="max-w-md"
+      >
+        <form onSubmit={handleVerifyEmailOtpSubmit} className="space-y-4 py-2">
+          {otpMessage && (
+            <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium bg-emerald-50 dark:bg-emerald-950/60 p-3 rounded-xl border border-emerald-200 dark:border-emerald-800">
+              {otpMessage}
+            </p>
+          )}
+          {otpError && (
+            <p className="text-xs text-rose-700 dark:text-rose-400 font-medium bg-rose-50 dark:bg-rose-950/60 p-3 rounded-xl border border-rose-200 dark:border-rose-800">
+              {otpError}
+            </p>
+          )}
 
-            <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-              <Button type="button" variant="outline" size="sm" onClick={() => setIsRequestModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" size="sm" disabled={isSubmittingRequest} className="font-bold gap-1.5">
-                <FileText className="h-4 w-4" />
-                <span>{isSubmittingRequest ? "Submitting..." : "Submit for Review"}</span>
-              </Button>
-            </div>
-          </form>
-        )}
+          <Input
+            id="email-otp-input"
+            label="6-Digit OTP Code"
+            value={emailOtp}
+            onChange={(e) => setEmailOtp(e.target.value)}
+            placeholder="123456"
+            maxLength={6}
+            required
+          />
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEmailOtpModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              size="sm"
+              disabled={isVerifyingOtp || emailOtp.length < 6}
+              className="font-bold bg-harvest-600 hover:bg-harvest-700 text-white"
+            >
+              {isVerifyingOtp ? "Verifying..." : "Verify OTP"}
+            </Button>
+          </div>
+        </form>
       </Dialog>
     </div>
   );

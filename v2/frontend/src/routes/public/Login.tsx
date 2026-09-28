@@ -30,12 +30,13 @@ export function LoginPage() {
       return returnUrl;
     }
     switch (role) {
+      case "provider":
       case "partner":
       case "farmer":
-        return "/partner";
       case "creator":
-        return "/partner/creator";
+        return "/provider";
       case "customer":
+      case "user":
       default:
         return "/app";
     }

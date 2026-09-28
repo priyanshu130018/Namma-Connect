@@ -33,6 +33,20 @@ class PreferencePayload(BaseModel):
     destinations: Optional[List[str]] = None
 
 
+@router.get("/recommendations")
+def get_recommendations_list(
+    limit: int = Query(10, ge=1, le=50),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    db: Session = Depends(get_db),
+):
+    """Fetch list of top personalized recommendations."""
+    recs = RecommendationEngine.get_home_recommendations(user=current_user, db=db)
+    return {
+        "success": True,
+        "data": recs.get("recommended_for_you", [])[:limit],
+    }
+
+
 @router.get("/recommendations/home")
 def get_home_recommendations(
     location: Optional[str] = Query(None, description="Optional customer location filter"),

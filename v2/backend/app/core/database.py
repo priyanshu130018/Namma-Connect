@@ -9,35 +9,41 @@ from app.core.config import settings
 
 
 def _create_db_engine():
-    """Create SQLAlchemy engine with fallback to local SQLite for development when PostgreSQL is unreachable."""
-    db_url = settings.DATABASE_SYNC_URL or "sqlite:///./app.db"
-    
-    # Try primary database URL
-    try:
-        if db_url.startswith("sqlite"):
-            return create_engine(
-                db_url,
-                connect_args={"check_same_thread": False},
-                echo=settings.DEBUG and settings.ENV == "development",
-            )
-        
-        eng = create_engine(
-            db_url,
-            echo=settings.DEBUG and settings.ENV == "development",
-            pool_pre_ping=True,
-        )
-        # Test connection
-        with eng.connect() as conn:
-            pass
-        return eng
-    except Exception:
-        # Fall back to local SQLite DB if PostgreSQL host is unresolvable or offline
-        fallback_url = "sqlite:///./app.db"
+    """Create SQLAlchemy engine. Strictly enforce PostgreSQL without silent SQLite fallback in application runtime."""
+    db_url = settings.DATABASE_SYNC_URL or ""
+    is_prod = getattr(settings, "ENV", "development").lower() in ["production", "prod", "staging"]
+
+    # 1. Production Mode: PostgreSQL is strictly mandatory
+    if is_prod:
+        if not db_url or db_url.startswith("sqlite"):
+            raise RuntimeError("PostgreSQL DATABASE_SYNC_URL must be configured in production environment.")
         return create_engine(
-            fallback_url,
-            connect_args={"check_same_thread": False},
-            echo=settings.DEBUG and settings.ENV == "development",
+            db_url,
+            echo=False,
+            pool_pre_ping=True,
+            pool_size=20,
+            max_overflow=10,
         )
+
+    # 2. Test / Explicit SQLite Mode (used for isolated unit testing only)
+    if db_url.startswith("sqlite"):
+        if getattr(settings, "ENV", "").lower() not in ["test", "testing"]:
+            raise RuntimeError("SQLite is strictly prohibited for application runtime. PostgreSQL is required for NammaConnect V2.")
+        return create_engine(
+            db_url,
+            connect_args={"check_same_thread": False},
+            echo=False,
+        )
+
+    # 3. Development / Standard Mode: PostgreSQL connection without silent SQLite fallback
+    if not db_url:
+        raise RuntimeError("DATABASE_SYNC_URL must be configured. PostgreSQL is required for NammaConnect V2.")
+
+    return create_engine(
+        db_url,
+        echo=settings.DEBUG and settings.ENV == "development",
+        pool_pre_ping=True,
+    )
 
 engine = _create_db_engine()
 

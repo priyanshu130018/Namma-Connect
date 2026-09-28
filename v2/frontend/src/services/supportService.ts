@@ -38,3 +38,30 @@ export async function replySupportTicket(
   );
   return response.data.data;
 }
+
+export interface PublicContactPayload {
+  name: string;
+  email: string;
+  subject: string;
+  category?: string;
+  message: string;
+}
+
+export interface PublicContactResponseData {
+  success: boolean;
+  message: string;
+  data: {
+    ticket_code: string;
+    name: string;
+    email: string;
+    category: string;
+    subject: string;
+    received_at: string;
+  };
+}
+
+export async function submitPublicContact(payload: PublicContactPayload): Promise<PublicContactResponseData> {
+  const response = await apiClient.post<PublicContactResponseData>("/support/contact", payload);
+  return response.data;
+}
+

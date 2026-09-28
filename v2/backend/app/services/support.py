@@ -14,6 +14,8 @@ from app.schemas.support import (
     SupportTicketCreateRequest,
     SupportTicketResponse,
     SupportTicketListResponse,
+    PublicContactRequest,
+    PublicContactResponse,
 )
 from app.schemas.admin import AdminSupportTicketItem
 from app.services.communication import NotificationService
@@ -50,74 +52,8 @@ class SupportService:
 
     @classmethod
     def ensure_seeded(cls, db: Session):
-        """Seed sample support tickets for admin and initial catalog if empty."""
-        try:
-            count = db.query(SupportTicket).count()
-            if count > 0:
-                return
-
-            customer = db.query(User).filter(User.role == "customer").first()
-            partner = db.query(User).filter(User.role.in_(["partner", "farmer"])).first()
-            admin = db.query(User).filter(User.role == "admin").first()
-
-            fallback_user = customer or partner or admin
-            if not fallback_user:
-                return
-
-            seed_data = [
-                {
-                    "ticket_code": "NC-TICK-1001",
-                    "user_id": customer.id if customer else fallback_user.id,
-                    "user_name": customer.full_name if customer else "Aravind Swamy",
-                    "user_email": customer.email if customer else "customer@namnaconnect.test",
-                    "booking_id": "NC-BKG-9921",
-                    "category": "Booking",
-                    "subject": "Inquiry regarding farm tour timings and check-in",
-                    "description": "Will early check-in be possible for our family at 11:00 AM instead of 1:00 PM?",
-                    "status": "OPEN",
-                    "priority": "MEDIUM",
-                    "responses_json": json.dumps([]),
-                },
-                {
-                    "ticket_code": "NC-TICK-1002",
-                    "user_id": partner.id if partner else fallback_user.id,
-                    "user_name": partner.full_name if partner else "Plantation Host",
-                    "user_email": partner.email if partner else "partner@namnaconnect.test",
-                    "booking_id": None,
-                    "category": "Service",
-                    "subject": "Question about weekend availability calendar settings",
-                    "description": "How do I block specific slots for private harvesting events?",
-                    "status": "IN_PROGRESS",
-                    "priority": "LOW",
-                    "responses_json": json.dumps([
-                        {
-                            "sender_name": "NammaConnect Support Agent",
-                            "sender_role": "admin",
-                            "message": "You can block specific days under Partner Services > Edit Service > Weekly Schedule.",
-                            "created_at": datetime.utcnow().isoformat(),
-                        }
-                    ]),
-                },
-            ]
-
-            for s in seed_data:
-                ticket = SupportTicket(
-                    ticket_code=s["ticket_code"],
-                    user_id=s["user_id"],
-                    user_name=s["user_name"],
-                    user_email=s["user_email"],
-                    booking_id=s["booking_id"],
-                    category=s["category"],
-                    subject=s["subject"],
-                    description=s["description"],
-                    status=s["status"],
-                    priority=s["priority"],
-                    responses_json=s["responses_json"],
-                )
-                db.add(ticket)
-            db.commit()
-        except Exception:
-            db.rollback()
+        """No-op: Support tickets are submitted dynamically."""
+        pass
 
     @classmethod
     def create_ticket(
@@ -127,7 +63,6 @@ class SupportService:
         payload: SupportTicketCreateRequest,
     ) -> SupportTicketResponse:
         """Create and submit a customer support ticket."""
-        cls.ensure_seeded(db)
 
         # Validate booking ownership if booking_id supplied
         if payload.booking_id:
@@ -175,7 +110,6 @@ class SupportService:
     @classmethod
     def list_user_tickets(cls, db: Session, user: User) -> SupportTicketListResponse:
         """List support tickets belonging strictly to authenticated customer."""
-        cls.ensure_seeded(db)
         tickets = (
             db.query(SupportTicket)
             .filter(SupportTicket.user_id == user.id)
@@ -190,7 +124,6 @@ class SupportService:
     @classmethod
     def get_user_ticket(cls, db: Session, user: User, ticket_id: str) -> SupportTicketResponse:
         """Retrieve customer ticket details with ownership guard."""
-        cls.ensure_seeded(db)
         ticket = db.query(SupportTicket).filter(
             (SupportTicket.id == ticket_id) | (SupportTicket.ticket_code == ticket_id)
         ).first()
@@ -256,7 +189,6 @@ class SupportService:
         status_filter: Optional[str] = None,
     ) -> List[AdminSupportTicketItem]:
         """List all platform support tickets for admin review."""
-        cls.ensure_seeded(db)
         query = db.query(SupportTicket)
         if status_filter:
             query = query.filter(SupportTicket.status == status_filter.upper())
@@ -275,3 +207,60 @@ class SupportService:
             )
             for t in tickets
         ]
+
+    @classmethod
+    def submit_public_contact(
+        cls,
+        db: Session,
+        payload: PublicContactRequest,
+    ) -> PublicContactResponse:
+        """Submit a public inquiry or contact form message."""
+
+        # Look up existing user by email or fallback to an existing system/admin/customer user for foreign key integrity
+        user = db.query(User).filter(User.email == payload.email).first()
+        if not user:
+            # Check for admin or any registered user as systemic anchor
+            user = db.query(User).filter(User.role.in_(["admin", "user", "provider"])).first()
+
+        if not user:
+            # In the rare event no user exists, create an anonymous inquiry anchor user
+            anonymous_user = User(
+                email="system-inquiries@nammaconnect.in",
+                hashed_password="[SYSTEM_INQUIRY_ACCOUNT]",
+                full_name="NammaConnect System",
+                role="user",
+                is_active=True,
+                is_verified=True,
+            )
+            db.add(anonymous_user)
+            db.commit()
+            db.refresh(anonymous_user)
+            user = anonymous_user
+
+        ticket_code = f"NC-INQ-{uuid.uuid4().hex[:6].upper()}"
+        ticket = SupportTicket(
+            ticket_code=ticket_code,
+            user_id=user.id,
+            user_name=payload.name,
+            user_email=payload.email,
+            booking_id=None,
+            category=payload.category,
+            subject=payload.subject,
+            description=payload.message,
+            status="OPEN",
+            priority="MEDIUM",
+            responses_json=json.dumps([]),
+        )
+        db.add(ticket)
+        db.commit()
+        db.refresh(ticket)
+
+        return PublicContactResponse(
+            ticket_code=ticket.ticket_code,
+            name=payload.name,
+            email=payload.email,
+            subject=payload.subject,
+            category=payload.category,
+            message=payload.message,
+            created_at=ticket.created_at,
+        )

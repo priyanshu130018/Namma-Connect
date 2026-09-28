@@ -104,22 +104,38 @@ export async function getSearchSuggestions(query: string): Promise<SearchSuggest
   return response.data.data?.suggestions || [];
 }
 
+export async function getRecentSearches(): Promise<string[]> {
+  try {
+    const response = await apiClient.get<ApiMessageResponse<string[]>>("/search/recent");
+    return response.data.data || [];
+  } catch {
+    return [];
+  }
+}
+
 export async function getHomeRecommendations(location?: string): Promise<{
   recommended_for_you: MarketplaceService[];
   top_rated: MarketplaceService[];
   most_visited: MarketplaceService[];
   near_you: MarketplaceService[];
+  nearby: MarketplaceService[];
+  things_to_visit: MarketplaceService[];
+  things_to_do: MarketplaceService[];
   categories: any[];
 }> {
   const response = await apiClient.get<ApiMessageResponse<any>>("/recommendations/home", {
     params: { location: location || undefined },
   });
-  return response.data.data || {
-    recommended_for_you: [],
-    top_rated: [],
-    most_visited: [],
-    near_you: [],
-    categories: [],
+  const data = response.data.data || {};
+  return {
+    recommended_for_you: data.recommended_for_you || [],
+    top_rated: data.top_rated || [],
+    most_visited: data.most_visited || [],
+    near_you: data.near_you || data.nearby || [],
+    nearby: data.nearby || data.near_you || [],
+    things_to_visit: data.things_to_visit || [],
+    things_to_do: data.things_to_do || [],
+    categories: data.categories || [],
   };
 }
 

@@ -149,7 +149,7 @@ export function PartnerBookingDetailPage() {
         </div>
         <h2 className="text-xl font-bold text-slate-900">Reservation Not Found</h2>
         <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">{errorMessage}</p>
-        <Link to="/partner/bookings">
+        <Link to="/provider/bookings">
           <Button variant="outline" className="mt-2 font-bold">
             Back to Reservations
           </Button>
@@ -161,7 +161,7 @@ export function PartnerBookingDetailPage() {
   return (
     <div className="space-y-6 max-w-4xl mx-auto pb-16">
       <Link
-        to="/partner/bookings"
+        to="/provider/bookings"
         className="inline-flex items-center gap-2 text-xs font-bold text-slate-600 hover:text-slate-900"
       >
         <ArrowLeft className="h-4 w-4" /> Back to Reservations

@@ -32,6 +32,8 @@ class ServiceResponse(BaseModel):
     description: str
     category: str
     category_slug: str
+    category_id: Optional[str] = None
+    marketplace_type: Optional[str] = "ACTIVITY"
     location: str
     district: str
     state: str
@@ -142,6 +144,8 @@ class ServiceCreatePayload(BaseModel):
     description: str
     category: str
     category_slug: Optional[str] = None
+    category_id: Optional[str] = None
+    marketplace_type: Optional[str] = "ACTIVITY"
     location: str
     district: Optional[str] = None
     state: Optional[str] = "Karnataka"
@@ -165,6 +169,8 @@ class ServiceUpdatePayload(BaseModel):
     description: Optional[str] = None
     category: Optional[str] = None
     category_slug: Optional[str] = None
+    category_id: Optional[str] = None
+    marketplace_type: Optional[str] = None
     location: Optional[str] = None
     district: Optional[str] = None
     state: Optional[str] = None

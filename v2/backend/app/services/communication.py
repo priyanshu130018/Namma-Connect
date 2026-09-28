@@ -25,6 +25,9 @@ class NotificationService:
 
     @classmethod
     def _to_notification_response(cls, n: Notification) -> NotificationResponse:
+        is_del = getattr(n, "is_deletable", True)
+        if n.title == "Welcome to Namma Connect":
+            is_del = False
         return NotificationResponse(
             id=str(n.id),
             user_id=str(n.user_id),
@@ -34,66 +37,30 @@ class NotificationService:
             resource_type=n.resource_type,
             resource_id=n.resource_id,
             is_read=n.is_read,
+            is_deletable=is_del,
             created_at=n.created_at,
         )
 
     @classmethod
     def ensure_seeded(cls, db: Session, user: User):
-        """Seed initial real event notifications for the user if empty."""
-        count = db.query(Notification).filter(Notification.user_id == user.id).count()
-        if count > 0:
-            return
-
-        seed_items = [
-            {
-                "title": "Booking Confirmed: Highland Arabica Coffee Estate",
-                "message": "Your stay in Coorg is confirmed. Your check-in pass and digital itinerary are ready.",
-                "type": "booking",
-                "resource_type": "booking",
-                "resource_id": "NC-BKG-SAMPLE-01",
-                "is_read": False,
-            },
-            {
-                "title": "Payment Successful",
-                "message": "Payment of ₹18,000 for your plantation retreat booking has been authorized and verified.",
-                "type": "payment",
-                "resource_type": "booking",
-                "resource_id": "NC-BKG-SAMPLE-01",
-                "is_read": False,
-            },
-            {
-                "title": "UIDAI Identity KYC Verified",
-                "message": "Your identity and government verification documents have been approved by NammaConnect Compliance.",
-                "type": "system",
-                "resource_type": None,
-                "resource_id": None,
-                "is_read": True,
-            },
-        ]
-
-        for item in seed_items:
-            notif = Notification(
-                user_id=user.id,
-                title=item["title"],
-                message=item["message"],
-                type=item["type"],
-                resource_type=item["resource_type"],
-                resource_id=item["resource_id"],
-                is_read=item["is_read"],
-            )
-            db.add(notif)
-        db.commit()
+        """No-op: Never inject fake notifications into runtime database."""
+        pass
 
     @classmethod
-    def list_user_notifications(cls, db: Session, user: User) -> NotificationListResponse:
+    def list_user_notifications(cls, db: Session, user: User, sort_by: Optional[str] = "newest") -> NotificationListResponse:
         """List notifications belonging strictly to the authenticated user."""
-        cls.ensure_seeded(db, user)
-        notifs = (
-            db.query(Notification)
-            .filter(Notification.user_id == user.id)
-            .order_by(Notification.created_at.desc())
-            .all()
-        )
+        query = db.query(Notification).filter(Notification.user_id == user.id)
+
+        if sort_by == "oldest":
+            query = query.order_by(Notification.created_at.asc())
+        elif sort_by in ["name_asc", "title_asc"]:
+            query = query.order_by(Notification.title.asc())
+        elif sort_by in ["name_desc", "title_desc"]:
+            query = query.order_by(Notification.title.desc())
+        else:
+            query = query.order_by(Notification.created_at.desc())
+
+        notifs = query.all()
         unread_count = sum(1 for n in notifs if not n.is_read)
         return NotificationListResponse(
             notifications=[cls._to_notification_response(n) for n in notifs],
@@ -130,6 +97,30 @@ class NotificationService:
         return len(unread_notifs)
 
     @classmethod
+    def delete_notification(cls, db: Session, user: User, notification_id: str) -> bool:
+        """Delete notification for user, respecting non-deletable protection."""
+        notif = db.query(Notification).filter(
+            Notification.id == notification_id,
+            Notification.user_id == user.id,
+        ).first()
+
+        if not notif:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Notification not found.",
+            )
+
+        if not getattr(notif, "is_deletable", True) or notif.title == "Welcome to Namma Connect":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Welcome to Namma Connect system notification cannot be deleted.",
+            )
+
+        db.delete(notif)
+        db.commit()
+        return True
+
+    @classmethod
     def create_notification(
         cls,
         db: Session,
@@ -139,6 +130,7 @@ class NotificationService:
         type: str = "system",
         resource_type: Optional[str] = None,
         resource_id: Optional[str] = None,
+        is_deletable: bool = True,
     ) -> NotificationResponse:
         """Dispatch and persist a new notification for a specific user."""
         notif = Notification(
@@ -149,11 +141,13 @@ class NotificationService:
             resource_type=resource_type,
             resource_id=resource_id,
             is_read=False,
+            is_deletable=is_deletable,
         )
         db.add(notif)
         db.commit()
         db.refresh(notif)
         return cls._to_notification_response(notif)
+
 
 
 class MessagingService:
@@ -205,87 +199,12 @@ class MessagingService:
 
     @classmethod
     def ensure_seeded(cls, db: Session, user: User):
-        """Seed initial realistic conversations and message history for testing."""
-        count = db.query(Conversation).filter(
-            (Conversation.participant1_id == user.id) | (Conversation.participant2_id == user.id)
-        ).count()
-        if count > 0:
-            return
-
-        # Query an existing partner or host in the database to satisfy the Foreign Key constraint
-        partner = (
-            db.query(User)
-            .filter(
-                User.role.in_(["partner", "farmer", "creator"]),
-                User.id != user.id,
-                User.is_active == True,
-            )
-            .first()
-        )
-
-        if not partner:
-            # Create a dedicated verified seed partner so Foreign Key constraints are always satisfied
-            from app.core.security import get_password_hash
-            partner = User(
-                email="somanna.kodagu@nammaconnect.test",
-                hashed_password=get_password_hash("PartnerPass123!"),
-                full_name="Somanna (Kodagu Organics Host)",
-                role="partner",
-                is_active=True,
-                is_verified=True,
-                auth_provider="local",
-            )
-            db.add(partner)
-            db.flush()
-
-
-        partner_id = partner.id
-        partner_name = partner.full_name
-
-        conv = Conversation(
-            participant1_id=user.id,
-            participant1_name=user.full_name,
-            participant2_id=partner_id,
-            participant2_name=partner_name,
-            subject="Highland Arabica Coffee Estate Stay",
-            last_message_text="Yes, traditional Akki Rotti and freshly roasted estate filter coffee are included!",
-            last_message_at=datetime.utcnow(),
-            unread_count_p1=1,
-            unread_count_p2=0,
-        )
-        db.add(conv)
-        db.flush()
-
-        messages = [
-            Message(
-                conversation_id=conv.id,
-                sender_id=partner_id,
-                sender_name=partner_name,
-                content=f"Namaskara {user.full_name}! We have reserved the Heritage Cottage for your upcoming dates.",
-                is_read=True,
-            ),
-            Message(
-                conversation_id=conv.id,
-                sender_id=user.id,
-                sender_name=user.full_name,
-                content="Thank you Somanna! Will there be estate breakfast included?",
-                is_read=True,
-            ),
-            Message(
-                conversation_id=conv.id,
-                sender_id=partner_id,
-                sender_name=partner_name,
-                content="Yes, traditional Akki Rotti and freshly roasted estate filter coffee are included!",
-                is_read=False,
-            ),
-        ]
-        db.add_all(messages)
-        db.commit()
+        """No-op: Never inject fake conversations or messages into runtime database."""
+        pass
 
     @classmethod
     def list_user_conversations(cls, db: Session, user: User) -> List[ConversationResponse]:
         """List all conversation threads involving the authenticated user."""
-        cls.ensure_seeded(db, user)
         convs = (
             db.query(Conversation)
             .filter((Conversation.participant1_id == user.id) | (Conversation.participant2_id == user.id))
@@ -293,6 +212,7 @@ class MessagingService:
             .all()
         )
         return [cls._to_conversation_response(c, user.id, db) for c in convs]
+
 
 
     @classmethod

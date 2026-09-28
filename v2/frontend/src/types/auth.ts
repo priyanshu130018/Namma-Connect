@@ -1,4 +1,4 @@
-export type UserRole = "customer" | "partner" | "farmer" | "creator" | "admin";
+export type UserRole = "user" | "customer" | "provider" | "partner" | "admin" | "farmer" | "creator";
 
 export interface User {
   id: string;
@@ -16,6 +16,10 @@ export interface User {
   business_name?: string | null;
   theme_preference?: string | null;
   created_at?: string | null;
+  bio?: string | null;
+  gender?: string | null;
+  date_of_birth?: string | null;
+  tags?: string[];
 }
 
 export interface UserSettingsData {
@@ -43,9 +47,14 @@ export interface UserSettingsData {
 
 export interface UserProfileUpdatePayload {
   full_name?: string;
+  mobile?: string;
   location?: string;
   language?: string;
   avatar_url?: string;
+  bio?: string;
+  gender?: string;
+  date_of_birth?: string;
+  tags?: string[];
 }
 
 export interface UserSettingsUpdatePayload {

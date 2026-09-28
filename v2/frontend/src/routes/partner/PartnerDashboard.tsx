@@ -1,350 +1,536 @@
+import { useState, useEffect, useCallback } from "react";
 import { Link } from "react-router-dom";
 import {
   Layers,
-  Calendar,
-  Wallet,
   PlusCircle,
   ArrowUpRight,
-  MapPin,
-  Clock,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
+  ShieldCheck,
+  Coins,
+  Award,
+  Check,
+  X,
+  Calendar,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import {
-  SAMPLE_PARTNER_SERVICES,
-  SAMPLE_PARTNER_BOOKINGS,
-  SAMPLE_EARNINGS_DATA,
-} from "@/features/partner/data/partnerData";
-
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatCurrency } from "@/lib/utils";
 import { useAuth } from "@/app/providers";
-
-import { useState, useEffect } from "react";
-import { getProviderNCScore, getProviderRecommendations } from "@/services/marketplaceService";
-import { Award, Zap, TrendingUp } from "lucide-react";
+import { providerService, ProviderDashboardSummary } from "@/services/providerService";
 
 export function PartnerDashboardPage() {
   const { user } = useAuth();
-  const [ncScoreData, setNcScoreData] = useState<any>(null);
-  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [dashboard, setDashboard] = useState<ProviderDashboardSummary | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const [nc, recs] = await Promise.all([
-          getProviderNCScore(),
-          getProviderRecommendations(),
-        ]);
-        setNcScoreData(nc);
-        setRecommendations(recs);
-      } catch {
-        setNcScoreData({
-          nc_score: 91.4,
-          trend: "+2.4%",
-          components: {
-            rating_quality: 91.0,
-            review_depth: 76.0,
-            fulfillment_rate: 98.0,
-            response_rate: 82.0,
-            profile_completeness: 100.0,
-            availability_reliability: 95.0,
-            recency: 85.0,
-          },
-        });
-        setRecommendations([
-          {
-            title: "Expand Saturday Availability",
-            reason: "High demand detected during weekend search traffic.",
-            evidence: "18 travelers searched for weekend stays in your district.",
-            expected_impact: "Increase weekend bookable capacity.",
-            action_text: "Update Calendar",
-            priority_score: 88.5,
-          },
-          {
-            title: "Collaborate with Local Creator",
-            reason: "3 verified travel creators active in Coorg district.",
-            evidence: "Creators matching your category have 50K+ reach.",
-            expected_impact: "Boost social media promotion & direct bookings.",
-            action_text: "View Creator Opportunities",
-            priority_score: 82.0,
-          },
-        ]);
-      } finally {
-        // loaded
-      }
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await providerService.getDashboard("30d");
+      setDashboard(data);
+    } catch (err: any) {
+      console.error("Failed to load provider dashboard:", err);
+      setError(
+        err?.response?.data?.detail ||
+          err?.message ||
+          "Unable to load provider summary. Please verify server connection."
+      );
+    } finally {
+      setIsLoading(false);
     }
-    loadData();
   }, []);
 
-  const publishedServices = SAMPLE_PARTNER_SERVICES.filter((s) => s.status === "PUBLISHED");
-  const upcomingBookings = SAMPLE_PARTNER_BOOKINGS.filter((b) => b.status === "upcoming");
-  const earnings30d = SAMPLE_EARNINGS_DATA["30 Days"];
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  const roleLabelMap: Record<string, string> = {
-    farmer: "Farmer & Plantation Host",
-    hotel: "Homestay & Accommodation Host",
-    food: "Culinary & Local Food Host",
-    guide: "Rural Tour & Heritage Guide",
-    travel: "Mobility & Transport Partner",
-    creator: "Content Creator Partner",
-    artisan: "Craft & Artisan Partner",
-    partner: "Verified Partner Host",
+  const handleBookingAction = async (bookingId: string, action: "confirm" | "cancel" | "complete") => {
+    try {
+      setActionMessage(null);
+      if (action === "confirm") {
+        await providerService.confirmBooking(bookingId);
+        setActionMessage(`Booking #${bookingId.slice(0, 8)} confirmed successfully!`);
+      } else if (action === "cancel") {
+        await providerService.cancelBooking(bookingId, "Cancelled by provider from dashboard");
+        setActionMessage(`Booking #${bookingId.slice(0, 8)} cancelled.`);
+      } else if (action === "complete") {
+        await providerService.completeBooking(bookingId);
+        setActionMessage(`Booking #${bookingId.slice(0, 8)} marked as completed!`);
+      }
+      await loadData();
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || `Action ${action} failed.`);
+    }
   };
-  const roleTitle = roleLabelMap[user?.role || ""] || "NammaConnect Partner";
-  const displayName = user?.business_name || user?.full_name || "Partner Operations";
+
+  const displayName = dashboard?.provider_name || user?.full_name || "Provider Host";
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Header & Quick Action */}
+    <div className="space-y-8 pb-16 max-w-6xl mx-auto">
+      {/* ── Header & Verification Badge ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Badge variant="outline" className="border-harvest-600/40 bg-harvest-50 dark:bg-harvest-950/40 text-harvest-700 dark:text-harvest-300 text-xs font-bold">
-              {roleTitle}
+            <Badge
+              variant="outline"
+              className="border-harvest-600/40 bg-harvest-50 dark:bg-harvest-950/40 text-harvest-800 dark:text-harvest-300 text-xs font-bold"
+            >
+              {dashboard?.badge_text || "✓ Verified Provider"}
             </Badge>
-            {user?.is_verified && (
-              <Badge className="bg-emerald-600 text-white text-[10px] font-bold">
-                KYC Verified
+            {dashboard?.is_verified && (
+              <Badge className="bg-harvest-600 text-white text-[10px] font-bold gap-1">
+                <ShieldCheck className="h-3 w-3" />
+                <span>KYC Approved</span>
               </Badge>
             )}
           </div>
           <PageHeader
-            title="Host Operations Dashboard"
-            subtitle={`Welcome, ${displayName}. Manage your listed services, guest bookings, collaboration proposals, and payouts.`}
+            title="Provider Operations Dashboard"
+            subtitle={dashboard?.greeting || `Welcome back, ${displayName}. Manage your bookings, earnings, multi-category listings, and performance analytics.`}
           />
         </div>
-        <Link to="/partner/services/new">
-          <Button size="sm" className="gap-2 font-bold bg-harvest-600 hover:bg-harvest-700 text-white shadow-sm shrink-0">
-            <PlusCircle className="h-4 w-4" />
-            <span>Add New Service</span>
+
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadData}
+            disabled={isLoading}
+            className="rounded-xl font-bold text-xs"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${isLoading ? "animate-spin" : ""}`} />
+            Refresh
           </Button>
-        </Link>
-      </div>
-
-      {/* Primary KPI Overview (Services, Bookings, Earnings ONLY) */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* 1. Services Metric */}
-        <Card className="p-5 rounded-3xl border-slate-200 bg-white">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Active Services
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-harvest-50 text-harvest-700">
-              <Layers className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">{publishedServices.length}</span>
-            <span className="text-xs text-slate-500 font-medium">Published / {SAMPLE_PARTNER_SERVICES.length} Total</span>
-          </div>
-          <Link to="/partner/services" className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-harvest-700 hover:underline">
-            <span>Manage listings</span>
-            <ArrowUpRight className="h-3 w-3" />
-          </Link>
-        </Card>
-
-        {/* 2. Bookings Metric */}
-        <Card className="p-5 rounded-3xl border-slate-200 bg-white">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Upcoming Bookings
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
-              <Calendar className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">{upcomingBookings.length}</span>
-            <span className="text-xs text-slate-500 font-medium">Confirmed arrivals</span>
-          </div>
-          <Link to="/partner/bookings" className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-blue-700 hover:underline">
-            <span>View reservations</span>
-            <ArrowUpRight className="h-3 w-3" />
-          </Link>
-        </Card>
-
-        {/* 3. Earnings Metric */}
-        <Card className="p-5 rounded-3xl border-slate-200 bg-white">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
-              Net Payout (30 Days)
-            </span>
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
-              <Wallet className="h-4 w-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-2xl font-black text-slate-900">
-              {formatCurrency(earnings30d.netPayout)}
-            </span>
-            <span className="text-xs text-emerald-700 font-bold">Direct to Bank</span>
-          </div>
-          <Link to="/partner/earnings" className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-emerald-700 hover:underline">
-            <span>Detailed breakdown</span>
-            <ArrowUpRight className="h-3 w-3" />
-          </Link>
-        </Card>
-      </div>
-
-      {/* Upcoming Guest Arrivals Section */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Upcoming Guest Arrivals</h2>
-            <p className="text-xs text-slate-500">Check-in manifest for confirmed reservations</p>
-          </div>
-          <Link to="/partner/bookings" className="text-xs font-bold text-harvest-700 hover:underline">
-            View All ({upcomingBookings.length})
+          <Link to="/provider/listings">
+            <Button
+              size="sm"
+              className="gap-1.5 font-bold bg-harvest-600 hover:bg-harvest-700 text-white shadow-sm text-xs"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>+ Add Service</span>
+            </Button>
           </Link>
         </div>
+      </div>
 
-        <div className="space-y-3">
-          {upcomingBookings.map((b) => (
-            <Card key={b.id} className="p-5 rounded-2xl border-slate-200 bg-white flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="font-mono text-xs font-bold text-harvest-800">{b.bookingCode}</span>
-                  <Badge variant="default" dot className="bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px]">
-                    Upcoming
-                  </Badge>
-                </div>
-                <h3 className="text-sm font-bold text-slate-900">{b.serviceTitle}</h3>
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
-                  <div className="flex items-center gap-1 font-semibold">
-                    <Clock className="h-3.5 w-3.5 text-harvest-700" />
-                    <span>{formatDate(b.checkInDate)} – {formatDate(b.checkOutDate)}</span>
-                  </div>
-                  <span>•</span>
-                  <span>Guest: <strong>{b.customerName}</strong> ({b.guestsCount} guests)</span>
-                </div>
+      {actionMessage && (
+        <Card className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-between">
+          <span>{actionMessage}</span>
+          <Button size="sm" variant="ghost" onClick={() => setActionMessage(null)} className="h-6 w-6 p-0 text-emerald-800">
+            ✕
+          </Button>
+        </Card>
+      )}
+
+      {error && (
+        <Card className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-rose-600 shrink-0" />
+            <span>{error}</span>
+          </div>
+          <Button size="sm" variant="outline" onClick={loadData} className="text-xs font-bold">
+            Retry
+          </Button>
+        </Card>
+      )}
+
+      {/* ── 5 Compact Overview Cards ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+        {/* 1. Total Bookings */}
+        <Card className="p-4 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Bookings
+            </span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-harvest-50 text-harvest-700 dark:bg-harvest-950 dark:text-harvest-300">
+              <Calendar className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <div className="mt-2">
+            {isLoading ? (
+              <Skeleton className="h-7 w-12 rounded-lg" />
+            ) : (
+              <span className="text-xl font-black text-slate-900 dark:text-white">
+                {dashboard?.overview_cards?.total_bookings?.value ?? 0}
+              </span>
+            )}
+            <span className="text-[10px] text-emerald-600 font-semibold block mt-0.5">
+              {dashboard?.overview_cards?.total_bookings?.trend || "+12.5%"}
+            </span>
+          </div>
+          <Link
+            to="/provider/bookings"
+            className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-harvest-700 dark:text-harvest-400 hover:underline"
+          >
+            <span>View all</span>
+            <ArrowUpRight className="h-3 w-3" />
+          </Link>
+        </Card>
+
+        {/* 2. Total Earnings */}
+        <Card className="p-4 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Earnings
+            </span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+              <Coins className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <div className="mt-2">
+            {isLoading ? (
+              <Skeleton className="h-7 w-20 rounded-lg" />
+            ) : (
+              <span className="text-xl font-black text-slate-900 dark:text-white">
+                {dashboard?.overview_cards?.total_earnings?.formatted || formatCurrency(dashboard?.overview_cards?.total_earnings?.value ?? 0)}
+              </span>
+            )}
+            <span className="text-[10px] text-emerald-600 font-semibold block mt-0.5">
+              {dashboard?.overview_cards?.total_earnings?.trend || "+15.2%"}
+            </span>
+          </div>
+          <Link
+            to="/provider/earnings"
+            className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline"
+          >
+            <span>Payouts</span>
+            <ArrowUpRight className="h-3 w-3" />
+          </Link>
+        </Card>
+
+        {/* 3. Active Listings */}
+        <Card className="p-4 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Total Services
+            </span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300">
+              <Layers className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <div className="mt-2">
+            {isLoading ? (
+              <Skeleton className="h-7 w-12 rounded-lg" />
+            ) : (
+              <span className="text-xl font-black text-slate-900 dark:text-white">
+                {dashboard?.overview_cards?.active_listings?.value ?? 0}
+              </span>
+            )}
+            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">
+              of {dashboard?.overview_cards?.active_listings?.total_listings ?? 0} total
+            </span>
+          </div>
+          <Link
+            to="/provider/listings"
+            className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-teal-700 dark:text-teal-400 hover:underline"
+          >
+            <span>Catalog</span>
+            <ArrowUpRight className="h-3 w-3" />
+          </Link>
+        </Card>
+
+        {/* 4. NC Score */}
+        <Card className="p-4 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              NC Score
+            </span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
+              <Award className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <div className="mt-2">
+            {isLoading ? (
+              <Skeleton className="h-7 w-16 rounded-lg" />
+            ) : (
+              <div className="flex items-baseline gap-1">
+                <span className="text-xl font-black text-amber-600">
+                  {dashboard?.overview_cards?.nc_score?.score ?? 850}
+                </span>
+                <span className="text-[10px] font-bold text-slate-500">
+                  ({dashboard?.overview_cards?.nc_score?.tier || "Gold"})
+                </span>
               </div>
+            )}
+            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">
+              {dashboard?.overview_cards?.nc_score?.review_count ?? 0} reviews
+            </span>
+          </div>
+          <Link
+            to="/provider/analytics"
+            className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 dark:text-amber-400 hover:underline"
+          >
+            <span>Reputation</span>
+            <ArrowUpRight className="h-3 w-3" />
+          </Link>
+        </Card>
 
-              <div className="flex items-center justify-between sm:justify-end gap-4 border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-100">
-                <div className="text-left sm:text-right">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Payout</span>
-                  <span className="text-sm font-black text-slate-900">{formatCurrency(b.netPayout)}</span>
+        {/* 5. Pending Actions */}
+        <Card className="p-4 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+              Pending Actions
+            </span>
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-300">
+              <AlertCircle className="h-3.5 w-3.5" />
+            </div>
+          </div>
+          <div className="mt-2">
+            {isLoading ? (
+              <Skeleton className="h-7 w-12 rounded-lg" />
+            ) : (
+              <span className="text-xl font-black text-rose-600">
+                {dashboard?.overview_cards?.pending_actions?.value ?? 0}
+              </span>
+            )}
+            <span className="text-[10px] text-slate-400 font-medium block mt-0.5">
+              Tasks requiring review
+            </span>
+          </div>
+          <Link
+            to="/provider/bookings"
+            className="mt-2 inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 dark:text-rose-400 hover:underline"
+          >
+            <span>Resolve</span>
+            <ArrowUpRight className="h-3 w-3" />
+          </Link>
+        </Card>
+      </div>
+
+      {/* ── Action Required Section ── */}
+      <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-amber-500" />
+            <span>Action Required Tasks</span>
+          </h3>
+          {dashboard?.action_required?.all_caught_up ? (
+            <Badge className="bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+              ✓ All Caught Up
+            </Badge>
+          ) : (
+            <Badge className="bg-amber-100 text-amber-800 text-[10px] font-bold">
+              {dashboard?.action_required?.tasks?.length || 0} Action Items
+            </Badge>
+          )}
+        </div>
+
+        {isLoading ? (
+          <Skeleton className="h-16 w-full rounded-2xl" />
+        ) : dashboard?.action_required?.all_caught_up || !dashboard?.action_required?.tasks?.length ? (
+          <div className="p-4 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50 flex items-center gap-3 text-xs text-emerald-800 dark:text-emerald-300">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />
+            <span>You have no pending host actions! All booking requests and listing checks are updated.</span>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {dashboard.action_required.tasks.map((task) => (
+              <div
+                key={task.id}
+                className="p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/40 flex items-center justify-between gap-4 text-xs"
+              >
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-slate-900 dark:text-white">{task.title}</span>
+                    <Badge
+                      className={
+                        task.priority === "HIGH"
+                          ? "bg-rose-100 text-rose-800 text-[9px] font-bold"
+                          : "bg-amber-100 text-amber-800 text-[9px] font-bold"
+                      }
+                    >
+                      {task.priority}
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-slate-500">{task.description}</p>
                 </div>
-                <Link to={`/partner/bookings/${b.id}`}>
-                  <Button size="sm" variant="outline" className="text-xs font-bold">
-                    View Pass
+                <Link to={task.target}>
+                  <Button size="sm" className="bg-harvest-600 hover:bg-harvest-700 text-white font-bold text-xs shrink-0">
+                    Review
                   </Button>
                 </Link>
               </div>
-            </Card>
-          ))}
-        </div>
-      </div>
-
-      {/* Explainable NC Score & Decision-Support Action Recommendations */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* NC Score Breakdown */}
-        <Card className="p-6 rounded-3xl border-slate-200 bg-white space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-harvest-100 text-harvest-800">
-                <Award className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900">Provider NC Score</h3>
-                <p className="text-[11px] text-slate-500">Quality & Reliability Rating</p>
-              </div>
-            </div>
-            <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-bold gap-1">
-              <TrendingUp className="h-3 w-3" />
-              <span>{ncScoreData?.trend || "+2.4%"}</span>
-            </Badge>
-          </div>
-
-          <div className="flex items-baseline gap-2 pt-2">
-            <span className="text-3xl font-black text-slate-900">{ncScoreData?.nc_score || 91.4}</span>
-            <span className="text-xs text-slate-500 font-bold">/ 100 Quality Rating</span>
-          </div>
-
-          <div className="space-y-2 pt-2 border-t border-slate-100 text-xs">
-            <p className="font-bold text-slate-700 text-[11px] uppercase tracking-wider">Quality Score Factors</p>
-            {Object.entries(ncScoreData?.components || {}).map(([key, val]) => (
-              <div key={key} className="flex items-center justify-between text-slate-600">
-                <span className="capitalize">{key.replace(/_/g, " ")}</span>
-                <span className="font-mono font-bold text-slate-900">{Number(val).toFixed(0)}%</span>
-              </div>
             ))}
           </div>
-        </Card>
+        )}
+      </Card>
 
-        {/* Action Recommendations */}
-        <div className="lg:col-span-2 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Zap className="h-5 w-5 text-amber-600" />
-              <h2 className="text-base font-bold text-slate-900">Recommended Growth Actions</h2>
-            </div>
-            <span className="text-xs text-slate-500 font-medium">Explainable priority decisions</span>
-          </div>
-
-          <div className="space-y-3">
-            {recommendations.map((rec, idx) => (
-              <Card key={idx} className="p-4 rounded-2xl border-slate-200 bg-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-slate-900">{rec.title}</h4>
-                    <Badge className="bg-amber-100 text-amber-900 text-[10px] font-bold">
-                      Priority {rec.priority_score || 85}
-                    </Badge>
-                  </div>
-                  <p className="text-xs text-slate-600 font-medium">{rec.reason}</p>
-                  <p className="text-[11px] text-slate-400 italic">Evidence: {rec.evidence}</p>
-                </div>
-                <Button size="sm" className="bg-harvest-600 hover:bg-harvest-700 text-white font-bold text-xs shrink-0">
-                  {rec.action_text || "Take Action"}
-                </Button>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
+      {/* ── Booking Overview & Allowed Actions ── */}
+      <Card className="p-6 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Your Active Offerings</h2>
-            <p className="text-xs text-slate-500">Live experiences receiving bookings on NammaConnect</p>
+            <h3 className="text-sm font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-harvest-600" />
+              <span>Recent Booking Reservations</span>
+            </h3>
+            <p className="text-[11px] text-slate-500">
+              Total: {dashboard?.booking_overview?.total ?? 0} | Pending: {dashboard?.booking_overview?.pending ?? 0} | Confirmed: {dashboard?.booking_overview?.confirmed ?? 0}
+            </p>
           </div>
-          <Link to="/partner/services" className="text-xs font-bold text-harvest-700 hover:underline">
-            Manage All ({SAMPLE_PARTNER_SERVICES.length})
+          <Link to="/provider/bookings" className="text-xs font-bold text-harvest-700 hover:underline">
+            View All Bookings
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {publishedServices.map((service) => (
-            <Card key={service.id} className="p-5 rounded-2xl border-slate-200 bg-white flex flex-col justify-between">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Badge variant="default" className="text-[10px]">
-                    {service.category}
-                  </Badge>
-                  <span className="text-xs font-black text-slate-900">
-                    {formatCurrency(service.price)} / {service.unit}
-                  </span>
+        {isLoading ? (
+          <Skeleton className="h-32 w-full rounded-2xl" />
+        ) : !dashboard?.booking_overview?.recent_bookings?.length ? (
+          <div className="p-8 text-center text-xs text-slate-400">
+            No guest bookings recorded yet.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {dashboard.booking_overview.recent_bookings.map((b) => (
+              <div
+                key={b.id}
+                className="p-3.5 rounded-2xl border border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs"
+              >
+                <div className="flex items-center gap-3">
+                  <img
+                    src={b.service_image}
+                    alt={b.service_name}
+                    className="h-12 w-12 rounded-xl object-cover shrink-0 bg-slate-100"
+                  />
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold text-slate-900 dark:text-white">{b.service_name}</span>
+                      <Badge
+                        variant="outline"
+                        className={
+                          b.status === "CONFIRMED"
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-200 text-[10px] font-bold"
+                            : b.status === "PENDING"
+                            ? "bg-amber-50 text-amber-800 border-amber-200 text-[10px] font-bold"
+                            : "bg-slate-50 text-slate-700 border-slate-200 text-[10px] font-bold"
+                        }
+                      >
+                        {b.status}
+                      </Badge>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Guest: <span className="font-semibold text-slate-700 dark:text-slate-300">{b.customer_name}</span> ({b.guest_count} guests) • {b.start_date}
+                    </p>
+                  </div>
                 </div>
-                <h3 className="text-sm font-bold text-slate-900 line-clamp-1">{service.title}</h3>
-                <div className="flex items-center gap-1 text-xs text-slate-500">
-                  <MapPin className="h-3.5 w-3.5 text-harvest-700" />
-                  <span>{service.location}</span>
-                </div>
-              </div>
 
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs text-slate-500 font-medium">
-                  {service.activeBookings} active reservations
-                </span>
-                <Link to={`/partner/services/${service.id}`} className="text-xs font-bold text-harvest-700 hover:underline">
-                  Edit Details →
-                </Link>
+                <div className="flex items-center justify-between sm:justify-end gap-3 border-t sm:border-t-0 pt-2 sm:pt-0">
+                  <span className="font-black text-slate-900 dark:text-white text-sm">
+                    {formatCurrency(b.total_amount)}
+                  </span>
+
+                  {/* Allowed Status Action Buttons */}
+                  <div className="flex items-center gap-1.5">
+                    {b.allowed_actions?.includes("confirm") && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleBookingAction(b.id, "confirm")}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] px-2.5 h-7 gap-1"
+                      >
+                        <Check className="h-3 w-3" />
+                        <span>Confirm</span>
+                      </Button>
+                    )}
+                    {b.allowed_actions?.includes("complete") && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleBookingAction(b.id, "complete")}
+                        className="bg-teal-600 hover:bg-teal-700 text-white font-bold text-[11px] px-2.5 h-7 gap-1"
+                      >
+                        <CheckCircle2 className="h-3 w-3" />
+                        <span>Complete</span>
+                      </Button>
+                    )}
+                    {b.allowed_actions?.includes("cancel") && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleBookingAction(b.id, "cancel")}
+                        className="border-rose-300 text-rose-700 hover:bg-rose-50 text-[11px] font-bold px-2.5 h-7 gap-1"
+                      >
+                        <X className="h-3 w-3" />
+                        <span>Cancel</span>
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </div>
-            </Card>
-          ))}
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* ── My Services (Top 3 Listings) ── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-base font-extrabold text-slate-900 dark:text-white">
+              My Featured Services
+            </h2>
+            <p className="text-xs text-slate-500">Top active offerings published on NammaConnect</p>
+          </div>
+          <Link
+            to="/provider/listings"
+            className="text-xs font-bold text-harvest-700 dark:text-harvest-400 hover:underline"
+          >
+            View Catalog ({dashboard?.my_services?.total_count ?? 0})
+          </Link>
         </div>
+
+        {isLoading ? (
+          <Skeleton className="h-28 w-full rounded-2xl" />
+        ) : !dashboard?.my_services?.top_services?.length ? (
+          <Card className="p-8 text-center border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3">
+            <Layers className="h-10 w-10 text-slate-300 mx-auto" />
+            <p className="text-xs text-slate-500">No services added yet.</p>
+            <Link to="/provider/listings">
+              <Button size="sm" className="bg-harvest-600 hover:bg-harvest-700 text-white font-bold text-xs">
+                + Create Service
+              </Button>
+            </Link>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {dashboard.my_services.top_services.map((srv) => (
+              <Card
+                key={srv.id}
+                className="p-4 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 space-y-3 hover:border-harvest-300 transition-colors flex flex-col justify-between"
+              >
+                <div className="space-y-2">
+                  <div className="h-32 w-full rounded-2xl overflow-hidden bg-slate-100 relative">
+                    <img
+                      src={srv.primary_image || "https://images.unsplash.com/photo-1500382017468-9049fed747ef"}
+                      alt={srv.title}
+                      className="h-full w-full object-cover"
+                    />
+                    <Badge className="absolute top-2 right-2 bg-slate-900/80 text-white text-[10px] font-bold">
+                      {srv.status}
+                    </Badge>
+                  </div>
+                  <h4 className="font-extrabold text-xs text-slate-900 dark:text-white line-clamp-1">
+                    {srv.title}
+                  </h4>
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span className="capitalize">{srv.category}</span>
+                    <span className="font-bold text-slate-900 dark:text-white">{formatCurrency(srv.price)}/{srv.unit}</span>
+                  </div>
+                </div>
+                <Link to="/provider/listings">
+                  <Button size="sm" variant="outline" className="w-full text-xs font-bold rounded-xl mt-2">
+                    Manage Listing
+                  </Button>
+                </Link>
+              </Card>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -43,8 +43,8 @@ export function ServiceCard({
 
   const imageSrc = service.primary_image || service.imageUrl || "/images/services/fallback.jpg";
   const providerName = service.provider_name || service.providerName || "Verified Host";
-  const isVerified = service.is_verified ?? service.isVerified ?? true;
-  const ratingValue = Number(service.rating || 5.0);
+  const isVerified = service.is_verified ?? service.isVerified ?? false;
+  const ratingValue = Number(service.rating || 0);
   const reviewsCount = service.reviews_count ?? service.reviewsCount ?? 0;
   const locationName = service.location ? service.location.split(",")[0] : "Karnataka";
   const unitLabel = service.unit || "session";

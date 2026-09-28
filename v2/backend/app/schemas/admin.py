@@ -112,3 +112,65 @@ class AdminPlatformSettingsUpdateRequest(BaseModel):
     is_maintenance_mode: Optional[bool] = Field(None)
     support_email: Optional[str] = Field(None)
 
+
+class AdminReviewItemResponse(BaseModel):
+    id: str
+    service_id: str
+    service_title: str
+    user_id: Optional[str] = None
+    user_name: str
+    rating: float
+    comment: str
+    is_verified: bool
+    status: str  # PUBLISHED, HIDDEN, FLAGGED, REJECTED
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AdminReviewModerationRequest(BaseModel):
+    status: str = Field(..., description="Target status: PUBLISHED, HIDDEN, FLAGGED, or REJECTED")
+    notes: Optional[str] = Field(None, description="Internal moderation reason or notes")
+
+
+class AdminReportTimeSeriesItem(BaseModel):
+    date: str
+    users: int = 0
+    services: int = 0
+    bookings: int = 0
+    revenue: float = 0.0
+
+
+class AdminReportMetricsResponse(BaseModel):
+    period: str  # daily, weekly, monthly, yearly, all_time
+    total_users: int = 0
+    total_providers: int = 0
+    total_services: int = 0
+    published_services: int = 0
+    total_bookings: int = 0
+    total_revenue: float = 0.0
+    total_tickets: int = 0
+    resolved_tickets: int = 0
+    total_reviews: int = 0
+    average_platform_rating: float = 0.0
+    time_series: List[AdminReportTimeSeriesItem] = Field(default_factory=list)
+
+
+class AdminProviderItemResponse(BaseModel):
+    id: str
+    user_id: str
+    business_name: str
+    email: str
+    phone: Optional[str] = None
+    role: str
+    kyc_status: str  # PENDING, APPROVED, REJECTED, NOT_SUBMITTED
+    provider_type: Optional[str] = None
+    is_verified: bool
+    is_active: bool
+    service_count: int = 0
+    masked_id_number: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+

@@ -28,6 +28,8 @@ class ServiceRepository:
     def list_services(
         db: Session,
         category: Optional[str] = None,
+        category_id: Optional[str] = None,
+        marketplace_type: Optional[str] = None,
         location: Optional[str] = None,
         min_price: Optional[float] = None,
         max_price: Optional[float] = None,
@@ -40,6 +42,12 @@ class ServiceRepository:
     ) -> Tuple[List[Service], int]:
         """List discoverable services with SQL-level filters, keyword search, and pagination."""
         query = db.query(Service).filter(Service.status == status)
+
+        if category_id:
+            query = query.filter(Service.category_id == category_id)
+
+        if marketplace_type:
+            query = query.filter(Service.marketplace_type == marketplace_type.upper())
 
         # Provider verification filter: only show services from active, verified providers or seed services (provider_id is null)
         query = query.filter(
@@ -66,68 +74,61 @@ class ServiceRepository:
 
         if category and category.lower() != "all":
             cat_clean = category.lower().strip()
-            # Category synonym normalization
-            if cat_clean in ["farm", "farms", "agriculture", "farm stays", "farms & agriculture"]:
-                query = query.filter(
-                    or_(
-                        Service.category_slug.in_(["stay", "experiences"]),
+            cat_list = [c.strip() for c in cat_clean.split(",") if c.strip()]
+
+            cat_conditions = []
+            for c_item in cat_list:
+                if c_item in ["farm", "farms", "agriculture", "farm stays", "farms & agriculture", "experiences", "experience"]:
+                    cat_conditions.append(or_(
+                        Service.category_slug.in_(["stay", "experiences", "farm"]),
                         Service.category.ilike("%farm%"),
                         Service.category.ilike("%agricultur%"),
-                    )
-                )
-            elif cat_clean in ["stays", "stay", "homestay", "farmstay", "farm stay"]:
-                query = query.filter(
-                    or_(
-                        Service.category_slug == "stay",
-                        Service.category.ilike("%stay%"),
-                    )
-                )
-            elif cat_clean in ["food", "dining", "food & dining"]:
-                query = query.filter(
-                    or_(
+                        Service.category.ilike("%experience%"),
+                    ))
+                elif c_item in ["adventure", "trekking"]:
+                    cat_conditions.append(or_(
+                        Service.category_slug.in_(["adventure", "guides-tours"]),
+                        Service.category.ilike("%adventure%"),
+                        Service.category.ilike("%trek%"),
+                    ))
+                elif c_item in ["water-sports", "water", "water sports"]:
+                    cat_conditions.append(or_(
+                        Service.category_slug == "water-sports",
+                        Service.category.ilike("%water%"),
+                        Service.category.ilike("%sport%"),
+                    ))
+                elif c_item in ["wildlife"]:
+                    cat_conditions.append(or_(
+                        Service.category_slug == "wildlife",
+                        Service.category.ilike("%wildlife%"),
+                        Service.category.ilike("%safari%"),
+                    ))
+                elif c_item in ["food", "dining", "cooking"]:
+                    cat_conditions.append(or_(
                         Service.category_slug == "food",
                         Service.category.ilike("%food%"),
-                        Service.category.ilike("%dining%"),
-                    )
-                )
-            elif cat_clean in ["events", "event", "events & festivals", "festivals"]:
-                query = query.filter(
-                    or_(
-                        Service.category_slug == "events",
-                        Service.category.ilike("%event%"),
-                        Service.category.ilike("%festival%"),
-                    )
-                )
-            elif cat_clean in ["guides", "tours", "guides-tours", "guides & tours"]:
-                query = query.filter(
-                    or_(
-                        Service.category_slug == "guides-tours",
-                        Service.category.ilike("%guide%"),
-                        Service.category.ilike("%tour%"),
-                    )
-                )
-            elif cat_clean in ["travel", "travel-services", "travel services"]:
-                query = query.filter(
-                    or_(
-                        Service.category_slug == "travel-services",
-                        Service.category.ilike("%travel%"),
-                    )
-                )
-            elif cat_clean in ["experiences", "experience", "activities", "activity"]:
-                query = query.filter(
-                    or_(
-                        Service.category_slug.in_(["experiences", "guides-tours"]),
-                        Service.category.ilike("%experience%"),
-                        Service.category.ilike("%activit%"),
-                    )
-                )
-            else:
-                query = query.filter(
-                    or_(
-                        Service.category_slug == cat_clean,
-                        Service.category.ilike(f"%{cat_clean}%"),
-                    )
-                )
+                        Service.category.ilike("%cook%"),
+                    ))
+                elif c_item in ["cultural-historical", "cultural", "historical", "culture", "history"]:
+                    cat_conditions.append(or_(
+                        Service.category_slug.in_(["cultural-historical", "events"]),
+                        Service.category.ilike("%cultur%"),
+                        Service.category.ilike("%histor%"),
+                    ))
+                elif c_item in ["stays", "stay", "homestay", "farmstay", "farm stay"]:
+                    cat_conditions.append(or_(
+                        Service.category_slug == "stay",
+                        Service.category.ilike("%stay%"),
+                    ))
+                else:
+                    cat_conditions.append(or_(
+                        Service.category_slug == c_item,
+                        Service.category.ilike(f"%{c_item}%"),
+                    ))
+
+            if cat_conditions:
+                query = query.filter(or_(*cat_conditions))
+
 
         if location:
             loc_clean = location.strip()
@@ -265,14 +266,15 @@ class ServiceRepository:
 
         # 1. Check known categories matching query
         categories = [
-            ("Farm stays", "stay", "category"),
-            ("Farms & agriculture experiences", "experiences", "category"),
-            ("Trekking & Adventure", "guides-tours", "category"),
-            ("Coffee & Spice Tours", "experiences", "category"),
-            ("Organic Farm Tours", "experiences", "category"),
-            ("Rural Food & Dining", "food", "category"),
-            ("Cultural & Harvest Events", "events", "category"),
-            ("Travel & Guide Services", "travel-services", "category"),
+            ("Farm Visit", "farm-visit", "category"),
+            ("Cultural Fair", "cultural-fair", "category"),
+            ("Historical Visit", "historical-visit", "category"),
+            ("Art Experiences", "art-experiences", "category"),
+            ("Learn Cooking", "learn-cooking", "category"),
+            ("Learn Farming Techniques", "farming-techniques", "category"),
+            ("Content Creator", "content-creator", "category"),
+            ("Homestays & Farm Stays", "stay", "category"),
+            ("Rural Experiences", "experiences", "category"),
         ]
         for cat_label, cat_slug, cat_type in categories:
             if clean_q.lower() in cat_label.lower() or clean_q.lower() in cat_slug.lower():
@@ -369,7 +371,7 @@ class ServiceRepository:
                 .all()
             )
             count = len(reviews)
-            avg_rating = round(sum(r.rating for r in reviews) / count, 2) if count > 0 else 5.0
+            avg_rating = round(sum(r.rating for r in reviews) / count, 2) if count > 0 else 0.0
 
             service = db.query(Service).filter(Service.id == service_id).first()
             if service:

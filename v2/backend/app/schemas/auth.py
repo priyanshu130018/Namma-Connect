@@ -1,7 +1,7 @@
 """Authentication and user schemas."""
 
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
@@ -40,6 +40,10 @@ class UserResponse(BaseModel):
     location: Optional[str] = "Bengaluru, Karnataka"
     language: Optional[str] = "English, Kannada"
     theme_preference: Optional[str] = "system"
+    bio: Optional[str] = None
+    gender: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
     created_at: Optional[datetime] = None
 
 
@@ -47,9 +51,14 @@ class UserProfileUpdateRequest(BaseModel):
     """Payload for updating editable profile fields."""
 
     full_name: Optional[str] = Field(None, min_length=2, max_length=100)
+    mobile: Optional[str] = Field(None, max_length=32)
     location: Optional[str] = Field(None, max_length=255)
     language: Optional[str] = Field(None, max_length=64)
     avatar_url: Optional[str] = Field(None, max_length=512)
+    bio: Optional[str] = Field(None, max_length=1000)
+    gender: Optional[str] = Field(None, max_length=32)
+    date_of_birth: Optional[str] = Field(None, max_length=32)
+    tags: Optional[List[str]] = Field(None)
 
 
 class UserSettingsResponse(BaseModel):
@@ -137,6 +146,37 @@ class ChangePasswordRequest(BaseModel):
     new_password: str = Field(..., min_length=6)
 
 
+class PasswordOTPRequest(BaseModel):
+    """Payload to request password change OTP via email."""
+
+    email: Optional[EmailStr] = None
+
+
+class PasswordOTPVerifyRequest(BaseModel):
+    """Payload to verify password change OTP."""
+
+    otp: str = Field(..., min_length=4, max_length=10)
+
+
+class PasswordChangeWithOTPRequest(BaseModel):
+    """Payload to change password after successful OTP verification."""
+
+    otp_token: str = Field(...)
+    new_password: str = Field(..., min_length=6)
+
+
+class EmailOTPRequest(BaseModel):
+    """Payload to request email verification OTP."""
+
+    email: Optional[EmailStr] = None
+
+
+class EmailOTPVerifyRequest(BaseModel):
+    """Payload to verify email address with OTP."""
+
+    otp: str = Field(..., min_length=4, max_length=10)
+
+
 class VerifyEmailRequest(BaseModel):
     """Payload for verifying email address."""
 
@@ -154,4 +194,3 @@ class ResendVerificationRequest(BaseModel):
     """Payload for requesting verification email re-dispatch."""
 
     email: Optional[EmailStr] = None
-
