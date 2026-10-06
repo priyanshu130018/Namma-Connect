@@ -104,3 +104,24 @@ export interface RegisterResponse {
   token_type: string;
   user: User;
 }
+
+export type TravelStyle = "relaxed" | "balanced" | "adventure";
+export type BudgetStyle = "budget" | "balanced" | "premium";
+export type TripType = "solo" | "couple" | "family" | "friends" | "business";
+export type FoodPreference = "vegetarian" | "vegan" | "non-vegetarian" | "non_vegetarian" | "no_preference" | "any";
+export type WalkingPreference = "low" | "moderate" | "high" | "normal" | "low_walking" | "accessibility_friendly";
+export type TravelInterest = "nature" | "heritage" | "food" | "adventure" | "culture" | "wellness" | "shopping" | "photography";
+
+export interface TravelPreferences {
+  travel_style?: TravelStyle;
+  budget_style?: BudgetStyle;
+  trip_type?: TripType;
+  food_preference?: FoodPreference;
+  walking_preference?: WalkingPreference;
+  interests?: TravelInterest[] | string[];
+  dietary_restrictions?: string[];
+  accessibility_needs?: string[];
+  max_budget?: number;
+  [key: string]: any;
+}
+

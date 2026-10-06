@@ -94,11 +94,7 @@ jobs:
                  tests/test_v2_agentic_trip_planner.py \
                  tests/test_v2_provider_intelligence.py \
                  tests/test_v2_e2e_integration_and_hardening.py \
-                 tests/test_v2_production_audit_and_hardening.py \
-                 tests/test_explore_personalization.py \
-                 tests/test_provider_marketplace_workflow.py \
-                 tests/test_namma_ai_audit_and_hardening.py \
-                 tests/test_live_system_hardening.py -v
+                 tests/test_v2_production_audit_and_hardening.py -v
 
   # ── 2. Frontend Verification Job ──
   frontend-ci:

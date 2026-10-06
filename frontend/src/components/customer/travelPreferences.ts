@@ -68,7 +68,7 @@ export const DEFAULT_AI_PREFS: Pick<
 };
 
 function labelOf<T extends string>(opts: Option<T>[], value?: T): string | undefined {
-  return opts.find((o) => o.value === value)?.label;
+  return opts.find((o: Option<T>) => o.value === value)?.label;
 }
 
 /** True when the user has set any *content* preference (AI toggles excluded). */
@@ -93,7 +93,7 @@ export function summarizePreferences(
   const bits: string[] = [];
   const style = labelOf(TRAVEL_STYLE_OPTIONS, p.travel_style);
   if (style) bits.push(style);
-  (p.interests || []).slice(0, maxInterests).forEach((i) => {
+  ((p.interests || []) as any[]).slice(0, maxInterests).forEach((i: any) => {
     const l = labelOf(INTEREST_OPTIONS, i);
     if (l) bits.push(l);
   });
