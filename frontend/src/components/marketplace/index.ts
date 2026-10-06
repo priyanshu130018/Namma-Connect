@@ -10,3 +10,5 @@ export { SearchBar } from "./SearchBar";
 export type { SearchBarProps } from "./SearchBar";
 export { SearchPopover } from "./SearchPopover";
 export type { SearchPopoverProps } from "./SearchPopover";
+export { ListingPage } from "./ListingPage";
+export type { ListingPageProps } from "./ListingPage";
