@@ -9,6 +9,8 @@
 .env.*
 !.env.example
 !.env.example.*
+!.env.production.example
+!.env.*.example
 *.pem
 *.key
 *.crt
@@ -186,6 +188,9 @@ test-results/
 playwright-report/
 blob-report/
 coverage/
+e2e-artifacts/
+benchmark_results.json
+*.benchmark.json
 
 # ---------------------------------------------------------
 # Temporary uploads / generated media
@@ -194,7 +199,9 @@ uploads/
 tmp/
 temp/
 storage/
-media/
+/media/
+backend/media/
+!backend/app/services/media/
 
 # ---------------------------------------------------------
 # Cloud / deployment local files

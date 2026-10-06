@@ -1,10 +1,10 @@
-name: Namma Connect V2 CI/CD Pipeline
+name: Namma Connect CI/CD Pipeline
 
 on:
   push:
-    branches: [main, master, release/*, "v2/*"]
+    branches: [main, master, release/*]
   pull_request:
-    branches: [main, master, release/*, "v2/*"]
+    branches: [main, master, release/*]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: v2/backend
+        working-directory: backend
 
     services:
       postgres:
@@ -77,7 +77,7 @@ jobs:
           alembic upgrade head
           alembic current
 
-      - name: Execute Full V2 Backend Pytest Suite
+      - name: Execute Full Backend Pytest Suite
         env:
           ENV: test
           DEBUG: "False"
@@ -86,7 +86,19 @@ jobs:
           REDIS_URL: redis://localhost:6379/0
           JWT_SECRET: test_ci_jwt_secret_must_be_32_characters_long
         run: |
-          pytest tests/test_v2_models_and_schema.py                  tests/test_v2_modular_services.py                  tests/test_recommendations_and_nc_score.py                  tests/test_v2_recommendation_engine.py                  tests/test_v2_ai_assistant.py                  tests/test_v2_agentic_trip_planner.py                  tests/test_v2_provider_intelligence.py                  tests/test_v2_e2e_integration_and_hardening.py                  tests/test_v2_production_audit_and_hardening.py -v
+          pytest tests/test_v2_models_and_schema.py \
+                 tests/test_v2_modular_services.py \
+                 tests/test_recommendations_and_nc_score.py \
+                 tests/test_v2_recommendation_engine.py \
+                 tests/test_v2_ai_assistant.py \
+                 tests/test_v2_agentic_trip_planner.py \
+                 tests/test_v2_provider_intelligence.py \
+                 tests/test_v2_e2e_integration_and_hardening.py \
+                 tests/test_v2_production_audit_and_hardening.py \
+                 tests/test_explore_personalization.py \
+                 tests/test_provider_marketplace_workflow.py \
+                 tests/test_namma_ai_audit_and_hardening.py \
+                 tests/test_live_system_hardening.py -v
 
   # ── 2. Frontend Verification Job ──
   frontend-ci:
@@ -94,7 +106,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: v2/frontend
+        working-directory: frontend
 
     steps:
       - name: Checkout Repository
@@ -105,7 +117,7 @@ jobs:
         with:
           node-version: "20"
           cache: "npm"
-          cache-dependency-path: v2/frontend/package-lock.json
+          cache-dependency-path: frontend/package-lock.json
 
       - name: Install Frontend Dependencies
         run: npm ci
@@ -123,7 +135,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
-          path: v2/frontend/dist/
+          path: frontend/dist/
           retention-days: 7
 
   # ── 3. Secret and Security Scan Job ──
