@@ -1,4 +1,4 @@
-﻿"""Repository layer for PartnerApplication CRUD."""
+"""Repository layer for PartnerApplication CRUD."""
 
 from typing import Optional, List, Tuple
 from sqlalchemy.orm import Session
