@@ -24,6 +24,7 @@ router = APIRouter(tags=["recommendations"])
 class InteractionPayload(BaseModel):
     event_type: str
     service_id: Optional[str] = None
+    category_slug: Optional[str] = None
     metadata: Optional[Dict[str, Any]] = None
 
 
@@ -44,6 +45,37 @@ def get_recommendations_list(
     return {
         "success": True,
         "data": recs.get("recommended_for_you", [])[:limit],
+    }
+
+
+@router.get("/recommendations/explore")
+@router.get("/explore")
+def get_explore_feed(
+    location: Optional[str] = Query(None, description="Optional customer location or district filter"),
+    seed: Optional[int] = Query(None, description="Optional randomization seed for categories"),
+    force_refresh: bool = Query(False, description="Force recommendation cache refresh"),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    db: Session = Depends(get_db),
+):
+    """Fetch structured Progressive Explore discovery feed matching all 10 official categories.
+
+    Progressive sections:
+    1. Categories: 10 official categories in randomized order.
+    2. Nearby Places: only when reliable location is available.
+    3. Because You Visited: based on real customer interaction/booking evidence.
+    4. Personalized For You: based on preferences and behavioral signals.
+    5. Top & Most Visited: composite real marketplace quality signals.
+    """
+    feed = RecommendationEngine.get_explore_feed(
+        user=current_user,
+        db=db,
+        location=location,
+        seed=seed,
+        force_refresh=force_refresh,
+    )
+    return {
+        "success": True,
+        "data": feed,
     }
 
 
@@ -83,6 +115,9 @@ def record_user_interaction(
 ):
     """Log customer behavioral interaction signal and enqueue background celery task."""
     srv_id = uuid.UUID(payload.service_id) if payload.service_id else None
+    meta = dict(payload.metadata or {})
+    if payload.category_slug and "category_slug" not in meta:
+        meta["category_slug"] = payload.category_slug
     
     # Authoritative DB record
     interaction = RecommendationEngine.record_interaction(
@@ -90,7 +125,7 @@ def record_user_interaction(
         user_id=current_user.id,
         event_type=payload.event_type,
         service_id=srv_id,
-        metadata=payload.metadata,
+        metadata=meta,
     )
     
     # Enqueue async task for queue processing & profile refresh

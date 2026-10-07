@@ -1,13 +1,13 @@
-# NammaConnect V2 — Technical Architecture & Developer Guide
+# NammaConnect — Technical Architecture & Developer Guide
 
-Welcome to the **V2** codebase of **NammaConnect**, a production-grade agro-tourism and rural Karnataka experience marketplace connecting **Tourists / Customers**, **Farmers & Experience Partners**, **Content Creators**, and **Platform Administrators**.
+Welcome to the codebase of **NammaConnect**, a production-grade agro-tourism and rural Karnataka experience marketplace connecting **Tourists / Customers**, **Farmers & Experience Partners**, **Content Creators**, and **Platform Administrators**.
 
 ---
 
 ## 📋 Table of Contents
 
 1. [Overview](#1-overview)
-2. [V2 Goals & Architectural Approach](#2-v2-goals--architectural-approach)
+2. [Goals & Architectural Approach](#2-goals--architectural-approach)
 3. [Key Features](#3-key-features)
 4. [Architecture Overview](#4-architecture-overview)
 5. [Technology Stack](#5-technology-stack)
@@ -38,15 +38,15 @@ Welcome to the **V2** codebase of **NammaConnect**, a production-grade agro-tour
 30. [Maintenance & Development Principles](#30-maintenance--development-principles)
 31. [Known Limitations & Fallback Behaviors](#31-known-limitations--fallback-behaviors)
 32. [Troubleshooting Guide](#32-troubleshooting-guide)
-33. [V2 Summary](#33-v2-summary)
+33. [Architecture Summary](#33-architecture-summary)
 
 ---
 
 ## 1. Overview
 
-**NammaConnect V2** is a modern, full-stack digital marketplace tailored for rural tourism, farm stays, agro-workshops, culinary heritage, and guided experiences across the districts of Karnataka.
+**NammaConnect** is a modern, full-stack digital marketplace tailored for rural tourism, farm stays, agro-workshops, culinary heritage, and guided experiences across the districts of Karnataka.
 
-V2 transitions NammaConnect from an MVP into a scalable, production-ready system featuring:
+The platform provides a scalable, production-ready system featuring:
 - **Authoritative Payment Lifecycle**: Secure Razorpay integration in Test Mode with cryptographic HMAC-SHA256 signature validation and idempotent confirmations.
 - **AI-Powered Discovery**: Hybrid semantic search powered by pgvector (768-dimensional embeddings) and conversational travel planning via Google Gemini.
 - **Progressive Partner Onboarding**: Multi-step partner verification (KYC) and administrative service moderation workflows.
@@ -55,7 +55,7 @@ V2 transitions NammaConnect from an MVP into a scalable, production-ready system
 
 ---
 
-## 2. V2 Goals & Architectural Approach
+## 2. Goals & Architectural Approach
 
 1. **Separation of Concerns**: Strict decoupling of API routers, service business logic, data access repositories, and database models.
 2. **Backend as Source of Truth**: All financial calculations, availability collisions, discount applications, and permission checks are strictly computed server-side.
@@ -175,110 +175,77 @@ flowchart TD
 ## 6. Project Structure
 
 ```text
-v2/
-├── README.md                      # V2 Technical Documentation
-├── docker-compose.yml             # Full-stack container orchestration
-├── backend/                       # FastAPI Backend Service
+namma_connect/
+├── README.md                      # Technical Documentation & Architecture
+├── compose.yaml                   # Development container orchestration (Vite + Uvicorn)
+├── compose.prod.yaml              # Production container orchestration (Multi-stage + Nginx)
+├── pyproject.toml                 # Root pytest configuration
+├── .dockerignore                  # Docker build ignore patterns
+├── .env.example                   # Development environment configuration template
+├── .env.production.example        # Production environment configuration template
+├── backend/                       # FastAPI Application Service
 │   ├── Dockerfile                 # Backend containerization spec
 │   ├── alembic.ini                # Alembic migration configuration
+│   ├── pyproject.toml             # Pytest and package options
 │   ├── requirements.txt           # Python dependency manifest
-│   ├── alembic/                   # Database version scripts
+│   ├── alembic/                   # Database schema migrations
 │   │   ├── env.py                 # Alembic environment runner
-│   │   └── versions/              # Migration steps (0001 to 0004)
-│   │       ├── 0001_initial_core_schema.py
-│   │       ├── 0002_create_partner_applications.py
-│   │       ├── 0003_add_service_moderation_fields.py
-│   │       └── 0004_add_is_test_data_and_pgvector_embedding.py
-│   ├── app/
+│   │   └── versions/              # Migration revisions
+│   ├── app/                       # Application code
 │   │   ├── main.py                # FastAPI app initialization, middleware, lifespan
-│   │   ├── api/                   # API routing
-│   │   │   ├── health.py          # /api/health monitoring endpoint
-│   │   │   └── v2/
-│   │   │       ├── router.py      # Aggregates all v2 endpoint routers
-│   │   │       └── endpoints/     # Feature-specific route controllers
-│   │   │           ├── admin.py
-│   │   │           ├── ai.py
-│   │   │           ├── auth.py
-│   │   │           ├── bookings.py
-│   │   │           ├── collaborations.py
-│   │   │           ├── creators.py
-│   │   │           ├── earnings.py
-│   │   │           ├── messages.py
-│   │   │           ├── notifications.py
-│   │   │           ├── partner_applications.py
-│   │   │           ├── payments.py
-│   │   │           ├── payouts.py
-│   │   │           ├── search.py
-│   │   │           ├── services.py
-│   │   │           ├── support.py
-│   │   │           └── users.py
-│   │   ├── core/                  # Engine configurations
-│   │   │   ├── config.py          # Pydantic Settings (.env loader)
-│   │   │   ├── database.py        # Database sessions & engine lifecycle
-│   │   │   ├── logging.py         # Structured logging configuration
-│   │   │   └── security.py        # Passlib (Argon2id/bcrypt) & JWT operations
-│   │   ├── dependencies/          # Injected route dependencies
-│   │   │   ├── auth.py            # get_current_user, get_optional_user
-│   │   │   ├── database.py        # get_db session dependency
-│   │   │   └── rbac.py            # Role verification guards
+│   │   ├── api/                   # REST API routers (/api/v2)
+│   │   │   ├── health.py          # /health monitoring endpoints
+│   │   │   └── v2/                # REST v2 aggregation router & endpoints
+│   │   ├── core/                  # Core engine configuration (settings, database, celery)
+│   │   ├── dependencies/          # Injected route dependencies (auth, database, rbac)
 │   │   ├── models/                # SQLAlchemy declarative ORM models
-│   │   │   ├── base.py            # Base declarative model & GUID types
-│   │   │   ├── booking.py         # Booking model
-│   │   │   ├── collaboration.py   # Collaboration proposals
-│   │   │   ├── creator.py         # Creator profile
-│   │   │   ├── message.py         # Messaging & conversations
-│   │   │   ├── notification.py    # Database notifications
-│   │   │   ├── partner_application.py # KYC applications
-│   │   │   ├── payment.py         # Transaction records
-│   │   │   ├── payout.py          # Provider payout records
-│   │   │   ├── refund.py          # Refund transaction tracking
-│   │   │   ├── saved_service.py   # Wishlist items
-│   │   │   ├── service.py         # Service & Review models with Vector column
-│   │   │   ├── support.py         # Support tickets
-│   │   │   └── user.py            # User entity
-│   │   ├── repositories/          # Data access layer
+│   │   ├── modules/               # Domain-Driven Monolith modules (ai, booking, etc.)
+│   │   ├── schemas/               # Pydantic request/response schemas
 │   │   └── services/              # Pure business logic layer
-│   │       ├── admin.py
-│   │       ├── auth.py
-│   │       ├── booking.py
-│   │       ├── embedding.py       # pgvector & Gemini embedding generator
-│   │       ├── gemini.py          # Multi-turn travel assistant
-│   │       ├── payment.py         # Razorpay checkout & signature validator
-│   │       ├── search.py          # Semantic & relational search service
-│   │       └── ...
 │   ├── scripts/                   # CLI maintenance & seeding utilities
-│   │   ├── seed_dev_data.py       # Seeds 500+ users and 1,000+ Karnataka services
-│   │   ├── generate_embeddings.py # Batch vector embedding calculator
+│   │   ├── seed_dev_data.py       # Seeds realistic users and Karnataka services
+│   │   ├── backup_db.py           # Automated database backup utility
 │   │   └── clear_dev_data.py      # Cleans synthetic test data safely
-│   └── tests/                     # 100% passing Pytest integration test suite
-└── frontend/                      # React SPA Frontend
-    ├── package.json               # Scripts and dependency registry
-    ├── vite.config.ts             # Vite build settings & dev proxy
-    ├── tsconfig.json              # TypeScript compilation rules
-    └── src/
-        ├── app/                   # Root App, ErrorBoundary, Theme & Context Providers
-        ├── components/            # UI component design system
-        │   ├── availability/      # Date & time slot picker widgets
-        │   ├── booking/           # Booking modal & receipt dialogs
-        │   ├── cards/             # ServiceCard & skeleton loaders
-        │   ├── customer/          # Floating AI chat & support widgets
-        │   ├── layout/            # Navbars, sidebars, and footers for all roles
-        │   └── ui/                # Base primitives (Button, Dialog, Input, Select)
-        ├── contexts/              # React state contexts (Auth, Theme, I18n)
-        ├── hooks/                 # Custom reusable hooks
-        ├── i18n/                  # Translation dictionaries (English, Kannada, Hindi)
-        ├── layouts/               # CustomerLayout, PartnerLayout, AdminLayout, PublicLayout
-        ├── routes/                # Page route handlers
-        │   ├── admin/             # Admin console views
-        │   ├── customer/          # Marketplace, ServiceDetail, BookingDetail, Profile
-        │   ├── partner/           # Provider onboarding, listings, bookings, earnings
-        │   └── public/            # Landing, About, Contact, Auth views
-        ├── services/              # HTTP clients & Razorpay checkout integration
-        ├── types/                 # Shared TypeScript interfaces
-        └── tests/                 # Vitest component test suites
+│   └── tests/                     # Automated Pytest test suites (332 tests)
+├── frontend/                      # React SPA Client Service
+│   ├── Dockerfile                 # Frontend multi-stage build spec (Dev Vite / Prod Nginx)
+│   ├── nginx.conf                 # Production Nginx SPA configuration
+│   ├── package.json               # Node dependency manifest
+│   ├── vite.config.ts             # Vite build settings & dev proxy
+│   ├── tsconfig.json              # TypeScript compilation rules
+│   ├── src/                       # Application source (components, routes, services)
+│   │   ├── app/                   # Root App, ErrorBoundary, Theme & Context Providers
+│   │   ├── components/            # UI component design system
+│   │   ├── contexts/              # React state contexts (Auth, Theme, I18n)
+│   │   ├── hooks/                 # Custom reusable hooks
+│   │   ├── i18n/                  # Translation dictionaries (English, Kannada, Hindi)
+│   │   ├── layouts/               # CustomerLayout, PartnerLayout, AdminLayout, PublicLayout
+│   │   ├── routes/                # Page route handlers (customer, partner, admin, public)
+│   │   ├── services/              # HTTP clients & Razorpay checkout integration
+│   │   └── types/                 # Shared TypeScript interfaces
+│   ├── tests/                     # Vitest component & route unit tests (175 tests, 31 suites)
+│   └── e2e/                       # Playwright browser end-to-end suites
+├── nginx/                         # Production Reverse Proxy Configuration
+│   ├── nginx.conf                 # Master Nginx configuration
+│   └── conf.d/                    # Virtual host & proxy definitions
+└── docs/                          # Canonical Technical Documentation (v2)
+    ├── architecture.md            # System, AI agent, LangGraph & database architecture
+    ├── api.md                     # Complete REST API reference & payloads
+    ├── deployment.md              # Docker, PostgreSQL/pgvector, production deployment & CI/CD
+    ├── security.md                # Authentication, RBAC, tenant isolation & payment security
+    └── development.md             # Local setup, testing (pytest/vitest), Ruff linting & benchmarks
 ```
 
+> [!TIP]
+> **Canonical Documentation Quick Links**:
+> - 🏛️ [Architecture Specification](docs/architecture.md) — Modular monolith, AI workflow, LangGraph & pgvector
+> - 📡 [REST API Reference](docs/api.md) — Complete endpoint catalog, schemas & error models
+> - 🚀 [Deployment & Operations](docs/deployment.md) — Docker Compose, PostgreSQL 16 + pgvector, CI/CD pipelines
+> - 🛡️ [Security & Compliance](docs/security.md) — JWT auth, RBAC, HMAC payment verification & isolation
+> - 💻 [Developer Guide](docs/development.md) — Setup, testing (pytest/vitest), Ruff & HNSW benchmarks
+
 ---
+
 
 ## 7. Authentication System
 
@@ -711,7 +678,7 @@ cp .env.example .env
 
 #### 2. Backend Setup & Migrations
 ```bash
-cd v2/backend
+cd backend
 
 # Create and activate Python virtual environment
 python -m venv venv
@@ -743,12 +710,12 @@ npm install
 ### Option A: Local Development Server
 
 ```bash
-# Terminal 1 — Backend
-cd v2/backend
+# Terminal 1 — Backend (FastAPI / Uvicorn directly)
+cd backend
 uvicorn app.main:app --reload --port 8000
 
-# Terminal 2 — Frontend
-cd v2/frontend
+# Terminal 2 — Frontend (Vite directly, no Nginx needed)
+cd frontend
 npm run dev
 ```
 
@@ -767,18 +734,15 @@ docker compose up --build
 
 ## 27. Development Tools & Data Seeding
 
-NammaConnect V2 provides safe, environment-guarded CLI scripts for development and staging:
+NammaConnect provides safe, environment-guarded CLI scripts for development and staging:
 
 ```bash
-cd v2/backend
+cd backend
 
-# 1. Seed 500+ realistic users and 1,000+ Karnataka services (is_test_data=True)
+# 1. Seed realistic users and Karnataka services (is_test_data=True)
 python scripts/seed_dev_data.py
 
-# 2. Batch-generate 768-dim Gemini vector embeddings for all services
-python scripts/generate_embeddings.py
-
-# 3. Clean up synthetic test data (safely preserves real customer data)
+# 2. Clean up synthetic test data (safely preserves real customer data)
 python scripts/clear_dev_data.py
 ```
 
@@ -793,9 +757,9 @@ Both backend and frontend suites are fully automated:
 
 ```bash
 # ── Backend Pytest Suite ──
-cd v2/backend
+cd backend
 python -m pytest tests -v
-# Result: 100% Passing across all integration suites
+# Result: 100% Passing across all integration suites (320 tests)
 
 # ── Frontend Vitest Suite ──
 cd ../frontend
@@ -848,6 +812,6 @@ npm run build
 
 ---
 
-## 33. V2 Summary
+## 33. Architecture Summary
 
-NammaConnect V2 delivers a scalable, modular, and battle-tested architecture for sustainable agricultural tourism in Karnataka. With authoritative payments, pgvector-powered AI discovery, Alembic database migrations, and role-specific workflows, V2 provides a solid platform for rural hosts and travelers.
+NammaConnect delivers a scalable, modular, and battle-tested architecture for sustainable agricultural tourism in Karnataka. With authoritative payments, pgvector-powered AI discovery, Alembic database migrations, and role-specific workflows, the platform provides a solid foundation for rural hosts and travelers.

@@ -103,7 +103,7 @@ class MockLLMProvider(LLMProvider):
 
         # Default conversational response
         return LLMResponse(
-            content=f"I'm here to help you plan your journey across Karnataka. You can ask me to search for farm stays, recommend local spice tours, or check real-time availability.",
+            content="I'm here to help you plan your journey across Karnataka. You can ask me to search for farm stays, recommend local spice tours, or check real-time availability.",
             model_name="mock-gemini-v2",
             tokens_used=30,
         )

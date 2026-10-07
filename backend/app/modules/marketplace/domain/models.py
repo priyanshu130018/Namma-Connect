@@ -94,15 +94,43 @@ class Service(Base, TimestampMixin):
 
     # Synthetic test data indicator
     is_test_data = Column(Boolean, nullable=False, default=False, index=True)
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
 
     # Relationships
     category_rel = relationship("MarketplaceCategory", back_populates="services")
     reviews = relationship("Review", back_populates="service", cascade="all, delete-orphan")
     availabilities = relationship("ServiceAvailability", back_populates="service", cascade="all, delete-orphan")
+    media_items = relationship("ServiceMedia", back_populates="service", cascade="all, delete-orphan", order_by="ServiceMedia.sort_order")
 
     __table_args__ = (
         Index("idx_service_search", "category_slug", "status", "price"),
         Index("idx_service_location", "district", "state"),
+    )
+
+
+class ServiceMedia(Base, TimestampMixin):
+    """Authoritative Service Media Asset Record (Cloudinary-backed)."""
+
+    __tablename__ = "service_media"
+
+    id = Column(GUID(), primary_key=True, default=uuid.uuid4)
+    service_id = Column(GUID(), ForeignKey("services.id", ondelete="CASCADE"), nullable=False, index=True)
+    storage_provider = Column(String(50), nullable=False, default="cloudinary")
+    storage_key = Column(String(500), nullable=False, index=True)  # Cloudinary public_id
+    secure_url = Column(String(1000), nullable=False)
+    media_type = Column(String(50), nullable=False, default="image")  # image, video, raw
+    role = Column(String(50), nullable=False, default="gallery")  # primary, gallery, thumbnail
+    sort_order = Column(Integer, nullable=False, default=0)
+    width = Column(Integer, nullable=True)
+    height = Column(Integer, nullable=True)
+    format = Column(String(20), nullable=True)
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
+
+    # Relationships
+    service = relationship("Service", back_populates="media_items")
+
+    __table_args__ = (
+        Index("idx_service_media_lookup", "service_id", "role", "sort_order"),
     )
 
 
@@ -122,6 +150,8 @@ class ServiceAvailability(Base, TimestampMixin):
     is_blocked = Column(Boolean, nullable=False, default=False)
     price_override = Column(Numeric(12, 2), nullable=True)
     notes = Column(Text, nullable=True)
+    is_test_data = Column(Boolean, nullable=False, default=False, index=True)
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
 
     # Relationships
     service = relationship("Service", back_populates="availabilities")
@@ -140,6 +170,8 @@ class SavedService(Base, TimestampMixin):
     user_id = Column(GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     service_id = Column(GUID(), ForeignKey("services.id", ondelete="CASCADE"), nullable=False, index=True)
     notes = Column(Text, nullable=True)
+    is_test_data = Column(Boolean, nullable=False, default=False, index=True)
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
 
     # Relationships
     service = relationship("Service")

@@ -27,11 +27,11 @@ describe("Partner Application Components", () => {
         <PartnerSidebar isCollapsed={false} onToggleCollapse={() => {}} />
       </BrowserRouter>
     );
-    expect(screen.getByRole("link", { name: /^Services$/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Add New Service$/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Reports \/ Earnings$/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Profile$/i })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /^Settings$/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Dashboard$/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^My Listings$/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Bookings$/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Earnings$/i })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Provider Profile$/i })).toBeInTheDocument();
   });
 
   it("renders PartnerDashboard with KPI metrics", () => {
@@ -42,8 +42,8 @@ describe("Partner Application Components", () => {
     );
     expect(screen.getByRole("heading", { name: /Provider Operations Dashboard/i })).toBeInTheDocument();
     expect(screen.getByText("Total Services")).toBeInTheDocument();
-    expect(screen.getByText("Published Live")).toBeInTheDocument();
-    expect(screen.getByText("Pending Review")).toBeInTheDocument();
+    expect(screen.getByText("Bookings")).toBeInTheDocument();
+    expect(screen.getByText("Earnings")).toBeInTheDocument();
   });
 
   it("renders PartnerServices with table of services and + Add Service CTA", () => {

@@ -35,6 +35,7 @@ class Payment(Base, TimestampMixin):
     currency = Column(String(10), nullable=False, default="INR")
     status = Column(String(32), nullable=False, default=PaymentStatus.PENDING.value, index=True)
     is_test_data = Column(Boolean, nullable=False, default=False, index=True)
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
 
     # Relationships
     booking = relationship("Booking", back_populates="payments")
@@ -66,6 +67,7 @@ class Refund(Base, TimestampMixin):
     status = Column(String(32), nullable=False, default=RefundStatus.PENDING.value, index=True)
     processed_at = Column(DateTime, nullable=True)
     is_test_data = Column(Boolean, nullable=False, default=False, index=True)
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
 
     # Relationships
     payment = relationship("Payment", back_populates="refunds")
@@ -92,6 +94,7 @@ class Payout(Base, TimestampMixin):
     notes = Column(Text, nullable=True)
     processed_at = Column(DateTime, nullable=True)
     is_test_data = Column(Boolean, nullable=False, default=False, index=True)
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
 
     # Relationships
     provider = relationship("User", foreign_keys=[provider_id], backref="payouts")

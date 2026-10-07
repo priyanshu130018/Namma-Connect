@@ -6,3 +6,7 @@ dist
 .pytest_cache
 *.log
 tests
+e2e
+e2e-artifacts
+playwright-report
+test-results

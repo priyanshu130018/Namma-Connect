@@ -56,7 +56,8 @@
     "earnings": "Earnings & Payouts",
     "collaborations": "Collaborations",
     "admin": "Admin Center",
-    "logout": "Logout"
+    "logout": "Logout",
+    "signOut": "Sign Out"
   },
   "search": {
     "title": "Marketplace Catalog",

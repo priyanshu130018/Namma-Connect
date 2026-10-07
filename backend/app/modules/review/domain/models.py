@@ -31,6 +31,7 @@ class Review(Base, TimestampMixin):
     is_verified = Column(Boolean, nullable=False, default=True)
     status = Column(String(50), nullable=False, default=ReviewStatus.PUBLISHED.value)
     is_test_data = Column(Boolean, nullable=False, default=False, index=True)
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
 
     # Relationships
     service = relationship("Service", back_populates="reviews")

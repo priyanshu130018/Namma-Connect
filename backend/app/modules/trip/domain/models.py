@@ -32,6 +32,7 @@ class Trip(Base, TimestampMixin):
     status = Column(String(32), nullable=False, default=TripStatus.DRAFT.value, index=True)
     created_by = Column(String(32), nullable=False, default="USER")
     ai_generated = Column(Boolean, nullable=False, default=False)
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
 
     # Relationships
     days = relationship(
@@ -59,6 +60,7 @@ class TripDay(Base, TimestampMixin):
     date = Column(String(32), nullable=True)
     title = Column(String(255), nullable=True)
     notes = Column(Text, nullable=True)
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
 
     # Relationships
     trip = relationship("Trip", back_populates="days")
@@ -93,6 +95,7 @@ class TripItem(Base, TimestampMixin):
     sequence_order = Column(Integer, nullable=False, default=0)
     notes = Column(Text, nullable=True)
     is_booked = Column(Boolean, nullable=False, default=False)
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
 
     # Relationships
     trip_day = relationship("TripDay", back_populates="items")
@@ -118,6 +121,7 @@ class AITripPlan(Base, TimestampMixin):
     model_version = Column(String(64), nullable=False, default="v2.0.0")
     status = Column(String(32), nullable=False, default="COMPLETED")
     completed_at = Column(DateTime, nullable=True)
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
 
     # Relationships
     trip = relationship("Trip", back_populates="ai_plan")

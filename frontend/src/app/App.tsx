@@ -58,6 +58,7 @@ import {
   CustomerSupportHubPage,
   CustomerSupportTicketsPage,
   CustomerSupportTicketDetailPage,
+  NammaAIWorkspace,
 } from "@/routes/customer/CustomerPages";
 
 // Provider Routes
@@ -134,15 +135,21 @@ export function App() {
               <Route element={<CustomerLayout />}>
                 {/* Primary Top-level Authenticated Routes */}
                 <Route path="/home" element={<CustomerHomePage />} />
+                <Route path="/namma-ai" element={<NammaAIWorkspace />} />
+                <Route path="/app/namma-ai" element={<NammaAIWorkspace />} />
+                <Route path="/ai-trip-planner" element={<Navigate to="/namma-ai" replace />} />
+                <Route path="/AI-trip-planner" element={<Navigate to="/namma-ai" replace />} />
+                <Route path="/app/ai-trip-planner" element={<Navigate to="/namma-ai" replace />} />
+                <Route path="/app/AI-trip-planner" element={<Navigate to="/namma-ai" replace />} />
                 <Route path="/explore" element={<CustomerExplorePage />} />
                 <Route path="/explore/activities" element={<CustomerActivitiesPage />} />
                 <Route path="/explore/content-creators" element={<CustomerCreatorsPage />} />
                 <Route path="/explore/hotel-stay" element={<CustomerUnderProcessPage type="hotel" />} />
                 <Route path="/explore/food" element={<CustomerUnderProcessPage type="food" />} />
                 <Route path="/explore/transport" element={<CustomerUnderProcessPage type="transport" />} />
-                <Route path="/experience" element={<CustomerUnderProcessPage type="experience" />} />
-                <Route path="/discover" element={<CustomerUnderProcessPage type="discover" />} />
-                <Route path="/my-trip" element={<CustomerUnderProcessPage type="mytrip" />} />
+                <Route path="/experience" element={<Navigate to="/explore" replace />} />
+                <Route path="/discover" element={<Navigate to="/explore" replace />} />
+                <Route path="/my-trip" element={<CustomerMyTripPage />} />
                 <Route path="/profile" element={<CustomerProfilePage />} />
                 <Route path="/setting" element={<CustomerSettingsPage />} />
                 <Route path="/setting/change-password" element={<ChangePasswordPage />} />

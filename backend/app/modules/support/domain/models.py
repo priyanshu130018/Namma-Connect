@@ -37,6 +37,7 @@ class SupportTicket(Base, TimestampMixin):
     responses_json = Column(Text, nullable=False, default="[]")
     resolved_at = Column(DateTime, nullable=True)
     is_test_data = Column(Boolean, nullable=False, default=False, index=True)
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
 
     __table_args__ = (
         Index("idx_support_user_status", "user_id", "status"),

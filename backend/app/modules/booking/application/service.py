@@ -75,7 +75,11 @@ class BookingService:
         if payload.end_date and payload.end_date > payload.start_date:
             days = (payload.end_date - payload.start_date).days
 
-        unit_price = Decimal(str(service.price))
+        if avail and avail.price_override is not None:
+            unit_price = Decimal(str(avail.price_override))
+        else:
+            unit_price = Decimal(str(service.price))
+
         total_price = unit_price * Decimal(str(payload.guests_count)) * Decimal(str(days))
         tax_amount = (total_price * Decimal("0.05")).quantize(Decimal("0.01"))  # 5% GST
         platform_fee = (total_price * Decimal("0.03")).quantize(Decimal("0.01"))  # 3% fee
@@ -96,6 +100,7 @@ class BookingService:
             total_amount=final_amount,
             status=BookingStatus.PENDING.value,
             special_requests=payload.special_requests,
+            is_synthetic=getattr(user, "is_synthetic", False),
         )
         saved = self.repo.save(booking)
         return self._serialize_booking(saved)

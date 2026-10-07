@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.models.user import User
 from app.models.booking import Booking
+from app.models.service import Service
 from app.repositories.service import ServiceRepository
 from app.repositories.booking import BookingRepository
 from app.services.marketplace import MarketplaceService
@@ -155,9 +156,19 @@ class BookingService:
                     detail="Account verification required. Please verify your email or mobile number before making a reservation.",
                 )
 
-        service = ServiceRepository.get_by_id(db, req.service_id)
+        # Concurrency & Race Condition Guard: Acquire pessimistic row lock on the service to serialize bookings
+        try:
+            service = db.query(Service).filter(Service.id == req.service_id).with_for_update().first()
+        except Exception:
+            service = ServiceRepository.get_by_id(db, req.service_id)
+
         if not service:
             service = ServiceRepository.get_by_slug(db, req.service_id)
+            if service:
+                try:
+                    service = db.query(Service).filter(Service.id == service.id).with_for_update().first()
+                except Exception:
+                    pass
 
         if not service:
             raise HTTPException(

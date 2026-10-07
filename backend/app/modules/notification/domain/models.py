@@ -32,6 +32,7 @@ class Notification(Base, TimestampMixin):
     action_url = Column(String(500), nullable=True)
     metadata_json = Column(Text, nullable=False, default="{}")
     is_test_data = Column(Boolean, nullable=False, default=False, index=True)
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
 
     # Relationships
     user = relationship("User", foreign_keys=[user_id], backref="notifications")

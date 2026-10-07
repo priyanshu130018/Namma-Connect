@@ -63,3 +63,25 @@ def change_user_password(
     """Change account password."""
     user_service.change_password(current_user, payload)
     return APIResponse(success=True, message="Password changed successfully", data={})
+
+
+@router.get("/me/travel-preferences", response_model=APIResponse[dict])
+def get_user_travel_preferences(
+    current_user: User = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service),
+):
+    """Retrieve customer travel preferences."""
+    prefs = user_service.get_travel_preferences(current_user)
+    return APIResponse(success=True, message="Travel preferences retrieved", data=prefs)
+
+
+@router.put("/me/travel-preferences", response_model=APIResponse[dict])
+def update_user_travel_preferences(
+    payload: dict,
+    current_user: User = Depends(get_current_user),
+    user_service: UserService = Depends(get_user_service),
+):
+    """Update customer travel preferences."""
+    prefs = user_service.update_travel_preferences(current_user, payload)
+    return APIResponse(success=True, message="Travel preferences updated", data=prefs)
+

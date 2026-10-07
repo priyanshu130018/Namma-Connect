@@ -23,8 +23,20 @@ export interface AIMessageResponse {
     recommended_action: string;
     suggested_params: Record<string, any>;
   };
+  trip_id?: string;
+  itinerary?: AgentRunResponse["itinerary"];
+  budget?: AgentRunResponse["budget"];
+  changed_items?: string[];
+  selected_services?: any[];
+  current_agent_step?: string;
+  approval_required?: boolean;
+  approval_prompt?: string;
+  approval_status?: string;
+  booking_state?: any;
+  extracted_requirements?: any;
   created_at: string;
 }
+
 
 export interface AIConversationResponse {
   id: string;
@@ -282,3 +294,148 @@ export async function getTravelConversations() {
     data: list.items,
   };
 }
+
+// ── V2 Unified LangGraph Travel Agent API ──
+
+export interface AgentRunRequest {
+  conversation_id?: string;
+  message: string;
+}
+
+export interface AgentExecutionTraceStep {
+  step: string;
+  action?: string;
+  message?: string;
+  district?: string;
+  duration_days?: number;
+  count?: number;
+  trip_id?: string;
+  [key: string]: any;
+}
+
+export interface AgentRunResponse {
+  id: string;
+  message_id: string;
+  conversation_id: string;
+  role: string;
+  content: string;
+  intent: string;
+  current_agent_step: string;
+  trip_id?: string;
+  itinerary?: {
+    total_days?: number;
+    total_estimated_cost?: number;
+    currency?: string;
+    summary?: string;
+    days?: Array<{
+      day_number: number;
+      date?: string;
+      title?: string;
+      estimated_day_cost?: number;
+      day_notes?: string;
+      items: Array<{
+        id: string;
+        service_id: string;
+        title: string;
+        category: string;
+        location?: string;
+        district?: string;
+        start_time?: string;
+        end_time?: string;
+        estimated_price: number;
+        rating?: number;
+        primary_image?: string;
+        provider_name?: string;
+        notes?: string;
+      }>;
+    }>;
+  };
+  search_results: Array<{
+    id: string;
+    title: string;
+    slug?: string;
+    category?: string;
+    district?: string;
+    price: number;
+    rating?: number;
+    primary_image?: string;
+    provider_name?: string;
+    available?: boolean;
+    available_spots?: number;
+  }>;
+  selected_services: any[];
+  availability_results: any[];
+  booking_state?: {
+    success: boolean;
+    booking_id?: string;
+    booking_code?: string;
+    payment_order_id?: string;
+    total_amount?: number;
+    currency?: string;
+    status?: string;
+    error?: string;
+    [key: string]: any;
+  };
+  extracted_requirements?: {
+    destination_district?: string;
+    target_date?: string;
+    duration_days?: number;
+    party_size?: number;
+    max_budget?: number;
+    preferred_categories?: string[];
+    [key: string]: any;
+  };
+  budget?: {
+    stay?: number;
+    activities?: number;
+    food?: number;
+    transport?: number;
+    total?: number;
+    remaining?: number;
+    max_budget?: number;
+    [key: string]: any;
+  };
+  approval_required?: boolean;
+  approval_status?: string;
+  approval_prompt?: string;
+  approval_action?: string;
+  payment_status?: string;
+  changed_items?: string[];
+  execution_trace: AgentExecutionTraceStep[];
+  tool_calls: any[];
+  recommended_services: any[];
+  trip_planner_handoff?: any;
+  errors: string[];
+  created_at: string;
+}
+
+export interface AgentStateResponse {
+  user_id?: string;
+  conversation_id: string;
+  trip_id?: string;
+  itinerary?: Record<string, any>;
+  budget?: Record<string, any>;
+  search_results: any[];
+  selected_services: any[];
+  availability_results: any[];
+  booking_state?: Record<string, any>;
+  approval_required?: boolean;
+  approval_status?: string;
+  approval_prompt?: string;
+  approval_action?: string;
+  payment_status?: string;
+  changed_items?: string[];
+  current_agent_step: string;
+  errors: string[];
+}
+
+export async function runAgent(data: AgentRunRequest): Promise<AgentRunResponse> {
+  const response = await apiClient.post<AgentRunResponse>("/ai/agent/run", data);
+  return response.data;
+}
+
+export async function getAgentState(conversationId: string): Promise<AgentStateResponse> {
+  const response = await apiClient.get<AgentStateResponse>(`/ai/agent/state/${conversationId}`);
+  return response.data;
+}
+

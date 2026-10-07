@@ -25,11 +25,17 @@ from app.schemas.service import (
     ServiceAvailabilityResponse,
     ServiceCreatePayload,
     ServiceUpdatePayload,
+    normalize_amenities,
 )
 
 
 class MarketplaceService:
     """Business logic for Marketplace Discovery, Search, and Availability."""
+
+    @classmethod
+    def normalize_amenities(cls, raw: Any) -> Tuple[List[str], Dict[str, Any]]:
+        """Normalize raw amenities data into a list of strings and category-specific details dict."""
+        return normalize_amenities(raw)
 
     @classmethod
     def _to_service_response(cls, s: Service, db: Optional[Session] = None) -> ServiceResponse:
@@ -44,10 +50,10 @@ class MarketplaceService:
         except Exception:
             inclusions = []
 
-        try:
-            amenities = json.loads(s.amenities_json) if s.amenities_json else []
-        except Exception:
-            amenities = []
+        raw_amenities = getattr(s, "amenities_json", None)
+        if raw_amenities is None:
+            raw_amenities = getattr(s, "amenities", None)
+        amenities, specific_details = cls.normalize_amenities(raw_amenities)
 
         provider_verified = getattr(s, "is_verified", True)
         provider_email = None
@@ -93,6 +99,7 @@ class MarketplaceService:
             images=images,
             inclusions=inclusions,
             amenities=amenities,
+            specific_details=specific_details,
             rejection_reason=s.rejection_reason,
             reviewed_by=str(s.reviewed_by) if s.reviewed_by else None,
             reviewed_at=s.reviewed_at,
@@ -409,7 +416,7 @@ class MarketplaceService:
 
             # Slot generation for time_slot services
             time_slots: List[TimeSlotItem] = []
-            if booking_model in ["time_slot", "single_date"] and is_available:
+            if booking_model in ["time_slot", "single_date"]:
                 slots_template = [
                     {"id": f"{date_str}-slot-1", "start_time": "09:00 AM", "end_time": "12:30 PM", "capacity": max_cap},
                     {"id": f"{date_str}-slot-2", "start_time": "02:00 PM", "end_time": "05:30 PM", "capacity": max_cap},
@@ -421,14 +428,14 @@ class MarketplaceService:
 
                 for slot_t in slots_template:
                     slot_booked = booked_by_slot.get(slot_t["id"], 0)
-                    slot_base_rem = max(0, slot_t["capacity"] - (i % 3) * 2)
-                    slot_rem = max(0, slot_base_rem - slot_booked)
+                    slot_base_rem = max(0, slot_t["capacity"] - (i % 3) * 2) if is_available else 0
+                    slot_rem = max(0, min(slot_base_rem - slot_booked, rem_cap))
                     time_slots.append(
                         TimeSlotItem(
                             id=slot_t["id"],
                             start_time=slot_t["start_time"],
                             end_time=slot_t["end_time"],
-                            is_available=slot_rem > 0,
+                            is_available=slot_rem > 0 and is_available,
                             capacity=slot_t["capacity"],
                             remaining_capacity=slot_rem,
                         )

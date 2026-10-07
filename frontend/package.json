@@ -1,5 +1,5 @@
 {
-  "name": "namma-connect-v2-frontend",
+  "name": "namma-connect-frontend",
   "private": true,
   "version": "2.0.0",
   "type": "module",
@@ -8,8 +8,9 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest",
-    "test:run": "vitest run"
+    "test": "vitest run",
+    "test:run": "vitest run",
+    "test:e2e": "node e2e/user_journey_playwright.mjs"
   },
   "dependencies": {
     "@react-oauth/google": "^0.13.5",
@@ -31,6 +32,7 @@
     "@vitejs/plugin-react": "^4.2.1",
     "autoprefixer": "^10.4.17",
     "jsdom": "^24.0.0",
+    "playwright": "^1.63.0",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3",

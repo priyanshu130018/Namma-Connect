@@ -393,7 +393,7 @@ export function CustomerNavbar({ onToggleSidebar }: CustomerNavbarProps) {
               }}
               className="text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/50"
             >
-              {t("nav.signOut")}
+              {t("nav.signOut") || "Sign Out"}
             </DropdownItem>
           </Dropdown>
         </div>

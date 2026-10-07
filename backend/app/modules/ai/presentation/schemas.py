@@ -24,7 +24,20 @@ class AIMessageResponse(BaseModel):
     tool_calls: Optional[List[Dict[str, Any]]] = None
     recommended_services: Optional[List[Dict[str, Any]]] = None
     trip_planner_handoff: Optional[Dict[str, Any]] = None
+    trip_id: Optional[str] = None
+    itinerary: Optional[Dict[str, Any]] = None
+    budget: Optional[Dict[str, Any]] = None
+    changed_items: Optional[List[str]] = None
+    selected_services: Optional[List[Dict[str, Any]]] = None
+    current_agent_step: Optional[str] = None
+    approval_required: Optional[bool] = False
+    approval_prompt: Optional[str] = None
+    approval_status: Optional[str] = None
+    approval_action: Optional[str] = None
+    booking_state: Optional[Dict[str, Any]] = None
+    extracted_requirements: Optional[Dict[str, Any]] = None
     created_at: str
+
 
 
 class AIConversationResponse(BaseModel):
@@ -81,3 +94,57 @@ class TripPlanResponse(BaseModel):
     clarification_questions: List[str] = []
     associated_trip_id: Optional[str] = None
     last_error: Optional[str] = None
+
+
+# ── Unified LangGraph Agent ──
+
+class AgentRunRequest(BaseModel):
+    message: str = Field(..., min_length=1, description="Natural language prompt for Namma AI")
+    conversation_id: Optional[str] = Field(None, description="Active conversation thread ID")
+
+
+class AgentRunResponse(BaseModel):
+    message_id: str
+    conversation_id: str
+    role: str
+    content: str
+    current_agent_step: str
+    trip_id: Optional[str] = None
+    itinerary: Optional[Dict[str, Any]] = None
+    budget: Optional[Dict[str, Any]] = None
+    search_results: Optional[List[Dict[str, Any]]] = []
+    selected_services: Optional[List[Dict[str, Any]]] = []
+    availability_results: Optional[List[Dict[str, Any]]] = []
+    booking_state: Optional[Dict[str, Any]] = None
+    approval_required: bool = False
+    approval_status: Optional[str] = None
+    approval_prompt: Optional[str] = None
+    approval_action: Optional[str] = None
+    payment_status: Optional[str] = None
+    changed_items: Optional[List[str]] = []
+    extracted_requirements: Optional[Dict[str, Any]] = None
+    execution_trace: Optional[List[Dict[str, Any]]] = []
+    errors: Optional[List[str]] = []
+    created_at: str
+
+
+class AgentStateResponse(BaseModel):
+    conversation_id: str
+    checkpoint_id: Optional[str] = None
+    current_agent_step: str
+    trip_id: Optional[str] = None
+    itinerary: Optional[Dict[str, Any]] = None
+    budget: Optional[Dict[str, Any]] = None
+    search_results: Optional[List[Dict[str, Any]]] = []
+    selected_services: Optional[List[Dict[str, Any]]] = []
+    availability_results: Optional[List[Dict[str, Any]]] = []
+    booking_state: Optional[Dict[str, Any]] = None
+    approval_required: bool = False
+    approval_status: Optional[str] = None
+    approval_prompt: Optional[str] = None
+    approval_action: Optional[str] = None
+    payment_status: Optional[str] = None
+    changed_items: Optional[List[str]] = []
+    execution_trace: Optional[List[Dict[str, Any]]] = []
+    errors: Optional[List[str]] = []
+

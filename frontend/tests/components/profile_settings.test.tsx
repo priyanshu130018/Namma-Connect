@@ -40,8 +40,8 @@ describe("Customer Profile & Settings Suite", () => {
       expect(screen.getAllByText(/Priya Nair/i).length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText(/priya.nair@example.com/i).length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText(/Mangaluru, Karnataka/i).length).toBeGreaterThanOrEqual(1);
-      expect(screen.getByText(/Basic Info/i)).toBeInTheDocument();
-      expect(screen.getAllByText(/✓ Verified/i).length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByRole("button", { name: /Edit Profile/i })).toBeInTheDocument();
+      expect(screen.getAllByText(/Verified/i).length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -76,15 +76,17 @@ describe("Customer Profile & Settings Suite", () => {
     fireEvent.click(screen.getByRole("button", { name: /Save Changes/i }));
 
     await waitFor(() => {
-      expect(updateSpy).toHaveBeenCalledWith({
-        full_name: "Priya R. Nair",
-        mobile: "+91 98765 11223",
-        location: "Bengaluru, Karnataka",
-      });
+      expect(updateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          full_name: "Priya R. Nair",
+          mobile: "+91 98765 11223",
+          location: "Bengaluru, Karnataka",
+        })
+      );
     });
   });
 
-  it("renders CustomerSettingsPage with Under Process state and functioning Theme/Language options", () => {
+  it("renders CustomerSettingsPage with functioning Theme/Language options", () => {
     render(
       <MemoryRouter>
         <CustomerSettingsPage />
@@ -92,8 +94,7 @@ describe("Customer Profile & Settings Suite", () => {
     );
 
     expect(screen.getByRole("heading", { name: /Settings & Preferences/i })).toBeInTheDocument();
-    expect(screen.getByText(/Settings are Under Process/i)).toBeInTheDocument();
-    expect(screen.getByText(/Interface Theme/i)).toBeInTheDocument();
-    expect(screen.getByText(/Regional Language/i)).toBeInTheDocument();
+    expect(screen.getByText(/1\. Security/i)).toBeInTheDocument();
+    expect(screen.getByText(/2\. App/i)).toBeInTheDocument();
   });
 });

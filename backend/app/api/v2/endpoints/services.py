@@ -77,6 +77,38 @@ def list_activity_categories(db: Session = Depends(get_db)):
             "description": "Heritage temple circuits, palace walks, and ancient monument tours.",
             "listingCount": 0,
         },
+        {
+            "id": "photography",
+            "slug": "photography",
+            "name": "Photography 📷",
+            "icon": "camera",
+            "description": "Professional landscape, portrait, and rural lifestyle photography sessions.",
+            "listingCount": 0,
+        },
+        {
+            "id": "videography",
+            "slug": "videography",
+            "name": "Videography 🎥",
+            "icon": "video",
+            "description": "Cinematic documentary, travel video, and cultural footage production.",
+            "listingCount": 0,
+        },
+        {
+            "id": "drone-aerial",
+            "slug": "drone-aerial",
+            "name": "Drone & Aerial 🚁",
+            "icon": "wind",
+            "description": "High-resolution DGCA-compliant aerial cinematography and estate mapping.",
+            "listingCount": 0,
+        },
+        {
+            "id": "travel-reels",
+            "slug": "travel-reels",
+            "name": "Travel Reels 📱",
+            "icon": "film",
+            "description": "Viral social media reels, short-form storytelling, and content packages.",
+            "listingCount": 0,
+        },
     ]
     return APIResponse(
         success=True,

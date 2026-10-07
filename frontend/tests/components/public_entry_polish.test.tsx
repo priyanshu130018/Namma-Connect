@@ -12,9 +12,8 @@ describe("Public Website & Entry Flow Polish Suite", () => {
     render(<App />);
     expect(screen.getByRole("heading", { name: /Authentic Farm Tourism/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /How Namma Connect Works/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Marketplace Service Categories/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Become a NammaConnect Partner/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /Creator Collaborations for Rural Tourism/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Explore Authentic Categories/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Engineered for Seamless Rural Journeys/i })).toBeInTheDocument();
 
     // Verify public navbar contains only public links
     expect(screen.getAllByRole("link", { name: /About/i }).length).toBeGreaterThanOrEqual(1);
@@ -35,7 +34,7 @@ describe("Public Website & Entry Flow Polish Suite", () => {
     window.history.pushState({}, "Contact", "/contact");
     render(<App />);
     expect(screen.getByRole("heading", { name: /Contact & Support/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Your Name/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Your Full Name/i)).toBeInTheDocument();
   });
 
   it("renders Public FAQ page without authentication", () => {

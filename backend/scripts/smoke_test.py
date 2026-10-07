@@ -14,7 +14,7 @@ API_V2 = f"{BASE_URL}/api/v2"
 
 def run_smoke_tests():
     print("=" * 60)
-    print(f"Namma Connect V2 Operational Smoke Test Suite")
+    print("Namma Connect V2 Operational Smoke Test Suite")
     print(f"Target: {BASE_URL}")
     print("=" * 60)
 

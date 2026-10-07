@@ -1,7 +1,8 @@
 """Marketplace presentation schemas."""
 
 from typing import Optional, List, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+from app.schemas.service import normalize_amenities
 
 
 class CategoryResponse(BaseModel):
@@ -46,7 +47,25 @@ class ServiceResponse(BaseModel):
     images: List[str] = Field(default_factory=list)
     inclusions: List[str] = Field(default_factory=list)
     amenities: List[str] = Field(default_factory=list)
+    specific_details: Optional[Dict[str, Any]] = Field(default_factory=dict)
     created_at: str
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_amenities_and_details(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            amenities_val = data.get("amenities")
+            amenities_list, extra_details = normalize_amenities(amenities_val)
+            data["amenities"] = amenities_list
+            if extra_details:
+                existing_details = data.get("specific_details") or {}
+                if isinstance(existing_details, dict):
+                    merged = dict(extra_details)
+                    merged.update(existing_details)
+                    data["specific_details"] = merged
+                else:
+                    data["specific_details"] = extra_details
+        return data
 
 
 class ServiceCreateRequest(BaseModel):

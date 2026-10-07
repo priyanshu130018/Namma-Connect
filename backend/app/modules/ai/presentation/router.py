@@ -19,6 +19,9 @@ from app.modules.ai.presentation.schemas import (
     RefineTripPlanRequest,
     ConfirmTripPlanRequest,
     TripPlanResponse,
+    AgentRunRequest,
+    AgentRunResponse,
+    AgentStateResponse,
 )
 
 router = APIRouter(prefix="/ai", tags=["AI"])
@@ -131,3 +134,26 @@ def get_booking_handoff(
 ):
     """Retrieve pre-booking checkout handoff payload without creating premature bookings or payments."""
     return service.get_booking_handoff(user=current_user, plan_id=plan_id)
+
+
+# ── Unified LangGraph Agent Endpoints ──
+
+@router.post("/agent/run", response_model=AgentRunResponse, status_code=status.HTTP_200_OK)
+def run_ai_agent(
+    payload: AgentRunRequest,
+    current_user: User = Depends(get_current_active_user),
+    service: AIService = Depends(get_ai_service),
+):
+    """Run the unified LangGraph travel agent for natural-language inquiry, planning, or booking."""
+    return service.run_agent(user=current_user, payload=payload)
+
+
+@router.get("/agent/state/{conversation_id}", response_model=AgentStateResponse, status_code=status.HTTP_200_OK)
+def get_ai_agent_state(
+    conversation_id: str,
+    current_user: User = Depends(get_current_active_user),
+    service: AIService = Depends(get_ai_service),
+):
+    """Retrieve persisted LangGraph agent checkpoint state for an active conversation."""
+    return service.get_agent_state(user=current_user, conversation_id=conversation_id)
+

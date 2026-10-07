@@ -29,18 +29,33 @@ def test_list_services_returns_published_catalog(client: TestClient):
 
 def test_list_services_category_and_price_filtering(client: TestClient):
     """Verify category and max_price filters work at SQL level."""
-    # Filter by Stay category
-    response = client.get("/api/v2/services?category=stay")
-    assert response.status_code == 200
-    data = response.json()["data"]
-    for s in data["services"]:
-        assert s["category_slug"] == "stay" or "stay" in s["category"].lower()
+    # 1. Request services with category=farm
+    resp_farm = client.get("/api/v2/services?category=farm")
+    assert resp_farm.status_code == 200
+    data_farm = resp_farm.json()["data"]
+    assert len(data_farm["services"]) > 0
+    for s in data_farm["services"]:
+        assert s["category_slug"] in ["farm", "stay"] or "farm" in s["category"].lower()
 
-    # Filter with max_price = 1000
+    # 2. Request services with category=adventure
+    resp_adv = client.get("/api/v2/services?category=adventure")
+    assert resp_adv.status_code == 200
+    data_adv = resp_adv.json()["data"]
+    assert len(data_adv["services"]) > 0
+    for s in data_adv["services"]:
+        assert s["category_slug"] in ["adventure", "guides-tours"] or "adventure" in s["category"].lower()
+
+    # 3. Filter with max_price = 1000
     resp_price = client.get("/api/v2/services?max_price=1000")
     assert resp_price.status_code == 200
     for s in resp_price.json()["data"]["services"]:
         assert s["price"] <= 1000.0
+
+    # 4. Filter with category=farm and q=Harvest
+    resp_combo = client.get("/api/v2/services?category=farm&q=Harvest")
+    assert resp_combo.status_code == 200
+    for s in resp_combo.json()["data"]["services"]:
+        assert s["category_slug"] in ["farm", "stay"] or "farm" in s["category"].lower()
 
 
 def test_get_service_detail_success_and_404(client: TestClient):

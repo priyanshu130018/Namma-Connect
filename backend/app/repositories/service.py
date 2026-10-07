@@ -78,42 +78,66 @@ class ServiceRepository:
 
             cat_conditions = []
             for c_item in cat_list:
-                if c_item in ["farm", "farms", "agriculture", "farm stays", "farms & agriculture", "experiences", "experience"]:
+                if c_item in ["farm", "farms", "agriculture", "farm stays", "farms & agriculture", "farm tours & experiences"]:
                     cat_conditions.append(or_(
-                        Service.category_slug.in_(["stay", "experiences", "farm"]),
+                        Service.category_slug.in_(["stay", "farm"]),
                         Service.category.ilike("%farm%"),
                         Service.category.ilike("%agricultur%"),
-                        Service.category.ilike("%experience%"),
                     ))
-                elif c_item in ["adventure", "trekking"]:
+                elif c_item in ["adventure", "trekking", "adventure & trekking"]:
                     cat_conditions.append(or_(
                         Service.category_slug.in_(["adventure", "guides-tours"]),
                         Service.category.ilike("%adventure%"),
                         Service.category.ilike("%trek%"),
                     ))
-                elif c_item in ["water-sports", "water", "water sports"]:
+                elif c_item in ["water-sports", "water", "water sports", "water sports & activities"]:
                     cat_conditions.append(or_(
                         Service.category_slug == "water-sports",
                         Service.category.ilike("%water%"),
                         Service.category.ilike("%sport%"),
                     ))
-                elif c_item in ["wildlife"]:
+                elif c_item in ["wildlife", "wildlife tours"]:
                     cat_conditions.append(or_(
                         Service.category_slug == "wildlife",
                         Service.category.ilike("%wildlife%"),
                         Service.category.ilike("%safari%"),
                     ))
-                elif c_item in ["food", "dining", "cooking"]:
+                elif c_item in ["food", "dining", "cooking", "food tours & cooking", "food & culinary"]:
                     cat_conditions.append(or_(
                         Service.category_slug == "food",
                         Service.category.ilike("%food%"),
                         Service.category.ilike("%cook%"),
+                        Service.category.ilike("%culinary%"),
                     ))
-                elif c_item in ["cultural-historical", "cultural", "historical", "culture", "history"]:
+                elif c_item in ["cultural-historical", "cultural", "historical", "culture", "history", "cultural & historical tours", "heritage & culture"]:
                     cat_conditions.append(or_(
                         Service.category_slug.in_(["cultural-historical", "events"]),
                         Service.category.ilike("%cultur%"),
                         Service.category.ilike("%histor%"),
+                        Service.category.ilike("%heritage%"),
+                    ))
+                elif c_item in ["photography"]:
+                    cat_conditions.append(or_(
+                        Service.category_slug == "photography",
+                        Service.category.ilike("%photography%"),
+                        Service.category.ilike("%photo%"),
+                    ))
+                elif c_item in ["videography"]:
+                    cat_conditions.append(or_(
+                        Service.category_slug == "videography",
+                        Service.category.ilike("%videography%"),
+                        Service.category.ilike("%video%"),
+                    ))
+                elif c_item in ["drone-aerial", "drone & aerial", "drone"]:
+                    cat_conditions.append(or_(
+                        Service.category_slug.in_(["drone-aerial", "drone"]),
+                        Service.category.ilike("%drone%"),
+                        Service.category.ilike("%aerial%"),
+                    ))
+                elif c_item in ["travel-reels", "travel reels", "reels"]:
+                    cat_conditions.append(or_(
+                        Service.category_slug.in_(["travel-reels", "reels"]),
+                        Service.category.ilike("%reel%"),
                     ))
                 elif c_item in ["stays", "stay", "homestay", "farmstay", "farm stay"]:
                     cat_conditions.append(or_(
@@ -156,6 +180,10 @@ class ServiceRepository:
             query = query.order_by(desc(Service.price))
         elif sort_by == "newest":
             query = query.order_by(desc(Service.created_at))
+        elif sort_by in ["popular", "most_visited"]:
+            query = query.order_by(desc(Service.reviews_count), desc(Service.rating))
+        elif sort_by == "recommended":
+            query = query.order_by(desc(Service.is_verified), desc(Service.rating), desc(Service.reviews_count))
         else:  # rating / relevance default
             query = query.order_by(desc(Service.rating), desc(Service.reviews_count))
 

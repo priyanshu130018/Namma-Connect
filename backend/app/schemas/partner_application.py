@@ -128,6 +128,7 @@ class PartnerApplicationResponse(BaseModel):
     services: List[str]
     activities: List[str]
     draft_step: int = 1
+    is_synthetic: bool = False
     status: str
     rejection_reason: Optional[str] = None
     reviewed_by: Optional[str] = None

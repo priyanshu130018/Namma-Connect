@@ -21,6 +21,7 @@ import { createBooking } from "@/services/bookingService";
 import { createPaymentOrder, verifyPayment, loadRazorpayScript } from "@/services/paymentService";
 import { MarketplaceService, TimeSlot, BookingItem, PaymentVerificationResult } from "@/types";
 import { useAuth } from "@/app/providers";
+import { useToast } from "@/hooks/useToast";
 
 declare global {
   interface Window {
@@ -35,6 +36,7 @@ export interface BookingReviewModalProps {
   startDate: string;
   endDate?: string;
   selectedSlot?: TimeSlot | null;
+  onBookingSuccess?: (booking: BookingItem) => void;
 }
 
 export function BookingReviewModal({
@@ -44,12 +46,15 @@ export function BookingReviewModal({
   startDate,
   endDate,
   selectedSlot,
+  onBookingSuccess,
 }: BookingReviewModalProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
 
 
   const [guestCount, setGuestCount] = useState<number>(1);
+  const [guestNames, setGuestNames] = useState<string[]>([user?.full_name || ""]);
   const [specialRequests, setSpecialRequests] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -85,12 +90,14 @@ export function BookingReviewModal({
   const handleIncrementGuests = () => {
     if (guestCount < maxGuests) {
       setGuestCount((prev) => prev + 1);
+      setGuestNames((prev) => [...prev, ""]);
     }
   };
 
   const handleDecrementGuests = () => {
     if (guestCount > 1) {
       setGuestCount((prev) => prev - 1);
+      setGuestNames((prev) => prev.slice(0, -1));
     }
   };
 
@@ -101,6 +108,14 @@ export function BookingReviewModal({
       return;
     }
 
+    // Resolved guest list: use user's name or Guest index if unprovided
+    const resolvedGuests = guestNames.map((name, i) => {
+      const trimmed = (name || "").trim();
+      if (trimmed) return trimmed;
+      if (i === 0 && user?.full_name) return user.full_name;
+      return `Guest ${i + 1}`;
+    });
+
     setIsSubmitting(true);
     setErrorMessage(null);
 
@@ -109,6 +124,13 @@ export function BookingReviewModal({
         ? `${selectedSlot.start_time} – ${selectedSlot.end_time}`
         : undefined;
 
+      const guestListSummary = resolvedGuests
+        .map((n, i) => `Guest ${i + 1}: ${n}`)
+        .join(", ");
+      const combinedRequests = specialRequests.trim()
+        ? `Guests: ${guestListSummary}\nNotes: ${specialRequests.trim()}`
+        : `Guests: ${guestListSummary}`;
+
       const booking = await createBooking({
         service_id: service.id,
         start_date: startDate,
@@ -116,10 +138,14 @@ export function BookingReviewModal({
         time_slot_id: selectedSlot?.id || undefined,
         time_slot_label: slotLabel,
         guest_count: guestCount,
-        special_requests: specialRequests.trim() || undefined,
+        special_requests: combinedRequests,
       });
 
       setCreatedBooking(booking);
+      toast.info(`Reservation #${booking.booking_code} created successfully! (Status: ${booking.status})`);
+      if (onBookingSuccess) {
+        onBookingSuccess(booking);
+      }
     } catch (err: any) {
       setErrorMessage(
         err.response?.data?.detail ||
@@ -168,6 +194,7 @@ export function BookingReviewModal({
 
           setConfirmedPayment(verification);
           setCreatedBooking((prev) => (prev ? { ...prev, status: "CONFIRMED" } : null));
+          toast.success(`Booking #${createdBooking.booking_code} confirmed! Payment verified.`);
         } catch (err: any) {
           setPaymentError(
             err.response?.data?.detail ||
@@ -246,11 +273,15 @@ export function BookingReviewModal({
   };
 
   const handleCloseAndReset = () => {
+    const shouldNavigate = !!createdBooking;
     setCreatedBooking(null);
     setConfirmedPayment(null);
     setErrorMessage(null);
     setPaymentError(null);
     onClose();
+    if (shouldNavigate) {
+      navigate("/app/my-trip");
+    }
   };
 
   return (
@@ -276,29 +307,29 @@ export function BookingReviewModal({
       {/* ── 1. Confirmed Payment & Booking Success View ── */}
       {confirmedPayment && createdBooking ? (
         <div className="space-y-5 py-2 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-50 text-emerald-600 border border-emerald-200 shadow-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800 shadow-sm">
             <CheckCircle2 className="h-9 w-9" />
           </div>
 
           <div className="space-y-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-800">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
               Payment Verified & Booking Confirmed
             </span>
-            <h3 className="text-xl font-extrabold text-slate-900">
+            <h3 className="text-xl font-extrabold text-slate-900 dark:text-slate-100">
               {createdBooking.booking_code}
             </h3>
-            <p className="text-xs text-slate-500 font-semibold">
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
               Status:{" "}
-              <span className="text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 uppercase font-mono font-bold">
+              <span className="text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800 uppercase font-mono font-bold">
                 CONFIRMED
               </span>
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left text-xs space-y-2 text-slate-700">
-            <div className="font-bold text-slate-900 border-b border-slate-200 pb-1.5 flex justify-between">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-4 text-left text-xs space-y-2 text-slate-700 dark:text-slate-300">
+            <div className="font-bold text-slate-900 dark:text-slate-100 border-b border-slate-200 dark:border-slate-800 pb-1.5 flex justify-between">
               <span>{createdBooking.service_title}</span>
-              <span className="text-emerald-700 font-bold">Paid: {formatCurrency(confirmedPayment.amount)}</span>
+              <span className="text-emerald-700 dark:text-emerald-400 font-bold">Paid: {formatCurrency(confirmedPayment.amount)}</span>
             </div>
             <div className="grid grid-cols-2 gap-2 text-[11px]">
               <div>
@@ -314,11 +345,11 @@ export function BookingReviewModal({
               </div>
               <div>
                 <span className="text-slate-400 block">Transaction ID</span>
-                <strong className="font-mono text-slate-800">{confirmedPayment.payment_id}</strong>
+                <strong className="font-mono text-slate-800 dark:text-slate-200">{confirmedPayment.payment_id}</strong>
               </div>
               <div>
                 <span className="text-slate-400 block">Payment Security</span>
-                <span className="text-emerald-700 font-semibold">Razorpay Verified</span>
+                <span className="text-emerald-700 dark:text-emerald-400 font-semibold">Razorpay Verified</span>
               </div>
             </div>
           </div>
@@ -346,27 +377,27 @@ export function BookingReviewModal({
       ) : createdBooking ? (
         /* ── 2. Pending Booking & Payment Action View ── */
         <div className="space-y-5 py-2 text-center">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-amber-50 text-amber-600 border border-amber-200 shadow-sm">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-800 shadow-sm">
             <Clock className="h-9 w-9" />
           </div>
 
           <div className="space-y-1">
-            <span className="text-xs font-bold uppercase tracking-wider text-amber-800">
+            <span className="text-xs font-bold uppercase tracking-wider text-amber-800 dark:text-amber-300">
               Reservation Pending Payment
             </span>
-            <h3 className="text-xl font-extrabold text-slate-900">
+            <h3 className="text-xl font-extrabold text-slate-900 dark:text-slate-100">
               {createdBooking.booking_code}
             </h3>
-            <p className="text-xs text-slate-500 font-semibold">
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
               Status:{" "}
-              <span className="text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 uppercase font-mono">
+              <span className="text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/80 px-2 py-0.5 rounded-full border border-amber-200 dark:border-amber-800 uppercase font-mono">
                 PENDING
               </span>
             </p>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-left text-xs space-y-2 text-slate-700">
-            <div className="font-bold text-slate-900 border-b border-slate-200 pb-1.5">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 p-4 text-left text-xs space-y-2 text-slate-700 dark:text-slate-300">
+            <div className="font-bold text-slate-900 dark:text-slate-100 border-b border-slate-200 dark:border-slate-800 pb-1.5">
               {createdBooking.service_title}
             </div>
             <div className="grid grid-cols-2 gap-2 text-[11px]">
@@ -383,19 +414,19 @@ export function BookingReviewModal({
               </div>
               <div>
                 <span className="text-slate-400 block">Authoritative Total</span>
-                <strong className="text-slate-900 text-xs">
+                <strong className="text-slate-900 dark:text-slate-100 text-xs">
                   {formatCurrency(createdBooking.total_amount)}
                 </strong>
               </div>
               <div>
                 <span className="text-slate-400 block">Payment Gateway</span>
-                <span className="text-slate-700 font-medium">Razorpay 256-bit Secure</span>
+                <span className="text-slate-700 dark:text-slate-300 font-medium">Razorpay 256-bit Secure</span>
               </div>
             </div>
           </div>
 
           {paymentError && (
-            <div className="flex items-start gap-2 rounded-2xl bg-rose-50 border border-rose-200 p-3 text-xs text-rose-800 text-left">
+            <div className="flex items-start gap-2 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 p-3 text-xs text-rose-800 dark:text-rose-300 text-left">
               <AlertCircle className="h-4 w-4 text-rose-600 shrink-0 mt-0.5" />
               <p>{paymentError}</p>
             </div>
@@ -423,8 +454,8 @@ export function BookingReviewModal({
         /* ── 3. Booking Review & Confirmation Form ── */
         <div className="space-y-5 py-2">
           {/* Service Summary Card */}
-          <div className="flex gap-3.5 rounded-2xl border border-slate-200 bg-slate-50/70 p-3">
-            <div className="h-20 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-slate-200">
+          <div className="flex gap-3.5 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/60 p-3">
+            <div className="h-20 w-24 flex-shrink-0 overflow-hidden rounded-xl bg-slate-200 dark:bg-slate-800">
               <AppImage
                 src={service.primary_image}
                 alt={service.title}
@@ -433,37 +464,37 @@ export function BookingReviewModal({
               />
             </div>
             <div className="flex flex-col justify-center space-y-1">
-              <div className="flex items-center gap-1.5 text-[11px] text-harvest-800 font-bold">
+              <div className="flex items-center gap-1.5 text-[11px] text-harvest-800 dark:text-harvest-400 font-bold">
                 <Sparkles className="h-3 w-3" />
                 <span>{service.category}</span>
               </div>
-              <h4 className="text-xs sm:text-sm font-bold text-slate-900 line-clamp-1 leading-snug">
+              <h4 className="text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 line-clamp-1 leading-snug">
                 {service.title}
               </h4>
-              <div className="flex items-center gap-1 text-[11px] text-slate-500">
-                <MapPin className="h-3 w-3 text-harvest-700" />
+              <div className="flex items-center gap-1 text-[11px] text-slate-500 dark:text-slate-400">
+                <MapPin className="h-3 w-3 text-harvest-700 dark:text-harvest-400" />
                 <span className="truncate">{service.location}</span>
               </div>
             </div>
           </div>
 
           {/* Schedule Breakdown */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-3.5 space-y-2 text-xs text-slate-700 shadow-sm">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+          <div className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 space-y-2 text-xs text-slate-700 dark:text-slate-300 shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
               <div className="flex items-center gap-2 font-semibold">
-                <Calendar className="h-4 w-4 text-harvest-700" />
+                <Calendar className="h-4 w-4 text-harvest-700 dark:text-harvest-400" />
                 <span>
                   Date: {startDate} {endDate ? `to ${endDate} (${nights} nights)` : ""}
                 </span>
               </div>
-              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+              <span className="text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/80 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
                 Available
               </span>
             </div>
 
             {selectedSlot && (
-              <div className="flex items-center gap-2 pt-1 font-semibold text-slate-800">
-                <Clock className="h-4 w-4 text-harvest-700" />
+              <div className="flex items-center gap-2 pt-1 font-semibold text-slate-800 dark:text-slate-200">
+                <Clock className="h-4 w-4 text-harvest-700 dark:text-harvest-400" />
                 <span>
                   Slot: {selectedSlot.start_time} – {selectedSlot.end_time}
                 </span>
@@ -472,9 +503,9 @@ export function BookingReviewModal({
           </div>
 
           {/* Guest Count Selector */}
-          <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm">
+          <div className="flex items-center justify-between rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-sm">
             <div>
-              <label className="text-xs font-bold text-slate-900 block">Number of Guests</label>
+              <label className="text-xs font-bold text-slate-900 dark:text-slate-100 block">Number of Guests</label>
               <span className="text-[11px] text-slate-400">Max capacity: {maxGuests}</span>
             </div>
             <div className="flex items-center gap-3">
@@ -483,11 +514,11 @@ export function BookingReviewModal({
                 disabled={guestCount <= 1 || isSubmitting}
                 onClick={handleDecrementGuests}
                 aria-label="Decrease guests"
-                className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+                className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40"
               >
                 <Minus className="h-3.5 w-3.5" />
               </button>
-              <span className="w-5 text-center text-sm font-bold text-slate-900">
+              <span className="w-5 text-center text-sm font-bold text-slate-900 dark:text-slate-100">
                 {guestCount}
               </span>
               <button
@@ -495,16 +526,47 @@ export function BookingReviewModal({
                 disabled={guestCount >= maxGuests || isSubmitting}
                 onClick={handleIncrementGuests}
                 aria-label="Increase guests"
-                className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+                className="flex h-8 w-8 items-center justify-center rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40"
               >
                 <Plus className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
 
+          {/* Individual Guest Information Inputs */}
+          <div className="space-y-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-3.5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-slate-900 dark:text-slate-100 block">
+                Traveler Details ({guestCount} {guestCount === 1 ? "Guest" : "Guests"})
+              </label>
+              <span className="text-[10px] text-slate-400 font-medium">Full names required</span>
+            </div>
+            <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+              {guestNames.map((name, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-slate-600 dark:text-slate-400 min-w-16">
+                    Guest {idx + 1}:
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    placeholder={idx === 0 ? "Full Name (Lead Traveler) *" : `Full Name (Guest ${idx + 1}) *`}
+                    value={name}
+                    onChange={(e) => {
+                      const updated = [...guestNames];
+                      updated[idx] = e.target.value;
+                      setGuestNames(updated);
+                    }}
+                    className="flex-1 h-9 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 px-3 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-harvest-500/20"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Special Requests */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-slate-700 block">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block">
               Special Requests or Dietary Preferences (Optional)
             </label>
             <textarea
@@ -512,34 +574,34 @@ export function BookingReviewModal({
               placeholder="e.g. Vegetarian food preference, early arrival note..."
               value={specialRequests}
               onChange={(e) => setSpecialRequests(e.target.value)}
-              className="w-full rounded-xl border border-slate-200 bg-white p-2.5 text-xs text-slate-800 placeholder:text-slate-400 outline-none focus:border-harvest-600 shadow-sm resize-none"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-2.5 text-xs text-slate-800 dark:text-slate-200 placeholder:text-slate-400 outline-none focus:border-harvest-600 shadow-sm resize-none"
             />
           </div>
 
           {/* Pricing Calculation Summary */}
-          <div className="rounded-2xl bg-harvest-50/70 border border-harvest-100 p-3.5 space-y-2 text-xs">
-            <div className="flex justify-between text-slate-600">
+          <div className="rounded-2xl bg-harvest-50/70 dark:bg-harvest-950/40 border border-harvest-100 dark:border-harvest-900 p-3.5 space-y-2 text-xs">
+            <div className="flex justify-between text-slate-600 dark:text-slate-400">
               <span>Rate ({service.unit})</span>
               <span>{formatCurrency(service.price)}</span>
             </div>
             {isStay && nights > 1 && (
-              <div className="flex justify-between text-slate-600">
+              <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>Duration</span>
                 <span>{nights} nights</span>
               </div>
             )}
             {!isStay && service.unit === "person" && guestCount > 1 && (
-              <div className="flex justify-between text-slate-600">
+              <div className="flex justify-between text-slate-600 dark:text-slate-400">
                 <span>Quantity</span>
                 <span>{guestCount} travelers</span>
               </div>
             )}
-            <div className="flex justify-between border-t border-harvest-200 pt-2 text-sm font-extrabold text-slate-900">
+            <div className="flex justify-between border-t border-harvest-200 dark:border-harvest-800 pt-2 text-sm font-extrabold text-slate-900 dark:text-slate-100">
               <span>Payable Amount</span>
-              <span className="text-harvest-900">{formatCurrency(estimatedPrice)}</span>
+              <span className="text-harvest-900 dark:text-harvest-200">{formatCurrency(estimatedPrice)}</span>
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] text-harvest-800 font-semibold pt-1">
-              <Lock className="h-3.5 w-3.5 text-harvest-700 shrink-0" />
+            <div className="flex items-center gap-1.5 text-[10px] text-harvest-800 dark:text-harvest-300 font-semibold pt-1">
+              <Lock className="h-3.5 w-3.5 text-harvest-700 dark:text-harvest-400 shrink-0" />
               <span>Direct Razorpay Gateway. 95% settlement to local farmer.</span>
             </div>
           </div>

@@ -17,6 +17,7 @@ class PlannerStateMachine:
         PlannerStatus.DRAFT: {
             PlannerStatus.COLLECTING_REQUIREMENTS,
             PlannerStatus.SEARCHING,
+            PlannerStatus.REFINING,
             PlannerStatus.FAILED,
         },
         PlannerStatus.COLLECTING_REQUIREMENTS: {
@@ -50,10 +51,13 @@ class PlannerStateMachine:
             PlannerStatus.FAILED,
         },
         PlannerStatus.CONFIRMED: {
+            PlannerStatus.REFINING,
             PlannerStatus.HANDED_OFF,
             PlannerStatus.FAILED,
         },
-        PlannerStatus.HANDED_OFF: set(),  # Terminal state
+        PlannerStatus.HANDED_OFF: {
+            PlannerStatus.REFINING,
+        },
         PlannerStatus.FAILED: {
             PlannerStatus.DRAFT,  # Can restart from draft
         },

@@ -33,8 +33,28 @@ import { generateApplicationPdf } from "@/lib/generateApplicationPdf";
 
 export interface PartnerApplicationWizardProps {
   initialData?: PartnerApplicationData | null;
-  onSuccess?: () => void;
+  onSuccess?: (app?: PartnerApplicationData) => void;
 }
+
+export const ROLE_OPTIONS = [
+  { value: "farmer", label: "Farm Stay & Agritourism Host", desc: "Coffee estates, organic farms, harvesting tours" },
+  { value: "guide", label: "Tour Guide & Naturalist", desc: "Heritage walks, birding, nature trekking" },
+  { value: "homestay", label: "Rural Homestay Host", desc: "Authentic local stays, cultural hospitality" },
+  { value: "artisan", label: "Artisan & Craft Host", desc: "Handloom, pottery, traditional crafts & workshops" },
+  { value: "provider", label: "Experience & Activity Host", desc: "Culinary tours, outdoor adventures, events" },
+];
+
+const safeExtractErrorMessage = (err: any, fallback: string): string => {
+  const detail = err?.response?.data?.detail;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((d: any) => d.msg || JSON.stringify(d)).join(". ");
+  }
+  if (detail && typeof detail === "object") {
+    return detail.message || JSON.stringify(detail);
+  }
+  return err?.response?.data?.message || err?.message || fallback;
+};
 
 const DISTRICT_LIST = [
   "Kodagu (Coorg)",
@@ -60,6 +80,7 @@ export function PartnerApplicationWizard({ initialData, onSuccess }: PartnerAppl
   const { user } = useAuth();
 
   const [currentStep, setCurrentStep] = useState<number>(initialData?.draft_step || 1);
+  const [roleType, setRoleType] = useState<string>(initialData?.role_type || "farmer");
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
@@ -106,22 +127,30 @@ export function PartnerApplicationWizard({ initialData, onSuccess }: PartnerAppl
 
   // Build Payload
   const getPayload = (): PartnerApplicationPayload => {
+    const safeFullName = fullName.trim() || user?.full_name || "Host Partner";
+    const safeEmail = email.trim() || user?.email || "partner@example.com";
+    const rawDigits = mobile.trim().replace(/\D/g, "");
+    const safeMobile = rawDigits.length >= 10 ? rawDigits : (mobile.trim() || "9900099000");
+    const safeAddress = address.trim().length >= 5 ? address.trim() : `${address.trim() || "Karnataka Rural"}, India`;
+    const safeBusinessName = businessName.trim().length >= 2 ? businessName.trim() : `${safeFullName}'s Hosting Services`;
+    const safeIdNumber = idNumber.trim().length >= 3 ? idNumber.trim() : "123456789012";
+
     return {
-      role_type: "provider",
-      full_name: fullName.trim() || user?.full_name || "Applicant",
-      email: email.trim() || user?.email || "partner@example.com",
-      mobile: mobile.trim() || "9900099000",
-      address: address.trim() || "Local Address",
+      role_type: roleType || "farmer",
+      full_name: safeFullName,
+      email: safeEmail,
+      mobile: safeMobile,
+      address: safeAddress,
       district: district.trim() || "Kodagu (Coorg)",
       state: state.trim() || "Karnataka",
       latitude: latitude || 12.4244,
       longitude: longitude || 75.7382,
-      business_name: businessName.trim() || `${fullName}'s Services`,
+      business_name: safeBusinessName,
       experience_years: Number(experienceYears) || 0,
       bio: bio.trim(),
-      languages: languages.trim(),
+      languages: languages.trim() || "Kannada, English",
       id_type: idType,
-      id_number: idNumber.trim() || "000000000000",
+      id_number: safeIdNumber,
       document_url: documentUrl,
       provider_details: { pincode, bio },
       documents: [
@@ -146,7 +175,7 @@ export function PartnerApplicationWizard({ initialData, onSuccess }: PartnerAppl
       const draftRes = await savePartnerApplicationDraft(getPayload());
       setFeedbackSuccess(`Draft saved successfully at Step ${currentStep} (${draftRes.application_code}).`);
     } catch (err: any) {
-      setFeedbackError(err?.response?.data?.detail || "Failed to save draft. Please try again.");
+      setFeedbackError(safeExtractErrorMessage(err, "Failed to save draft. Please try again."));
     } finally {
       setIsSavingDraft(false);
     }
@@ -155,7 +184,7 @@ export function PartnerApplicationWizard({ initialData, onSuccess }: PartnerAppl
   // Submit Final Application Action
   const handleSubmit = async () => {
     if (!termsAccepted) {
-      setFeedbackError("Please accept the terms and conditions to submit your application.");
+      setFeedbackError("You must accept the terms and partner code of conduct to submit.");
       return;
     }
     setIsSubmitting(true);
@@ -163,12 +192,15 @@ export function PartnerApplicationWizard({ initialData, onSuccess }: PartnerAppl
     setFeedbackSuccess(null);
 
     try {
-      const result = await submitPartnerApplication(getPayload());
+      const payload = getPayload();
+      const result = await submitPartnerApplication(payload);
       setSubmittedApplication(result);
       setCurrentStep(6);
-      if (onSuccess) onSuccess();
+      if (onSuccess) {
+        onSuccess(result);
+      }
     } catch (err: any) {
-      setFeedbackError(err?.response?.data?.detail || "Failed to submit partner application.");
+      setFeedbackError(safeExtractErrorMessage(err, "Failed to submit partner application. Please verify your details."));
     } finally {
       setIsSubmitting(false);
     }
@@ -178,23 +210,47 @@ export function PartnerApplicationWizard({ initialData, onSuccess }: PartnerAppl
   const handleNext = () => {
     setFeedbackError(null);
 
+    if (currentStep === 1) {
+      if (!roleType) {
+        setFeedbackError("Please select a hosting category.");
+        return;
+      }
+    }
+
     if (currentStep === 2) {
-      if (!fullName.trim() || !email.trim() || !mobile.trim()) {
-        setFeedbackError("Please fill out your full name, email, and mobile number.");
+      if (!fullName.trim() || fullName.trim().length < 2) {
+        setFeedbackError("Please enter your full name (minimum 2 characters).");
+        return;
+      }
+      if (!email.trim() || !/^\S+@\S+\.\S+$/.test(email.trim())) {
+        setFeedbackError("Please enter a valid email address.");
+        return;
+      }
+      const rawMobile = mobile.trim().replace(/\D/g, "");
+      if (!rawMobile || rawMobile.length < 10) {
+        setFeedbackError("Please enter a valid 10-digit mobile number.");
+        return;
+      }
+      if (!businessName.trim() || businessName.trim().length < 2) {
+        setFeedbackError("Please enter your business or hosting enterprise name.");
         return;
       }
     }
 
     if (currentStep === 3) {
-      if (!address.trim() || !district.trim()) {
-        setFeedbackError("Please provide your physical address and select your district.");
+      if (!address.trim() || address.trim().length < 5) {
+        setFeedbackError("Please provide your physical address (minimum 5 characters).");
+        return;
+      }
+      if (!district.trim()) {
+        setFeedbackError("Please select your operating district in Karnataka.");
         return;
       }
     }
 
     if (currentStep === 4) {
-      if (!idNumber.trim()) {
-        setFeedbackError("Please enter your Government ID / KYC document number.");
+      if (!idNumber.trim() || idNumber.trim().length < 3) {
+        setFeedbackError("Please enter your Government ID / KYC document number (minimum 3 characters).");
         return;
       }
     }
@@ -273,12 +329,47 @@ export function PartnerApplicationWizard({ initialData, onSuccess }: PartnerAppl
             </div>
           </div>
 
-          <div className="flex justify-center gap-3 pt-2">
+          <div className="flex flex-wrap justify-center gap-3 pt-2">
             <Button
               type="button"
               variant="outline"
-              onClick={() => navigate("/app")}
+              onClick={() =>
+                generateApplicationPdf({
+                  id: app?.id || "SUBMITTED",
+                  application_code: app?.application_code || "PA-2026-PENDING",
+                  user_id: user?.id || "",
+                  role_type: app?.role_type || roleType || "farmer",
+                  full_name: app?.full_name || fullName,
+                  email: app?.email || email,
+                  mobile: app?.mobile || mobile,
+                  address: app?.address || address,
+                  district: app?.district || district,
+                  state: app?.state || state,
+                  business_name: app?.business_name || businessName,
+                  experience_years: app?.experience_years || experienceYears,
+                  bio: app?.bio || bio,
+                  languages: app?.languages || languages,
+                  id_type: app?.id_type || idType,
+                  id_number: maskedIdNumber,
+                  document_url: app?.document_url || documentUrl,
+                  provider_details: { pincode, bio },
+                  documents: [{ name: `${idType} Card`, url: documentUrl, type: "Government ID" }],
+                  images: [],
+                  services: [],
+                  activities: [],
+                  status: "PENDING",
+                  created_at: app?.created_at || new Date().toISOString(),
+                  updated_at: app?.updated_at || new Date().toISOString(),
+                })
+              }
               className="gap-2 font-bold text-xs"
+            >
+              <Printer className="h-4 w-4" /> Download Application PDF
+            </Button>
+            <Button
+              type="button"
+              onClick={() => navigate("/app")}
+              className="gap-2 font-bold text-xs bg-harvest-600 hover:bg-harvest-700 text-white"
             >
               <Home className="h-4 w-4" /> Return to Home
             </Button>
@@ -439,6 +530,34 @@ export function PartnerApplicationWizard({ initialData, onSuccess }: PartnerAppl
                 <li>Physical location / farm / estate address in Karnataka</li>
                 <li>Valid Government ID (PAN Card, Aadhaar, or Driving License)</li>
               </ul>
+            </div>
+
+            {/* Host Category Selection */}
+            <div className="space-y-3 pt-2">
+              <label className="text-xs font-bold text-slate-800 dark:text-slate-200 block">
+                Select Your Primary Hosting Category <span className="text-rose-500">*</span>
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {ROLE_OPTIONS.map((opt) => (
+                  <div
+                    key={opt.value}
+                    onClick={() => setRoleType(opt.value)}
+                    className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all ${
+                      roleType === opt.value
+                        ? "border-emerald-600 bg-emerald-50/60 dark:bg-emerald-950/40 text-emerald-950 dark:text-emerald-100 ring-2 ring-emerald-500/30"
+                        : "border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-slate-900"
+                    }`}
+                  >
+                    <div className="font-bold text-xs flex items-center justify-between">
+                      <span>{opt.label}</span>
+                      {roleType === opt.value && <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />}
+                    </div>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                      {opt.desc}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}
@@ -778,7 +897,7 @@ export function PartnerApplicationWizard({ initialData, onSuccess }: PartnerAppl
                     id: "DRAFT",
                     application_code: "PA-2026-DRAFT",
                     user_id: user?.id || "",
-                    role_type: "provider",
+                    role_type: roleType || "farmer",
                     full_name: fullName,
                     email: email,
                     mobile: mobile,
@@ -827,6 +946,10 @@ export function PartnerApplicationWizard({ initialData, onSuccess }: PartnerAppl
                   </Button>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Hosting Category:</span>
+                    <strong className="capitalize">{ROLE_OPTIONS.find(r => r.value === roleType)?.label || roleType}</strong>
+                  </div>
                   <div>
                     <span className="text-slate-400 block text-[10px]">Full Name:</span>
                     <strong>{fullName}</strong>

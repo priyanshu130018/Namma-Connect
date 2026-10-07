@@ -57,7 +57,8 @@
     "earnings": "कमाई और भुगतान",
     "collaborations": "सहयोग",
     "admin": "व्यवस्थापक केंद्र",
-    "logout": "लॉग आउट"
+    "logout": "लॉग आउट",
+    "signOut": "साइन आउट"
   },
   "search": {
     "title": "बाज़ार कैटलॉग",

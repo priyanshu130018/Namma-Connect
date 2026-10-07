@@ -97,7 +97,7 @@ class ItineraryBuilder:
                         rating=float(afternoon_svc.rating),
                         primary_image=afternoon_svc.primary_image,
                         provider_name=afternoon_svc.provider_name,
-                        notes=f"Afternoon culinary & craft experience",
+                        notes="Afternoon culinary & craft experience",
                     )
                 )
 

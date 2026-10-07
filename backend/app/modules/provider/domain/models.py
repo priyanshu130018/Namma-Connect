@@ -54,6 +54,7 @@ class PartnerApplication(Base, TimestampMixin):
     reviewed_by = Column(GUID(), nullable=True)
     reviewed_at = Column(DateTime, nullable=True)
     is_test_data = Column(Boolean, nullable=False, default=False, index=True)
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
 
     # Relationships
     user = relationship("User", backref="partner_applications")

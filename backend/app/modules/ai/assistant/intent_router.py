@@ -92,8 +92,14 @@ class IntentRouter:
                 pass
 
         # 5. Classify Intent
-        # Multi-day Trip Planning
-        if any(w in text for w in ["itinerary", "day 1", "day 2", "3 days", "4 days", "2 days", "weekend trip", "plan my trip"]):
+        # Multi-day Trip Planning & Trip Modification
+        if any(w in text for w in [
+            "itinerary", "day 1", "day 2", "day 3", "day 4", "3 days", "4 days", "2 days",
+            "weekend trip", "plan my trip", "plan a trip", "plan trip", "cheaper", "lower budget",
+            "reduce budget", "make day", "remove", "delete", "replace", "change hotel",
+            "change my hotel", "add food", "food experience", "another option", "show me another",
+            "swap activity", "add activity"
+        ]):
             return ExtractedIntent(
                 intent="TRIP_PLANNER_HANDOFF",
                 confidence=0.95,

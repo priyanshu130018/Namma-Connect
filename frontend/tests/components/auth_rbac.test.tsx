@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { BrowserRouter } from "react-router-dom";
 import { AppProviders } from "@/app/providers";
@@ -7,9 +7,12 @@ import { RegisterPage } from "@/routes/public/Register";
 import { ForgotPasswordPage } from "@/routes/public/ForgotPassword";
 import { ResetPasswordPage } from "@/routes/public/ResetPassword";
 
+import * as authService from "@/services/authService";
+
 describe("Frontend Authentication & RBAC Component Suite", () => {
   beforeEach(() => {
     localStorage.clear();
+    vi.restoreAllMocks();
   });
 
   it("renders LoginPage with email, password, submit, Google OAuth, and navigation links", () => {
@@ -77,6 +80,7 @@ describe("Frontend Authentication & RBAC Component Suite", () => {
   });
 
   it("renders ForgotPasswordPage and handles submission to generic safe state", async () => {
+    vi.spyOn(authService, "forgotPassword").mockResolvedValue({ success: true, message: "Instructions sent" } as any);
     render(
       <AppProviders>
         <BrowserRouter>

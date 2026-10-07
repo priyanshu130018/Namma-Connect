@@ -42,7 +42,7 @@ export function ContactPage() {
   };
 
   return (
-    <Section className="py-8 sm:py-12 bg-slate-50 min-h-screen">
+    <Section className="py-8 sm:py-12 bg-slate-50 dark:bg-slate-950 min-h-screen">
       <PageMetadata
         title="Contact & Support"
         description="Get in touch with the Namma Connect team for inquiries, traveler assistance, and partner host support."
@@ -58,40 +58,40 @@ export function ContactPage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
           {/* Support Information Sidebar */}
           <div className="lg:col-span-5 space-y-6">
-            <Card className="p-6 bg-white rounded-3xl border-slate-200 space-y-6 shadow-sm">
+            <Card className="p-6 bg-white dark:bg-slate-900 rounded-3xl border-slate-200 dark:border-slate-800 space-y-6 shadow-sm">
               <div className="flex items-start gap-4">
-                <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
                   <Mail className="h-5 w-5" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-slate-900">Email Inquiries</h4>
-                  <p className="text-xs text-slate-500 mt-0.5">Response within 24 business hours</p>
-                  <a href="mailto:support@nammaconnect.in" className="text-sm font-semibold text-emerald-700 hover:underline mt-1 block">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Email Inquiries</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Response within 24 business hours</p>
+                  <a href="mailto:support@nammaconnect.in" className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 hover:underline mt-1 block">
                     support@nammaconnect.in
                   </a>
                 </div>
               </div>
 
               <div className="flex items-start gap-4">
-                <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
                   <Phone className="h-5 w-5" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-slate-900">Host Emergency Desk</h4>
-                  <p className="text-xs text-slate-500 mt-0.5">Monday to Saturday (8 AM – 8 PM IST)</p>
-                  <p className="text-sm font-semibold text-slate-800 mt-1">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Host Emergency Desk</h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Monday to Saturday (8 AM – 8 PM IST)</p>
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200 mt-1">
                     +91 (80) 4123-8890
                   </p>
                 </div>
               </div>
 
               <div className="flex items-start gap-4">
-                <div className="h-10 w-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                <div className="h-10 w-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center flex-shrink-0">
                   <MapPin className="h-5 w-5" />
                 </div>
                 <div>
-                  <h4 className="text-sm font-bold text-slate-900">Registered Office</h4>
-                  <p className="text-xs text-slate-600 leading-relaxed mt-1">
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Registered Office</h4>
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed mt-1">
                     Namma Connect Technologies Private Limited<br />
                     Indiranagar 100ft Road, Bengaluru, Karnataka 560038
                   </p>
@@ -102,18 +102,18 @@ export function ContactPage() {
 
           {/* Interactive Contact Form */}
           <div className="lg:col-span-7">
-            <Card className="p-8 bg-white rounded-3xl border-slate-200 shadow-sm">
+            <Card className="p-8 bg-white dark:bg-slate-900 rounded-3xl border-slate-200 dark:border-slate-800 shadow-sm">
               {ticketResult ? (
                 <div className="py-12 text-center space-y-4">
-                  <div className="h-14 w-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                  <div className="h-14 w-14 rounded-2xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 flex items-center justify-center mx-auto">
                     <CheckCircle2 className="h-8 w-8" />
                   </div>
                   <div className="space-y-1">
-                    <h3 className="text-xl font-bold text-slate-900">Inquiry Submitted Successfully</h3>
-                    <p className="text-xs text-slate-500 font-mono">Reference Ticket: <strong className="text-emerald-700">{ticketResult.ticket_code}</strong></p>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">Inquiry Submitted Successfully</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-mono">Reference Ticket: <strong className="text-emerald-700 dark:text-emerald-400">{ticketResult.ticket_code}</strong></p>
                   </div>
-                  <p className="text-sm text-slate-600 max-w-md mx-auto leading-relaxed">
-                    Thank you, <strong className="text-slate-800">{formData.name}</strong>. Our team has received your message regarding <em>"{formData.subject}"</em> and will reply to <strong className="text-slate-800">{formData.email}</strong> shortly.
+                  <p className="text-sm text-slate-600 dark:text-slate-300 max-w-md mx-auto leading-relaxed">
+                    Thank you, <strong className="text-slate-800 dark:text-slate-200">{formData.name}</strong>. Our team has received your message regarding <em>"{formData.subject}"</em> and will reply to <strong className="text-slate-800 dark:text-slate-200">{formData.email}</strong> shortly.
                   </p>
                   <Button
                     variant="outline"
@@ -129,8 +129,8 @@ export function ContactPage() {
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {errorMsg && (
-                    <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
-                      <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
+                    <div className="p-4 rounded-2xl bg-rose-50 dark:bg-rose-950/50 border border-rose-200 dark:border-rose-800 text-rose-800 dark:text-rose-300 text-xs flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4 shrink-0 text-rose-600 dark:text-rose-400" />
                       <span>{errorMsg}</span>
                     </div>
                   )}
@@ -162,11 +162,11 @@ export function ContactPage() {
                       onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                     />
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-slate-700">Inquiry Category</label>
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Inquiry Category</label>
                       <select
                         value={formData.category}
                         onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                        className="w-full h-10 px-3 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        className="w-full h-10 px-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500"
                       >
                         <option value="General Inquiry">General Inquiry</option>
                         <option value="Booking Support">Booking Support</option>

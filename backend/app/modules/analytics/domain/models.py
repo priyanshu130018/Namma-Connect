@@ -19,6 +19,7 @@ class NCScoreSnapshot(Base, TimestampMixin):
     model_version = sa.Column(sa.String(64), nullable=False, server_default="v2.0.0")
     calculated_at = sa.Column(sa.DateTime(), nullable=False, default=datetime.utcnow, index=True)
     is_test_data = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"))
+    is_synthetic = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"))
 
 
 class ProviderDailyMetrics(Base, TimestampMixin):
@@ -49,6 +50,7 @@ class ProviderDailyMetrics(Base, TimestampMixin):
     occupancy_rate = sa.Column(sa.Float(), nullable=False, server_default="0.0")
     rating_avg = sa.Column(sa.Float(), nullable=False, server_default="0.0")
     is_test_data = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"))
+    is_synthetic = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"))
 
     __table_args__ = (
         sa.UniqueConstraint("provider_id", "date", name="uq_provider_daily_metric_date"),
@@ -79,6 +81,7 @@ class ServiceDailyMetrics(Base, TimestampMixin):
     occupancy_rate = sa.Column(sa.Float(), nullable=False, server_default="0.0")
     rating_avg = sa.Column(sa.Float(), nullable=False, server_default="0.0")
     is_test_data = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"))
+    is_synthetic = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"))
 
     __table_args__ = (
         sa.UniqueConstraint("service_id", "date", name="uq_service_daily_metric_date"),
@@ -102,6 +105,7 @@ class ProviderResponseMetrics(Base, TimestampMixin):
     confirmation_rate = sa.Column(sa.Float(), nullable=False, server_default="0.0")
     cancellation_rate = sa.Column(sa.Float(), nullable=False, server_default="0.0")
     is_test_data = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"))
+    is_synthetic = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"))
 
     __table_args__ = (
         sa.UniqueConstraint("provider_id", "date", name="uq_provider_response_metric_date"),
@@ -133,6 +137,7 @@ class ProviderActionRecommendation(Base, TimestampMixin):
     generated_at = sa.Column(sa.DateTime(), nullable=False, default=datetime.utcnow)
     expires_at = sa.Column(sa.DateTime(), nullable=True)
     is_test_data = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"))
+    is_synthetic = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"))
 
     __table_args__ = (
         sa.Index("idx_provider_action_priority", "provider_id", "priority_score"),

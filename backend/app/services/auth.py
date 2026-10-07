@@ -377,7 +377,8 @@ class AuthService:
     @classmethod
     def request_password_otp(cls, db: Session, user: User) -> dict:
         """Step 1: Dispatch secure 6-digit OTP for authenticated password change."""
-        import random, hashlib
+        import random
+        import hashlib
         from datetime import datetime, timedelta
 
         otp = str(random.randint(100000, 999999))

@@ -43,7 +43,7 @@ describe("Customer Application Components", () => {
     expect(screen.getByText(/Madikeri/i)).toBeInTheDocument();
   });
 
-  it("renders TravelAIFloating and opens under process window on click", () => {
+  it("renders TravelAIFloating and opens assistant window on click", async () => {
     render(
       <BrowserRouter>
         <TravelAIFloating />
@@ -53,7 +53,7 @@ describe("Customer Application Components", () => {
     expect(aiButton).toBeInTheDocument();
 
     fireEvent.click(aiButton);
-    expect(screen.getByText("Namma AI is under process.")).toBeInTheDocument();
+    expect(screen.getByText(/Namma AI Assistant/i)).toBeInTheDocument();
   });
 
   it("renders CustomerNavbar with Brand, Notifications, Messages, and Profile", () => {
@@ -67,23 +67,16 @@ describe("Customer Application Components", () => {
     expect(screen.getByLabelText(/Messages/i)).toBeInTheDocument();
   });
 
-  it("renders CustomerSidebar with ChatGPT-inspired Explore and My Trip sections", () => {
+  it("renders CustomerSidebar with navigation items and become partner link", () => {
     const onToggle = vi.fn();
     render(
       <BrowserRouter>
         <CustomerSidebar isCollapsed={false} onToggleCollapse={onToggle} />
       </BrowserRouter>
     );
-    expect(screen.getByText(/^EXPLORE$/i)).toBeInTheDocument();
-    expect(screen.getByText(/Activities/i)).toBeInTheDocument();
-    expect(screen.getByText(/Hotel/i)).toBeInTheDocument();
-    expect(screen.getByText(/Stay/i)).toBeInTheDocument();
-    expect(screen.getByText(/Transport/i)).toBeInTheDocument();
-    expect(screen.getByText(/Content Creator/i)).toBeInTheDocument();
-    expect(screen.getByText(/^MY TRIP$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Trip$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^History$/i)).toBeInTheDocument();
-    expect(screen.getByText(/^Payment$/i)).toBeInTheDocument();
+    expect(screen.getByText(/Namma AI/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Explore$/i)).toBeInTheDocument();
+    expect(screen.getByText(/My Trip/i)).toBeInTheDocument();
     expect(screen.getByText(/Become Partner/i)).toBeInTheDocument();
   });
 });

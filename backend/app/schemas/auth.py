@@ -44,6 +44,7 @@ class UserResponse(BaseModel):
     gender: Optional[str] = None
     date_of_birth: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
+    is_synthetic: bool = False
     created_at: Optional[datetime] = None
 
 

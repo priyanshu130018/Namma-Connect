@@ -34,3 +34,46 @@ vi.mock("@react-oauth/google", () => ({
   useGoogleLogin: () => vi.fn(),
   useGoogleOAuth: () => ({ clientId: "mock-client-id" }),
 }));
+
+const mockToastContext = {
+  toasts: [],
+  toast: vi.fn(() => "mock-toast-id"),
+  dismiss: vi.fn(),
+  success: vi.fn(() => "mock-toast-id"),
+  error: vi.fn(() => "mock-toast-id"),
+  warning: vi.fn(() => "mock-toast-id"),
+  info: vi.fn(() => "mock-toast-id"),
+};
+
+vi.mock("@/components/ui/toast", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/ui/toast")>();
+  return {
+    ...actual,
+    useToast: () => {
+      try {
+        const ctx = actual.useToast();
+        if (ctx) return ctx;
+      } catch {
+        // Fallback for tests rendering components outside ToastProvider
+      }
+      return mockToastContext;
+    },
+  };
+});
+
+vi.mock("@/hooks/useToast", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/hooks/useToast")>();
+  return {
+    ...actual,
+    useToast: () => {
+      try {
+        const ctx = actual.useToast();
+        if (ctx) return ctx;
+      } catch {
+        // Fallback for tests rendering components outside ToastProvider
+      }
+      return mockToastContext;
+    },
+  };
+});
+

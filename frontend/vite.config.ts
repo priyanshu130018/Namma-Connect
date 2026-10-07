@@ -4,7 +4,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 
 export default defineConfig({
-  envDir: path.resolve(__dirname, "../.."),
+  envDir: path.resolve(__dirname, ".."),
   plugins: [react()],
   resolve: {
     alias: {
@@ -25,5 +25,14 @@ export default defineConfig({
     globals: true,
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
+    watch: false,
+    testTimeout: 15000,
+    hookTimeout: 15000,
+    poolOptions: {
+      threads: {
+        maxThreads: 2,
+        minThreads: 1,
+      },
+    },
   },
 });

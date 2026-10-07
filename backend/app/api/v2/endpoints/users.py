@@ -51,6 +51,43 @@ def update_current_user_preferences(
     )
 
 
+@router.get("/me/travel-preferences", response_model=APIResponse[Dict[str, Any]])
+def get_current_user_travel_preferences(
+    current_user: User = Depends(get_current_user),
+):
+    """Retrieve personal travel preferences."""
+    import json
+    prefs = {}
+    if getattr(current_user, "travel_preferences", None):
+        try:
+            prefs = json.loads(current_user.travel_preferences)
+        except Exception:
+            prefs = {}
+    return APIResponse(
+        success=True,
+        message="Travel preferences retrieved successfully.",
+        data=prefs,
+    )
+
+
+@router.put("/me/travel-preferences", response_model=APIResponse[Dict[str, Any]])
+def update_current_user_travel_preferences(
+    payload: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update personal travel preferences."""
+    import json
+    current_user.travel_preferences = json.dumps(payload)
+    db.commit()
+    db.refresh(current_user)
+    return APIResponse(
+        success=True,
+        message="Travel preferences updated successfully.",
+        data=payload,
+    )
+
+
 @router.get("/me", response_model=APIResponse[UserResponse])
 def get_current_user_profile(
     current_user: User = Depends(get_current_user),

@@ -2,6 +2,7 @@
 
 import uuid
 from sqlalchemy import (
+    Boolean,
     Column,
     ForeignKey,
     Index,
@@ -22,6 +23,7 @@ class AIConversation(Base, TimestampMixin):
     user_id = Column(GUID(), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True)
     title = Column(String(255), nullable=False, default="New Conversation")
     context_type = Column(String(50), nullable=False, default=AIContextType.TRAVEL.value)
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
 
     # Relationships
     messages = relationship(
@@ -48,6 +50,7 @@ class AIMessage(Base, TimestampMixin):
     content = Column(Text, nullable=False)
     intent = Column(String(64), nullable=True)
     metadata_json = Column(Text, nullable=False, default="{}")
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
 
     # Relationships
     conversation = relationship("AIConversation", back_populates="messages")

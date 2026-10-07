@@ -43,9 +43,9 @@ class Booking(Base, TimestampMixin):
     unit_price = Column(Numeric(12, 2), nullable=False)
     total_amount = Column(Numeric(12, 2), nullable=False)
 
-    # Notes & audit flags
     special_requests = Column(Text, nullable=True)
     is_test_data = Column(Boolean, nullable=False, default=False, index=True)
+    is_synthetic = Column(Boolean, nullable=False, default=False, index=True)
 
     # ORM Relationships
     customer = relationship("User", foreign_keys=[customer_id], backref="bookings")

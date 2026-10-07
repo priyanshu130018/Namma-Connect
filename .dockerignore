@@ -13,4 +13,8 @@ __pycache__
 *.sqlite3
 *.log
 docs
-v1
+tests
+e2e
+e2e-artifacts
+test-results
+playwright-report

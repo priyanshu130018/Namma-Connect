@@ -318,6 +318,27 @@ class RecommendationService:
             "categories": category_list,
         }
 
+    # 4b. Progressive Explore Feed
+    def get_explore_feed(
+        self,
+        user_id: Optional[Any] = None,
+        location: Optional[str] = None,
+        seed: Optional[int] = None,
+        force_refresh: bool = False,
+    ) -> Dict[str, Any]:
+        """Fetch progressive Explore page discovery feed matching all 10 official categories."""
+        from app.services.recommendation_engine import RecommendationEngine
+        from app.models.user import User
+        u_id = uuid.UUID(str(user_id)) if user_id and isinstance(user_id, (str, uuid.UUID)) else user_id
+        user = self.db.query(User).filter(User.id == u_id).first() if u_id else None
+        return RecommendationEngine.get_explore_feed(
+            user=user,
+            db=self.db,
+            location=location,
+            seed=seed,
+            force_refresh=force_refresh,
+        )
+
     # 5. Category-specific Recommendations
     def get_category_recommendations(
         self,

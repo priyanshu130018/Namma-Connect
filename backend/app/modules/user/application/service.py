@@ -94,3 +94,19 @@ class UserService:
 
         user.hashed_password = get_password_hash(payload.new_password)
         self.user_repo.update(user)
+
+    def get_travel_preferences(self, user: User) -> Dict[str, Any]:
+        """Return user travel preferences dictionary."""
+        if getattr(user, "travel_preferences", None):
+            try:
+                return json.loads(user.travel_preferences)
+            except Exception:
+                return {}
+        return {}
+
+    def update_travel_preferences(self, user: User, preferences: Dict[str, Any]) -> Dict[str, Any]:
+        """Update and persist travel preferences."""
+        user.travel_preferences = json.dumps(preferences)
+        self.user_repo.update(user)
+        return preferences
+

@@ -3,6 +3,7 @@
 from fastapi import FastAPI, Request, HTTPException, status
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from app.core.exceptions import AppException
 from app.core.logging import logger
@@ -71,6 +72,7 @@ def register_exception_handlers(app: FastAPI):
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
         req_id = getattr(request.state, "request_id", None)
+        safe_errors = jsonable_encoder(exc.errors()) if settings.DEBUG else None
         return JSONResponse(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             content={
@@ -78,12 +80,12 @@ def register_exception_handlers(app: FastAPI):
                 "message": "The submitted payload failed validation.",
                 "error_code": "VALIDATION_ERROR",
                 "request_id": req_id,
-                "errors": exc.errors() if settings.DEBUG else None,
+                "errors": safe_errors,
                 "error": {
                     "code": "VALIDATION_ERROR",
                     "message": "Please correct the highlighted fields.",
                     "request_id": req_id,
-                    "details": exc.errors() if settings.DEBUG else None,
+                    "details": safe_errors,
                 },
             },
         )

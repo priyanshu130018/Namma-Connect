@@ -36,6 +36,7 @@ class User(Base, TimestampMixin):
         nullable=True,
         default='{"share_profile": true, "personalize_location": true}',
     )
+    travel_preferences = Column(String(2048), nullable=True)
     bio = Column(Text, nullable=True)
     gender = Column(String(32), nullable=True)
     date_of_birth = Column(String(32), nullable=True)
@@ -45,3 +46,4 @@ class User(Base, TimestampMixin):
     email_otp_hash = Column(String(255), nullable=True)
     email_otp_expires_at = Column(DateTime, nullable=True)
     is_test_data = Column(Boolean, default=False, nullable=False, index=True)
+    is_synthetic = Column(Boolean, default=False, nullable=False, index=True)

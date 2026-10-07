@@ -3,6 +3,7 @@
 import uuid
 import json
 from datetime import datetime
+from typing import Any, Optional
 from sqlalchemy.orm import Session
 
 from app.modules.user.domain.models import User
@@ -21,6 +22,8 @@ class TripPersistenceEngine:
         user: User,
         state: PlannerState,
         prompt_text: str = "Plan trip with AI",
+        commit: bool = True,
+        trip_id: Optional[Any] = None,
     ) -> Trip:
         """Save proposed itinerary and link AI provenance record."""
         if not state.proposal:
@@ -30,22 +33,41 @@ class TripPersistenceEngine:
         destination = constraints.destination_district or "Karnataka"
         title = f"{constraints.duration_days}-Day {destination} Experience"
 
-        # 1. Create Trip Container
+        target_trip = None
+        if trip_id:
+            try:
+                t_uuid = uuid.UUID(str(trip_id))
+                target_trip = db.query(Trip).filter(Trip.id == t_uuid).first()
+            except Exception:
+                target_trip = None
+
+        # 1. Create or Update Trip Container
         try:
-            trip = Trip(
-                id=uuid.uuid4(),
-                user_id=user.id,
-                title=title,
-                description=state.proposal.summary or f"AI-assisted itinerary for {destination}",
-                start_date=constraints.start_date,
-                end_date=constraints.end_date,
-                destination=destination,
-                status="PLANNED",
-                created_by="AI_ASSISTANT",
-                ai_generated=True,
-            )
-            db.add(trip)
-            db.flush()
+            if target_trip:
+                trip = target_trip
+                trip.title = title
+                trip.description = state.proposal.summary or trip.description
+                trip.start_date = constraints.start_date
+                trip.end_date = constraints.end_date
+                trip.destination = destination
+                trip.days.clear()
+                db.flush()
+            else:
+                trip = Trip(
+                    id=uuid.uuid4(),
+                    user_id=user.id,
+                    title=title,
+                    description=state.proposal.summary or f"AI-assisted itinerary for {destination}",
+                    start_date=constraints.start_date,
+                    end_date=constraints.end_date,
+                    destination=destination,
+                    status="PLANNED",
+                    created_by="AI_ASSISTANT",
+                    ai_generated=True,
+                    is_synthetic=getattr(user, "is_synthetic", False),
+                )
+                db.add(trip)
+                db.flush()
 
             # 2. Create Days and Items
             for day_prop in state.proposal.days:
@@ -99,11 +121,21 @@ class TripPersistenceEngine:
             )
             db.add(ai_plan)
 
-            db.commit()
-            db.refresh(trip)
+            if commit:
+                try:
+                    db.commit()
+                    db.refresh(trip)
+                except Exception:
+                    pass
+            else:
+                db.flush()
 
             state.associated_trip_id = str(trip.id)
             return trip
         except Exception as e:
-            db.rollback()
+            if commit:
+                try:
+                    db.rollback()
+                except Exception:
+                    pass
             raise e

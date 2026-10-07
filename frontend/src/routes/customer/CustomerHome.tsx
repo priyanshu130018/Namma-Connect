@@ -1,17 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  Search,
-  Calendar as CalendarIcon,
-  Clock,
-  Compass,
-  Video,
   ArrowRight,
   AlertCircle,
   RefreshCw,
-  Navigation,
-  History,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ServiceCard } from "@/components/cards/ServiceCard";
@@ -19,26 +11,18 @@ import { ServiceCardSkeleton } from "@/components/cards/ServiceCardSkeleton";
 import {
   getMarketplaceServices,
   getHomeRecommendations,
-  getRecentSearches,
-  recordUserInteraction,
 } from "@/services/marketplaceService";
-import { reverseGeocodeLocation } from "@/services/locationService";
 import { MarketplaceService } from "@/types";
+import { SearchFilterBar } from "@/components/marketplace";
 
 export function CustomerHomePage() {
   const navigate = useNavigate();
 
-  // Search, Date, Time state
+  // Unified Search & Filter state
   const [searchQuery, setSearchQuery] = useState("");
-  const [date, setDate] = useState("");
-  const [time, setTime] = useState("");
-  const [isLocating, setIsLocating] = useState(false);
-
-  // Popover state
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
-  const [isLoadingRecent, setIsLoadingRecent] = useState(false);
-  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const [selectedLocation, setSelectedLocation] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("all");
+  const [sortBy, setSortBy] = useState("recommended");
 
   // 5 Database-backed Discovery Sections
   const [nearbyServices, setNearbyServices] = useState<MarketplaceService[]>([]);
@@ -49,31 +33,6 @@ export function CustomerHomePage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
-
-  // Click outside listener for search dropdown popover
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
-        setIsSearchFocused(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  // Fetch recent searches on focus
-  const handleSearchFocus = async () => {
-    setIsSearchFocused(true);
-    setIsLoadingRecent(true);
-    try {
-      const searches = await getRecentSearches();
-      setRecentSearches(searches || []);
-    } catch {
-      setRecentSearches([]);
-    } finally {
-      setIsLoadingRecent(false);
-    }
-  };
 
   const loadHomeServices = async () => {
     setIsLoading(true);
@@ -120,7 +79,7 @@ export function CustomerHomePage() {
         setMostVisitedServices(mostRes.services || []);
         setThingsToVisitServices([]);
         setThingsToDoServices([]);
-      } catch (err: any) {
+      } catch {
         setLoadError("Unable to load discovery sections at this moment.");
       }
     } finally {
@@ -132,216 +91,50 @@ export function CustomerHomePage() {
     loadHomeServices();
   }, []);
 
-  const handleSearchSubmit = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!searchQuery.trim() && !date && !time) return;
-
-    // Track search interaction
-    if (searchQuery.trim()) {
-      recordUserInteraction("search", undefined, { query: searchQuery.trim(), date, time });
-    }
-
-    const params = new URLSearchParams();
-    if (searchQuery.trim()) params.append("q", searchQuery.trim());
-    if (date) params.append("date", date);
-    if (time) params.append("time", time);
-
-    setIsSearchFocused(false);
-    navigate(`/app/explore?${params.toString()}`);
-  };
-
-  const handleUseCurrentLocation = () => {
-    if (!navigator.geolocation) {
-      alert("Geolocation is not supported by your browser.");
-      return;
-    }
-    setIsLocating(true);
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const { latitude, longitude } = pos.coords;
-          const geo = await reverseGeocodeLocation(latitude, longitude);
-          const locationName =
-            geo?.locality || geo?.district || geo?.display_name || `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
-          setSearchQuery(locationName);
-          setIsSearchFocused(false);
-          recordUserInteraction("search", undefined, { location: locationName, lat: latitude, lon: longitude });
-          navigate(`/app/explore?q=${encodeURIComponent(locationName)}`);
-        } catch {
-          const coordStr = `${pos.coords.latitude.toFixed(3)}, ${pos.coords.longitude.toFixed(3)}`;
-          setSearchQuery(coordStr);
-          setIsSearchFocused(false);
-          navigate(`/app/explore?q=${encodeURIComponent(coordStr)}`);
-        } finally {
-          setIsLocating(false);
-        }
-      },
-      () => {
-        setIsLocating(false);
-        alert("Unable to retrieve your location. Please check browser permissions.");
-      },
-      { timeout: 10000, enableHighAccuracy: true }
-    );
-  };
-
-  const handleSelectRecentSearch = (term: string) => {
-    setSearchQuery(term);
-    setIsSearchFocused(false);
-    recordUserInteraction("search", undefined, { query: term });
-    navigate(`/app/explore?q=${encodeURIComponent(term)}`);
-  };
-
   return (
     <div className="space-y-10 pb-12 max-w-7xl mx-auto">
       {/* ── 1. Search & Filter Header ── */}
       <div className="space-y-4 pt-2">
-        {/* Simple Single-Line Search Bar */}
-        <div ref={searchContainerRef} className="relative max-w-3xl mx-auto">
-          <form onSubmit={handleSearchSubmit} className="relative">
-            <div className="flex items-center w-full h-14 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md focus-within:shadow-md focus-within:border-emerald-500 transition-all px-4 gap-3">
-              <Search className="h-5 w-5 text-slate-400 shrink-0" />
-              <input
-                type="text"
-                placeholder="Search activities, places, experiences..."
-                value={searchQuery}
-                onFocus={handleSearchFocus}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1 bg-transparent text-sm text-slate-900 dark:text-slate-100 placeholder:text-slate-400 outline-none"
-              />
-              {searchQuery && (
-                <button
-                  type="button"
-                  onClick={() => setSearchQuery("")}
-                  className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
-                  aria-label="Clear search text"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-              <Button
-                type="submit"
-                size="sm"
-                className="rounded-xl px-4 font-bold bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 shadow-xs"
-              >
-                Search
-              </Button>
-            </div>
-          </form>
-
-          {/* Search Dropdown / Popover */}
-          {isSearchFocused && (
-            <div className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-xl overflow-hidden animate-in fade-in duration-150 p-2 space-y-2">
-              {/* GPS / Use Current Location */}
-              <button
-                type="button"
-                onClick={handleUseCurrentLocation}
-                disabled={isLocating}
-                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-left text-xs font-semibold text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/60 transition-colors"
-              >
-                <Navigation className={`h-4 w-4 ${isLocating ? "animate-spin" : ""}`} />
-                <span>{isLocating ? "Detecting current location..." : "Use current location / GPS"}</span>
-              </button>
-
-              <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
-
-              {/* Quick Category Shortcuts */}
-              <div className="grid grid-cols-2 gap-1.5 px-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSearchFocused(false);
-                    navigate("/app/activities");
-                  }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left transition-colors"
-                >
-                  <Compass className="h-4 w-4 text-emerald-600" />
-                  <span>Activities</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsSearchFocused(false);
-                    navigate("/app/creators");
-                  }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 text-left transition-colors"
-                >
-                  <Video className="h-4 w-4 text-purple-600" />
-                  <span>Content Creator</span>
-                </button>
-              </div>
-
-              <div className="border-t border-slate-100 dark:border-slate-800 my-1" />
-
-              {/* Recent Search Locations */}
-              <div className="px-1 py-1">
-                <div className="flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
-                  <History className="h-3 w-3" />
-                  <span>Recent Searches</span>
-                </div>
-
-                {isLoadingRecent ? (
-                  <div className="px-3 py-2 text-xs text-slate-400">Loading history...</div>
-                ) : recentSearches.length > 0 ? (
-                  <div className="space-y-0.5 mt-1">
-                    {recentSearches.slice(0, 5).map((item, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        onClick={() => handleSelectRecentSearch(item)}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-left transition-colors"
-                      >
-                        <span className="truncate font-medium">{item}</span>
-                        <ArrowRight className="h-3 w-3 text-slate-400 shrink-0" />
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="px-3 py-2 text-xs text-slate-400">No recent searches</div>
-                )}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Date and Time Selectors */}
-        <div className="flex flex-wrap items-center justify-center gap-3 max-w-3xl mx-auto">
-          {/* Date Selector */}
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 py-2 text-xs shadow-xs">
-            <CalendarIcon className="h-4 w-4 text-slate-400 pointer-events-none shrink-0" />
-            <span className="font-semibold text-slate-500 dark:text-slate-400">Date:</span>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="bg-transparent text-xs text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
-            />
-          </div>
-
-          {/* Time Selector */}
-          <div className="flex items-center gap-2 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-3.5 py-2 text-xs shadow-xs">
-            <Clock className="h-4 w-4 text-slate-400 pointer-events-none shrink-0" />
-            <span className="font-semibold text-slate-500 dark:text-slate-400">Time:</span>
-            <input
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-              className="bg-transparent text-xs text-slate-800 dark:text-slate-200 outline-none cursor-pointer"
-            />
-          </div>
-
-          {(date || time) && (
-            <button
-              type="button"
-              onClick={() => {
-                setDate("");
-                setTime("");
-              }}
-              className="text-xs font-semibold text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 underline"
-            >
-              Reset
-            </button>
-          )}
+        {/* Unified Search & Filter Bar */}
+        <div className="max-w-4xl mx-auto">
+          <SearchFilterBar
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            selectedLocation={selectedLocation}
+            selectedCategory={selectedCategory}
+            sortBy={sortBy}
+            onApply={(filters: any) => {
+              const qp = new URLSearchParams();
+              if (searchQuery.trim()) qp.set("q", searchQuery.trim());
+              if (filters.location) qp.set("location", filters.location);
+              if (filters.category && filters.category !== "all") qp.set("category", filters.category);
+              if (filters.sortBy && filters.sortBy !== "recommended") qp.set("sort_by", filters.sortBy);
+              if (filters.maxPrice && filters.maxPrice < 5000) qp.set("max_price", String(filters.maxPrice));
+              navigate(`/explore${qp.toString() ? `?${qp.toString()}` : ""}`);
+            }}
+            onReset={() => {
+              setSearchQuery("");
+              setSelectedLocation("");
+              setSelectedCategory("all");
+              setSortBy("recommended");
+            }}
+            onSubmit={() => {
+              const qp = new URLSearchParams();
+              if (searchQuery.trim()) qp.set("q", searchQuery.trim());
+              if (selectedLocation) qp.set("location", selectedLocation);
+              if (selectedCategory && selectedCategory !== "all") qp.set("category", selectedCategory);
+              if (sortBy && sortBy !== "recommended") qp.set("sort_by", sortBy);
+              navigate(`/explore${qp.toString() ? `?${qp.toString()}` : ""}`);
+            }}
+            onSelectSuggestion={(sugg: any) => {
+              const text = sugg.text || sugg.title || "";
+              setSearchQuery(text);
+              const qp = new URLSearchParams();
+              qp.set("q", text);
+              if (sugg.category) qp.set("category", sugg.category);
+              navigate(`/explore?${qp.toString()}`);
+            }}
+          />
         </div>
       </div>
 

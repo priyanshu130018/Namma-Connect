@@ -11,6 +11,7 @@ from app.modules.marketplace.presentation.schemas import (
     ServiceUpdateRequest,
     ServiceAvailabilityCreateRequest,
 )
+from app.schemas.service import normalize_amenities
 from app.modules.marketplace.domain.models import (
     MarketplaceCategory,
     Service,
@@ -225,18 +226,40 @@ class MarketplaceService:
         return results
 
     def _serialize_service(self, s: Service) -> Dict[str, Any]:
-        try:
-            images = json.loads(s.images_json) if s.images_json else []
-        except Exception:
-            images = []
+        # Resolve media from ServiceMedia if populated, fallback to JSON columns
+        primary_img = s.primary_image
+        images = []
+        media_list = []
+        if hasattr(s, "media_items") and s.media_items:
+            for m in s.media_items:
+                media_list.append({
+                    "id": str(m.id),
+                    "storage_key": m.storage_key,
+                    "url": m.secure_url,
+                    "role": m.role,
+                    "sort_order": m.sort_order,
+                })
+                if m.role == "primary":
+                    primary_img = m.secure_url
+                images.append(m.secure_url)
+
+        if not images:
+            try:
+                images = json.loads(s.images_json) if s.images_json else []
+            except Exception:
+                images = []
+
+        if not primary_img and images:
+            primary_img = images[0]
+
         try:
             inclusions = json.loads(s.inclusions_json) if s.inclusions_json else []
         except Exception:
             inclusions = []
-        try:
-            amenities = json.loads(s.amenities_json) if s.amenities_json else []
-        except Exception:
-            amenities = []
+        raw_amenities = getattr(s, "amenities_json", None)
+        if raw_amenities is None:
+            raw_amenities = getattr(s, "amenities", None)
+        amenities, specific_details = normalize_amenities(raw_amenities)
 
         return {
             "id": str(s.id),
@@ -265,9 +288,11 @@ class MarketplaceService:
             "provider_name": s.provider_name,
             "provider_type": s.provider_type,
             "provider_avatar": s.provider_avatar,
-            "primary_image": s.primary_image,
+            "primary_image": primary_img,
             "images": images,
+            "media": media_list,
             "inclusions": inclusions,
             "amenities": amenities,
+            "specific_details": specific_details,
             "created_at": s.created_at.isoformat() if s.created_at else "",
         }

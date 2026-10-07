@@ -55,8 +55,8 @@ describe("Provider Routing, Legacy Partner Redirects & RBAC Access Controls", ()
 
     window.history.pushState({}, "New Service", "/provider/services/new");
     render(<App />);
-    expect(screen.getByRole("heading", { name: /Add New Offering/i })).toBeInTheDocument();
-    expect(screen.getByText(/Farmer \/ Agro-Host/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Add New Marketplace Offering/i })).toBeInTheDocument();
+    expect(screen.getAllByText(/Farm Tours & Experiences/i).length).toBeGreaterThan(0);
   });
 
   it("allows provider to access /provider/bookings and /provider/earnings", () => {

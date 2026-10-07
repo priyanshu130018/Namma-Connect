@@ -3,3 +3,6 @@ testpaths = ["tests"]
 pythonpath = [".", "app"]
 python_files = ["test_*.py"]
 asyncio_mode = "auto"
+markers = [
+    "live: tests requiring a running live HTTP server (concurrency, race conditions, live hardening)"
+]

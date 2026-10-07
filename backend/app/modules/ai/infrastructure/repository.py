@@ -19,9 +19,10 @@ class AIRepository:
         user_id: Optional[uuid.UUID],
         title: str = "New Trip Planning",
         context_type: str = "TRAVEL",
+        conversation_id: Optional[uuid.UUID] = None,
     ) -> AIConversation:
         conv = AIConversation(
-            id=uuid.uuid4(),
+            id=conversation_id or uuid.uuid4(),
             user_id=user_id,
             title=title,
             context_type=context_type,

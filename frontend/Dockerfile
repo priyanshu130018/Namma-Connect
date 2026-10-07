@@ -1,8 +1,27 @@
 # ==============================================================================
-# Namma Connect V2 — Production Frontend Dockerfile (Multi-Stage Build)
+# Namma Connect — Frontend Dockerfile (Multi-Stage Build)
 # ==============================================================================
 
-# ── 1. Build Stage ──
+# ── 1. Development Stage (Vite Dev Server, Direct Execution) ──
+FROM node:20-alpine as development
+
+WORKDIR /app
+
+ENV NODE_ENV=development
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY . .
+
+EXPOSE 5173
+
+HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=3 \
+    CMD wget -q -O /dev/null http://localhost:5173/ || exit 1
+
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173"]
+
+# ── 2. Production Build Stage ──
 FROM node:20-alpine as builder
 
 WORKDIR /app
@@ -22,7 +41,7 @@ COPY . .
 
 RUN npm run build
 
-# ── 2. Production Static Serving Stage ──
+# ── 3. Production Static Serving Stage (Nginx) ──
 FROM nginx:1.27-alpine as production
 
 COPY --from=builder /app/dist /usr/share/nginx/html

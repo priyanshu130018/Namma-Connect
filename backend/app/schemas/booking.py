@@ -41,6 +41,7 @@ class BookingResponse(BaseModel):
     refund_code: Optional[str] = None
     can_review: bool = False
     has_reviewed: bool = False
+    is_synthetic: bool = False
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -96,14 +96,14 @@ export function BlogPage() {
 
     if (!post) {
       return (
-        <Section className="py-12 bg-slate-50 min-h-screen">
+        <Section className="py-12 bg-slate-50 dark:bg-slate-950 min-h-screen">
           <PageMetadata title="Article Not Found" description="The requested article could not be found." />
           <Container size="sm" className="text-center space-y-6">
-            <div className="h-16 w-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto">
+            <div className="h-16 w-16 rounded-2xl bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
               <BookOpen className="h-8 w-8" />
             </div>
-            <h1 className="text-2xl font-bold text-slate-900">Article Not Found</h1>
-            <p className="text-sm text-slate-600">The requested blog post could not be found or has been moved.</p>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Article Not Found</h1>
+            <p className="text-sm text-slate-600 dark:text-slate-400">The requested blog post could not be found or has been moved.</p>
             <Link to="/blog">
               <Button variant="outline" className="gap-2">
                 <ArrowLeft className="h-4 w-4" /> Back to Blog
@@ -117,7 +117,7 @@ export function BlogPage() {
     const relatedPosts = BLOG_POSTS.filter((p) => p.slug !== post.slug).slice(0, 2);
 
     return (
-      <Section className="py-10 bg-slate-50 min-h-screen">
+      <Section className="py-10 bg-slate-50 dark:bg-slate-950 min-h-screen">
         <PageMetadata
           title={post.title}
           description={post.excerpt}
@@ -126,37 +126,37 @@ export function BlogPage() {
 
         <Container size="default" className="space-y-8 max-w-4xl">
 
-          <Link to="/blog" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-emerald-700 transition-colors">
+          <Link to="/blog" className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-emerald-700 dark:hover:text-emerald-400 transition-colors">
 
             <ArrowLeft className="h-4 w-4" /> Back to all articles
           </Link>
 
-          <article className="p-8 sm:p-12 bg-white rounded-3xl border border-slate-200 shadow-sm space-y-6">
+          <article className="p-8 sm:p-12 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
             <div className="space-y-3">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="default" className="bg-emerald-600 text-white font-bold">{post.category}</Badge>
-                <span className="flex items-center gap-1 text-xs text-slate-500"><Clock className="h-3.5 w-3.5" /> {post.readTime}</span>
-                <span className="text-slate-300">•</span>
-                <span className="flex items-center gap-1 text-xs text-slate-500"><Calendar className="h-3.5 w-3.5" /> {post.date}</span>
+                <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400"><Clock className="h-3.5 w-3.5" /> {post.readTime}</span>
+                <span className="text-slate-300 dark:text-slate-700">•</span>
+                <span className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400"><Calendar className="h-3.5 w-3.5" /> {post.date}</span>
               </div>
-              <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">
+              <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight leading-tight">
                 {post.title}
               </h1>
-              <div className="flex items-center gap-2 pt-2 border-t border-slate-100 text-xs font-semibold text-slate-600">
-                <User className="h-4 w-4 text-emerald-600" />
+              <div className="flex items-center gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-400">
+                <User className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                 <span>Written by {post.author}</span>
               </div>
             </div>
 
-            <div className="space-y-4 text-slate-700 text-base leading-relaxed border-t border-slate-100 pt-6">
+            <div className="space-y-4 text-slate-700 dark:text-slate-300 text-base leading-relaxed border-t border-slate-100 dark:border-slate-800 pt-6">
               {post.content.map((paragraph, idx) => (
                 <p key={idx}>{paragraph}</p>
               ))}
             </div>
 
-            <div className="pt-6 border-t border-slate-100 flex flex-wrap gap-2">
+            <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2">
               {post.tags.map((tag) => (
-                <span key={tag} className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-slate-100 text-xs font-semibold text-slate-600">
+                <span key={tag} className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs font-semibold text-slate-600 dark:text-slate-300">
                   <Tag className="h-3 w-3" /> {tag}
                 </span>
               ))}
@@ -165,16 +165,16 @@ export function BlogPage() {
 
           {/* Related Articles */}
           <div className="space-y-4 pt-6">
-            <h3 className="text-lg font-bold text-slate-900">Related Insights</h3>
+            <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">Related Insights</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {relatedPosts.map((related) => (
-                <Card key={related.slug} className="p-6 bg-white rounded-3xl border-slate-200 shadow-sm hover:border-emerald-300 transition-all flex flex-col justify-between">
+                <Card key={related.slug} className="p-6 bg-white dark:bg-slate-900 rounded-3xl border-slate-200 dark:border-slate-800 shadow-sm hover:border-emerald-300 dark:hover:border-emerald-700 transition-all flex flex-col justify-between">
                   <div className="space-y-2">
                     <Badge variant="secondary" className="text-[10px] font-bold">{related.category}</Badge>
-                    <h4 className="text-base font-bold text-slate-900 line-clamp-2">{related.title}</h4>
-                    <p className="text-xs text-slate-600 line-clamp-2">{related.excerpt}</p>
+                    <h4 className="text-base font-bold text-slate-900 dark:text-slate-100 line-clamp-2">{related.title}</h4>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2">{related.excerpt}</p>
                   </div>
-                  <Link to={`/blog/${related.slug}`} className="pt-4 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 hover:text-emerald-800">
+                  <Link to={`/blog/${related.slug}`} className="pt-4 inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300">
                     Read article <ArrowRight className="h-3.5 w-3.5" />
                   </Link>
                 </Card>
@@ -201,7 +201,7 @@ export function BlogPage() {
   });
 
   return (
-    <Section className="py-8 sm:py-12 bg-slate-50 min-h-screen">
+    <Section className="py-8 sm:py-12 bg-slate-50 dark:bg-slate-950 min-h-screen">
       <PageMetadata
         title="Stories & Insights - Rural Travel & AI Guides"
         description="Discover agricultural travel guides, responsible agro-tourism tips, and behind-the-scenes engineering of our AI Trip Planner."
@@ -223,7 +223,7 @@ export function BlogPage() {
                 className={`px-4 py-2 rounded-2xl text-xs font-bold transition-all ${
                   selectedCategory === cat
                     ? "bg-emerald-700 text-white shadow-sm"
-                    : "bg-white text-slate-700 border border-slate-200 hover:bg-slate-100"
+                    : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800"
                 }`}
               >
                 {cat}
@@ -238,7 +238,7 @@ export function BlogPage() {
               placeholder="Search articles..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 rounded-2xl bg-white border-slate-200 text-xs"
+              className="pl-10 rounded-2xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-xs text-slate-900 dark:text-slate-100"
             />
           </div>
         </div>
@@ -246,12 +246,12 @@ export function BlogPage() {
 
         {/* Article Cards Grid */}
         {filteredPosts.length === 0 ? (
-          <Card className="p-12 text-center bg-white rounded-3xl border-slate-200 space-y-4">
-            <div className="h-12 w-12 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto">
+          <Card className="p-12 text-center bg-white dark:bg-slate-900 rounded-3xl border-slate-200 dark:border-slate-800 space-y-4">
+            <div className="h-12 w-12 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center justify-center mx-auto">
               <Search className="h-6 w-6" />
             </div>
-            <h3 className="text-base font-bold text-slate-900">No articles match your criteria</h3>
-            <p className="text-xs text-slate-500">Try adjusting your search query or selecting a different category filter.</p>
+            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">No articles match your criteria</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Try adjusting your search query or selecting a different category filter.</p>
             <Button variant="outline" size="sm" onClick={() => { setSelectedCategory("All"); setSearchQuery(""); }}>
               Reset Filters
             </Button>
@@ -261,35 +261,35 @@ export function BlogPage() {
             {filteredPosts.map((post) => (
               <Card
                 key={post.slug}
-                className="p-6 bg-white rounded-3xl border-slate-200 shadow-sm hover:border-emerald-300 hover:shadow-md transition-all flex flex-col justify-between group"
+                className="p-6 bg-white dark:bg-slate-900 rounded-3xl border-slate-200 dark:border-slate-800 shadow-sm hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-md transition-all flex flex-col justify-between group"
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Badge variant="default" className="bg-emerald-50 text-emerald-800 border-emerald-200 font-bold text-[11px]">
+                    <Badge variant="default" className="bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 font-bold text-[11px]">
                       {post.category}
                     </Badge>
-                    <span className="flex items-center gap-1 text-[11px] text-slate-400">
+                    <span className="flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
                       <Clock className="h-3 w-3" /> {post.readTime}
                     </span>
                   </div>
 
-                  <h3 className="text-lg font-bold text-slate-900 group-hover:text-emerald-700 transition-colors leading-snug">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100 group-hover:text-emerald-700 dark:group-hover:text-emerald-400 transition-colors leading-snug">
                     {post.title}
                   </h3>
 
-                  <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">
+                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3">
                     {post.excerpt}
                   </p>
                 </div>
 
-                <div className="pt-6 border-t border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
-                    <User className="h-3.5 w-3.5 text-emerald-600" />
+                <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 font-medium">
+                    <User className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
                     <span>{post.author}</span>
                   </div>
                   <Link
                     to={`/blog/${post.slug}`}
-                    className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 group-hover:translate-x-0.5 transition-transform"
+                    className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 group-hover:translate-x-0.5 transition-transform"
                   >
                     Read article <ArrowRight className="h-3.5 w-3.5" />
                   </Link>

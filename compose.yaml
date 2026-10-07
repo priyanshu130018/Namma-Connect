@@ -30,6 +30,8 @@ services:
     image: redis:7-alpine
     container_name: nammaconnect-redis
     restart: unless-stopped
+    ports:
+      - "6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -44,7 +46,7 @@ services:
   # ── 3. Application API Backend (FastAPI v2) ──
   backend:
     build:
-      context: ./v2/backend
+      context: ./backend
       dockerfile: Dockerfile
     container_name: nammaconnect-backend
     restart: unless-stopped
@@ -56,10 +58,9 @@ services:
       DEBUG: ${DEBUG:-True}
       API_V2_PREFIX: /api/v2
       
-      DATABASE_SYNC_URL: ${DATABASE_SYNC_URL:-postgresql://${POSTGRES_USER:-namma_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-namma_connect_dev}}
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${POSTGRES_USER:-namma_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-namma_connect_dev}}
-
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      DATABASE_SYNC_URL: postgresql://${POSTGRES_USER:-namma_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-namma_connect_dev}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-namma_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-namma_connect_dev}
+      REDIS_URL: redis://redis:6379/0
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
@@ -81,7 +82,7 @@ services:
       GEMINI_MODEL: ${GEMINI_MODEL}
       TOMTOM_API_KEY: ${TOMTOM_API_KEY}
     volumes:
-      - ./v2/backend:/app
+      - ./backend:/app
     depends_on:
       postgres:
         condition: service_healthy
@@ -99,7 +100,7 @@ services:
   # ── 4. Asynchronous Background Task Worker (Celery) ──
   worker:
     build:
-      context: ./v2/backend
+      context: ./backend
       dockerfile: Dockerfile
     container_name: nammaconnect-worker
     command: celery -A app.core.celery_app worker --loglevel=info -Q recommendation,analytics,nc_score,notification,translation
@@ -107,16 +108,16 @@ services:
     environment:
       ENV: ${ENV:-development}
       DEBUG: ${DEBUG:-True}
-      DATABASE_SYNC_URL: ${DATABASE_SYNC_URL:-postgresql://${POSTGRES_USER:-namma_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-namma_connect_dev}}
-      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://${POSTGRES_USER:-namma_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-namma_connect_dev}}
-      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      DATABASE_SYNC_URL: postgresql://${POSTGRES_USER:-namma_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-namma_connect_dev}
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-namma_user}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-namma_connect_dev}
+      REDIS_URL: redis://redis:6379/0
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       # Translation Engine Environment (Google Translate & Gemini LLM)
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GEMINI_API_URL: ${GEMINI_API_URL}
       GEMINI_MODEL: ${GEMINI_MODEL}
     volumes:
-      - ./v2/backend:/app
+      - ./backend:/app
     depends_on:
       postgres:
         condition: service_healthy
@@ -131,25 +132,29 @@ services:
       start_period: 30s
       retries: 3
 
-  # ── 5. Web Application Frontend (React 18 + Vite + Tailwind) ──
+  # ── 5. Web Application Frontend (React 18 + Vite + Tailwind, No Nginx in Local Dev) ──
   frontend:
     build:
-      context: ./v2/frontend
+      context: ./frontend
       dockerfile: Dockerfile
+      target: development
     container_name: nammaconnect-frontend
     restart: unless-stopped
     ports:
-      - "5173:80"
+      - "5173:5173"
     environment:
       VITE_API_URL: http://localhost:8000/api/v2
       VITE_API_PROXY_TARGET: http://backend:8000
       VITE_GOOGLE_CLIENT_ID: ${VITE_GOOGLE_CLIENT_ID}
       VITE_TOMTOM_API_KEY: ${VITE_TOMTOM_API_KEY}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
     depends_on:
       backend:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:80/healthz || exit 1"]
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:5173/ || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 3

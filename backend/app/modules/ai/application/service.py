@@ -6,12 +6,14 @@ from typing import Dict, Any, List, Optional
 from fastapi import HTTPException, status
 
 from app.modules.ai.infrastructure.repository import AIRepository
+from app.modules.ai.agent.service import NammaAgentService
 from app.modules.ai.presentation.schemas import (
     CreateAIConversationRequest,
     SendAIMessageRequest,
     GenerateTripPlanRequest,
     RefineTripPlanRequest,
     ConfirmTripPlanRequest,
+    AgentRunRequest,
 )
 from app.modules.ai.domain.models import AIConversation, AIMessage
 from app.modules.ai.llm.base import LLMProvider
@@ -40,6 +42,7 @@ class AIService:
         self.db = repo.db
         self.llm_provider = llm_provider or GeminiProvider()
         self.tool_registry = tool_registry or AIToolRegistry(self.db)
+        self.agent_service = NammaAgentService(self.db, self.repo)
         self.orchestrator = AIAssistantOrchestrator(
             db=self.db,
             llm_provider=self.llm_provider,
@@ -95,53 +98,74 @@ class AIService:
     def send_message(self, user: User, conv_id: str, payload: SendAIMessageRequest) -> Dict[str, Any]:
         conv = self.repo.get_conversation(conv_id)
         if not conv:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Conversation not found.")
-        if conv.user_id and str(conv.user_id) != str(user.id) and getattr(user, "role", "") != "ADMIN":
+            target_uuid = None
+            if conv_id:
+                try:
+                    target_uuid = uuid.UUID(str(conv_id))
+                except Exception:
+                    pass
+            conv = self.repo.create_conversation(
+                user_id=user.id,
+                title="New Trip Planning",
+                context_type="TRAVEL",
+                conversation_id=target_uuid,
+            )
+        elif conv.user_id and str(conv.user_id) != str(user.id) and getattr(user, "role", "") != "ADMIN":
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this conversation.")
 
         clean_content = payload.content.strip()
 
-        # 1. Persist User Message
-        user_msg = AIMessage(
-            id=uuid.uuid4(),
-            conversation_id=conv.id,
-            role="USER",
-            content=clean_content,
-        )
-        self.repo.save_message(user_msg)
-
-        # 2. Fetch history for context
-        history = self.repo.list_messages(conv_id=conv.id, limit=20)
-
-        # 3. Process turn via Orchestrator
-        result = self.orchestrator.process_turn(
+        # Route conversational message through the unified LangGraph agent
+        agent_result = self.agent_service.run_agent(
             user=user,
-            current_message=clean_content,
-            history=history,
+            conversation_id=str(conv.id),
+            message=clean_content,
         )
 
-        # 4. Persist Assistant Message
-        meta = {
-            "tool_calls": result.tool_calls_executed,
-            "recommended_services": result.recommended_services,
-            "trip_planner_handoff": result.trip_planner_handoff,
-            "tokens_used": result.tokens_used,
+        return {
+            "id": agent_result["id"],
+            "conversation_id": agent_result["conversation_id"],
+            "role": agent_result.get("role", "ASSISTANT"),
+            "content": agent_result["content"],
+            "intent": agent_result.get("intent", "AGENTIC_WORKFLOW"),
+            "tool_calls": agent_result.get("tool_calls", []),
+            "recommended_services": agent_result.get("recommended_services", []),
+            "trip_planner_handoff": agent_result.get("trip_planner_handoff"),
+            "trip_id": agent_result.get("trip_id"),
+            "itinerary": agent_result.get("itinerary"),
+            "budget": agent_result.get("budget"),
+            "changed_items": agent_result.get("changed_items", []),
+            "selected_services": agent_result.get("selected_services", []),
+            "current_agent_step": agent_result.get("current_agent_step", "COMPLETED"),
+            "approval_required": agent_result.get("approval_required", False),
+            "approval_prompt": agent_result.get("approval_prompt"),
+            "approval_status": agent_result.get("approval_status"),
+            "booking_state": agent_result.get("booking_state"),
+            "extracted_requirements": agent_result.get("extracted_requirements"),
+            "created_at": agent_result.get("created_at", ""),
         }
-        ai_msg = AIMessage(
-            id=uuid.uuid4(),
-            conversation_id=conv.id,
-            role="ASSISTANT",
-            content=result.content,
-            intent=result.intent,
-            metadata_json=json.dumps(meta),
+
+
+    # ── Unified LangGraph Agent Endpoints ──
+
+    def run_agent(self, user: User, payload: AgentRunRequest) -> Dict[str, Any]:
+        """Execute unified LangGraph travel agent with full state return."""
+        conv_id = payload.conversation_id or str(uuid.uuid4())
+        return self.agent_service.run_agent(
+            user=user,
+            conversation_id=conv_id,
+            message=payload.message,
         )
-        saved_ai_msg = self.repo.save_message(ai_msg)
 
-        if conv.title == "New Trip Planning" and len(clean_content) > 3:
-            conv.title = clean_content[:40] + ("..." if len(clean_content) > 40 else "")
-            self.repo.save_conversation(conv)
-
-        return self._serialize_message(saved_ai_msg)
+    def get_agent_state(self, user: User, conversation_id: str) -> Dict[str, Any]:
+        """Retrieve persistent checkpoint state for a conversation thread."""
+        conv = self.repo.get_conversation(conversation_id)
+        if conv and conv.user_id and str(conv.user_id) != str(user.id) and getattr(user, "role", "") != "ADMIN":
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized to access this conversation.")
+        state = self.agent_service.get_agent_state(user=user, conversation_id=conversation_id)
+        if not state:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Agent checkpoint state not found.")
+        return state
 
     # ── Agentic Trip Planner ──
 
@@ -242,11 +266,24 @@ class AIService:
         return {
             "id": str(m.id),
             "conversation_id": str(m.conversation_id),
-            "role": m.role,
+            "role": m.role or "ASSISTANT",
             "content": m.content,
             "intent": m.intent,
             "tool_calls": meta.get("tool_calls", []),
             "recommended_services": meta.get("recommended_services", []),
             "trip_planner_handoff": meta.get("trip_planner_handoff"),
+            "trip_id": meta.get("trip_id"),
+            "itinerary": meta.get("itinerary"),
+            "budget": meta.get("budget"),
+            "changed_items": meta.get("changed_items", []),
+            "selected_services": meta.get("selected_services", []),
+            "current_agent_step": meta.get("agent_step", "COMPLETED"),
+            "approval_required": meta.get("approval_required", False),
+            "approval_prompt": meta.get("approval_prompt"),
+            "approval_status": meta.get("approval_status"),
+            "approval_action": meta.get("approval_action"),
+            "booking_state": meta.get("booking_state"),
+            "extracted_requirements": meta.get("extracted_requirements"),
             "created_at": m.created_at.isoformat() if m.created_at else "",
         }
+

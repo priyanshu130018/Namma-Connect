@@ -1,8 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import {
+  Bot,
   Compass,
-  Sparkles,
-  Globe,
   MapPin,
   HeartHandshake,
   PanelLeftClose,
@@ -27,14 +26,16 @@ export function CustomerSidebar({
   const location = useLocation();
 
   const navItems = [
+    { label: "Namma AI", href: "/app/namma-ai", icon: Bot },
     { label: "Explore", href: "/explore", icon: Compass },
-    { label: "Experience", href: "/experience", icon: Sparkles },
-    { label: "Discover", href: "/discover", icon: Globe },
-    { label: "My Trip", href: "/my-trip", icon: MapPin },
+    { label: "My Trips", href: "/my-trip", icon: MapPin },
   ];
 
   const isLinkActive = (href: string) => {
     const path = location.pathname;
+    if (href === "/app/namma-ai") {
+      return path === "/app/namma-ai" || path === "/namma-ai";
+    }
     if (href === "/explore") {
       return (
         path === "/explore" ||
@@ -46,12 +47,6 @@ export function CustomerSidebar({
         path === "/app/stay" ||
         path === "/app/transport"
       );
-    }
-    if (href === "/experience") {
-      return path === "/experience" || path === "/app/experience";
-    }
-    if (href === "/discover") {
-      return path === "/discover" || path === "/app/discover";
     }
     if (href === "/my-trip") {
       return (

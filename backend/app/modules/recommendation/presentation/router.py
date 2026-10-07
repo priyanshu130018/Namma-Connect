@@ -59,6 +59,27 @@ def get_home_recommendations(
     }
 
 
+@router.get("/explore", response_model=Dict[str, Any])
+def get_explore_feed(
+    location: Optional[str] = Query(None, description="Optional customer location or district filter"),
+    seed: Optional[int] = Query(None, description="Randomization seed for categories"),
+    force_refresh: bool = Query(False, description="Force recommendation cache refresh"),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+    service: RecommendationService = Depends(get_recommendation_service),
+):
+    """Retrieve progressive Explore page recommendation sections and 10 official categories."""
+    user_id = current_user.id if current_user else None
+    return {
+        "success": True,
+        "data": service.get_explore_feed(
+            user_id=user_id,
+            location=location,
+            seed=seed,
+            force_refresh=force_refresh,
+        ),
+    }
+
+
 @router.get("/category/{category_slug}", response_model=List[RecommendationItemResponse])
 def get_category_recommendations(
     category_slug: str,

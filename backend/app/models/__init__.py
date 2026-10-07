@@ -12,6 +12,7 @@ from app.modules.provider.domain.models import PartnerApplication
 from app.modules.marketplace.domain.models import (
     MarketplaceCategory,
     Service,
+    ServiceMedia,
     ServiceAvailability,
     SavedService,
     ContentTranslation,
@@ -40,6 +41,11 @@ from app.modules.analytics.domain.models import (
 )
 from app.modules.support.domain.models import SupportTicket
 from app.modules.admin.domain.models import PlatformSetting
+from app.modules.ai.agent.persistence import (
+    AICheckpointRecord,
+    AICheckpointBlobRecord,
+    AICheckpointWriteRecord,
+)
 
 __all__ = [
     "Base",
@@ -49,6 +55,7 @@ __all__ = [
     "PartnerApplication",
     "MarketplaceCategory",
     "Service",
+    "ServiceMedia",
     "ServiceAvailability",
     "SavedService",
     "ContentTranslation",

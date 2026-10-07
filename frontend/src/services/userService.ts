@@ -78,3 +78,14 @@ export async function verifyEmailOTP(otp: string): Promise<{ message: string; is
   return response.data.data;
 }
 
+export async function getTravelPreferences(): Promise<Record<string, any>> {
+  const response = await apiClient.get<ApiMessageResponse<Record<string, any>>>("/users/me/travel-preferences");
+  return response.data.data;
+}
+
+export async function updateTravelPreferences(payload: Record<string, any>): Promise<Record<string, any>> {
+  const response = await apiClient.put<ApiMessageResponse<Record<string, any>>>("/users/me/travel-preferences", payload);
+  return response.data.data;
+}
+
+

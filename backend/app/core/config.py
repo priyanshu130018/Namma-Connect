@@ -32,7 +32,7 @@ def find_project_root(start_path: Path = None) -> Path:
             return p
         if (p / ".git").is_dir():
             return p
-        if (p / ".env").is_file() and (p / "v2").is_dir():
+        if (p / ".env").is_file() and (p / "backend").is_dir():
             return p
 
     # 2. Look for application root boundary (parent of 'app')
@@ -208,14 +208,15 @@ class Settings(BaseSettings):
     RAZORPAY_WEBHOOK_SECRET: str = ""
 
     # ==========================================================================
-    # Cloudinary
+    # Media Storage & Cloudinary
     # ==========================================================================
 
+    MEDIA_STORAGE: str = "cloudinary"
     CLOUDINARY_CLOUD_NAME: str = ""
-
     CLOUDINARY_API_KEY: str = ""
-
     CLOUDINARY_API_SECRET: str = ""
+    CLOUDINARY_FOLDER: str = "namma-connect"
+    CLOUDINARY_UPLOAD_PRESET: str = "namma-connect"
 
 
     # ==========================================================================
@@ -352,6 +353,12 @@ class Settings(BaseSettings):
             r_url = self.REDIS_URL.strip()
             if not (r_url.startswith("redis://") or r_url.startswith("rediss://")):
                 raise ConfigurationError("REDIS_URL is invalid: must start with redis:// or rediss://")
+            if "redis://redis:" in r_url:
+                import socket
+                try:
+                    socket.gethostbyname("redis")
+                except socket.gaierror:
+                    self.REDIS_URL = r_url.replace("redis://redis:", "redis://localhost:", 1)
 
         return self
 

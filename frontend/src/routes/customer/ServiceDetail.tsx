@@ -14,6 +14,7 @@ import {
   Calendar,
   Clock,
   CreditCard,
+  RefreshCw,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -23,9 +24,9 @@ import { AppImage } from "@/components/ui/image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/error-state";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { getServiceDetail } from "@/services/marketplaceService";
+import { getServiceDetail, getServiceAvailability } from "@/services/marketplaceService";
 import { getSavedStatus, saveService, removeSavedService } from "@/services/savedService";
-import { ServiceDetailData, TimeSlot } from "@/types";
+import { ServiceDetailData, TimeSlot, ServiceAvailabilityData } from "@/types";
 import { TomTomMap, RouteInfo } from "@/components/map/TomTomMap";
 import { calculateRoute, geocodeLocation } from "@/services/locationService";
 import { BookingReviewModal } from "@/components/booking/BookingReviewModal";
@@ -41,7 +42,9 @@ export function CustomerServiceDetailPage() {
   const [isSaved, setIsSaved] = useState<boolean>(false);
   const [selectedImageIdx, setSelectedImageIdx] = useState<number>(0);
 
-  // Booking Selection State
+  // Availability & Booking Selection State
+  const [availability, setAvailability] = useState<ServiceAvailabilityData | null>(null);
+  const [isCheckingAvailability, setIsCheckingAvailability] = useState<boolean>(false);
   const [bookingModalOpen, setBookingModalOpen] = useState<boolean>(false);
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     const d = new Date();
@@ -137,12 +140,21 @@ export function CustomerServiceDetailPage() {
     setIsLoading(true);
     setErrorMessage(null);
     try {
-      const [data, savedState] = await Promise.all([
-        getServiceDetail(service_id),
-        getSavedStatus(service_id).catch(() => false),
-      ]);
+      const data = await getServiceDetail(service_id);
       setDetail(data);
-      setIsSaved(savedState);
+
+      try {
+        const [savedState, availData] = await Promise.all([
+          getSavedStatus(service_id).catch(() => false),
+          getServiceAvailability(service_id).catch(() => null),
+        ]);
+        setIsSaved(savedState);
+        if (availData) {
+          setAvailability(availData);
+        }
+      } catch {
+        // secondary metadata is non-blocking
+      }
     } catch (err: any) {
       setErrorMessage(
         err.response?.data?.detail ||
@@ -150,6 +162,19 @@ export function CustomerServiceDetailPage() {
       );
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleCheckAvailability = async () => {
+    if (!service_id) return;
+    setIsCheckingAvailability(true);
+    try {
+      const availData = await getServiceAvailability(service_id);
+      setAvailability(availData);
+    } catch {
+      // non-blocking
+    } finally {
+      setIsCheckingAvailability(false);
     }
   };
 
@@ -171,6 +196,26 @@ export function CustomerServiceDetailPage() {
       setIsSaved(!nextState);
     }
   };
+
+  // Authoritative availability calculations for selected date
+  const selectedDay = availability?.days?.find((d) => d.date === selectedDate);
+  const isDateBlackout = selectedDay?.status === "BLACKOUT";
+  const isSoldOut = selectedDay ? (!selectedDay.is_available || selectedDay.status === "UNAVAILABLE" || isDateBlackout || selectedDay.remaining_capacity === 0) : false;
+  const isDateLimited = selectedDay?.status === "LIMITED";
+  const slotsForDay: TimeSlot[] = selectedDay?.time_slots || [];
+
+  // Keep selected slot in sync with the selected date and availability data
+  useEffect(() => {
+    if (slotsForDay.length > 0) {
+      const currentValid = slotsForDay.find((s) => s.id === selectedSlot?.id && s.is_available && s.remaining_capacity > 0);
+      if (!currentValid) {
+        const firstAvail = slotsForDay.find((s) => s.is_available && s.remaining_capacity > 0);
+        setSelectedSlot(firstAvail || null);
+      }
+    } else {
+      setSelectedSlot(null);
+    }
+  }, [selectedDate, availability]);
 
   if (isLoading) {
     return (
@@ -213,6 +258,7 @@ export function CustomerServiceDetailPage() {
 
   const { service, reviews = [] } = detail;
   const gallery = service.images && service.images.length > 0 ? service.images : [service.primary_image || "/images/services/fallback.jpg"];
+  const availableCapacity = selectedDay?.remaining_capacity ?? service.max_capacity ?? 10;
 
   return (
     <div className="space-y-8 pb-16">
@@ -494,12 +540,24 @@ export function CustomerServiceDetailPage() {
               </div>
             </div>
 
-            {/* Date Selection */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <Calendar className="h-3.5 w-3.5 text-harvest-700" />
-                <span>Select Experience Date</span>
-              </label>
+            {/* Date & Availability Section */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Calendar className="h-3.5 w-3.5 text-harvest-700" />
+                  <span>Experience Date</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={handleCheckAvailability}
+                  disabled={isCheckingAvailability}
+                  className="text-[11px] font-bold text-harvest-700 dark:text-harvest-400 hover:underline flex items-center gap-1"
+                >
+                  <RefreshCw className={`h-3 w-3 ${isCheckingAvailability ? "animate-spin" : ""}`} />
+                  <span>{isCheckingAvailability ? "Checking..." : "Check Availability"}</span>
+                </button>
+              </div>
+
               <input
                 type="date"
                 min={new Date().toISOString().split("T")[0]}
@@ -507,47 +565,66 @@ export function CustomerServiceDetailPage() {
                 onChange={(e) => setSelectedDate(e.target.value)}
                 className="w-full h-11 rounded-2xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 px-3.5 text-xs font-semibold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-harvest-500/20"
               />
+
+              {/* Real Availability Status Badge */}
+              <div className="flex items-center justify-between pt-1">
+                <span className="text-[11px] text-slate-500 dark:text-slate-400 font-medium">Availability Status:</span>
+                {isSoldOut ? (
+                  <Badge variant="destructive" className="bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800 text-[11px] font-bold">
+                    Sold Out on this date
+                  </Badge>
+                ) : isDateLimited ? (
+                  <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-800 text-[11px] font-bold">
+                    Low Availability ({availableCapacity} spots left)
+                  </Badge>
+                ) : (
+                  <Badge variant="default" className="bg-emerald-50 dark:bg-emerald-950/50 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 text-[11px] font-bold">
+                    Available ({availableCapacity} spots left)
+                  </Badge>
+                )}
+              </div>
             </div>
 
             {/* Time Slot Selection */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5 text-harvest-700" />
-                <span>Select Time Slot</span>
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {[
-                  { id: "slot-morning", start_time: "09:00 AM", end_time: "11:30 AM", label: "Morning Session" },
-                  { id: "slot-afternoon", start_time: "02:00 PM", end_time: "04:30 PM", label: "Afternoon Session" },
-                ].map((s) => {
-                  const isSel = selectedSlot?.id === s.id;
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() =>
-                        setSelectedSlot({
-                          id: s.id,
-                          start_time: s.start_time,
-                          end_time: s.end_time,
-                          is_available: true,
-                          capacity: service.max_capacity || 10,
-                          remaining_capacity: service.max_capacity || 10,
-                        })
-                      }
-                      className={`p-2.5 rounded-xl border text-left text-xs transition-all ${
-                        isSel
-                          ? "border-harvest-600 bg-harvest-50 dark:bg-harvest-950/40 text-harvest-950 dark:text-harvest-200 font-bold ring-2 ring-harvest-600/30"
-                          : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 hover:border-harvest-400"
-                      }`}
-                    >
-                      <div className="font-bold">{s.start_time}</div>
-                      <div className="text-[10px] text-slate-400">{s.label}</div>
-                    </button>
-                  );
-                })}
+            {slotsForDay.length > 0 && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-harvest-700" />
+                  <span>Select Time Slot</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {slotsForDay.map((s) => {
+                    const isAvail = s.is_available && s.remaining_capacity > 0 && !isSoldOut;
+                    const isSel = selectedSlot?.id === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        disabled={!isAvail}
+                        onClick={() => setSelectedSlot(s)}
+                        className={`p-2.5 rounded-xl border text-left text-xs transition-all ${
+                          !isAvail
+                            ? "border-slate-200 dark:border-slate-800 bg-slate-100/60 dark:bg-slate-800/30 text-slate-400 cursor-not-allowed opacity-60"
+                            : isSel
+                            ? "border-harvest-600 bg-harvest-50 dark:bg-harvest-950/40 text-harvest-950 dark:text-harvest-200 font-bold ring-2 ring-harvest-600/30"
+                            : "border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40 text-slate-700 dark:text-slate-300 hover:border-harvest-400"
+                        }`}
+                      >
+                        <div className="font-bold flex items-center justify-between">
+                          <span>{s.start_time} - {s.end_time}</span>
+                          {!isAvail && (
+                            <span className="text-[10px] text-rose-500 font-semibold uppercase">Sold out</span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          {isAvail ? `${s.remaining_capacity} spots left` : "No spots remaining"}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900 space-y-1 text-xs text-emerald-950 dark:text-emerald-200">
               <div className="flex items-center gap-2 font-bold">
@@ -577,11 +654,18 @@ export function CustomerServiceDetailPage() {
             <div className="space-y-2.5 pt-1">
               <Button
                 size="lg"
+                disabled={isSoldOut || (slotsForDay.length > 0 && !selectedSlot)}
                 onClick={() => setBookingModalOpen(true)}
-                className="w-full font-bold bg-harvest-600 hover:bg-harvest-700 text-white rounded-2xl gap-2 shadow-md shadow-harvest-600/20"
+                className="w-full font-bold bg-harvest-600 hover:bg-harvest-700 text-white rounded-2xl gap-2 shadow-md shadow-harvest-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <CreditCard className="h-4 w-4" />
-                <span>Reserve / Book Experience</span>
+                <span>
+                  {isSoldOut
+                    ? "Sold Out on Selected Date"
+                    : slotsForDay.length > 0 && !selectedSlot
+                    ? "Select an Available Time Slot"
+                    : "Reserve / Book Experience"}
+                </span>
               </Button>
 
               <Button

@@ -5,6 +5,7 @@ import { PartnerServicesPage } from "@/routes/partner/PartnerServices";
 import { PartnerServiceNewPage } from "@/routes/partner/PartnerServiceNew";
 import { PartnerServiceDetailPage } from "@/routes/partner/PartnerServiceDetail";
 import * as partnerService from "@/services/partnerService";
+import { providerService } from "@/services/providerService";
 import { MarketplaceService } from "@/types";
 
 const mockServices: MarketplaceService[] = [
@@ -78,8 +79,8 @@ describe("Provider Service Management Component Suite", () => {
       expect(screen.getByText("My Services Catalog")).toBeInTheDocument();
       expect(screen.getByText("Organic Coffee Estate Homestay")).toBeInTheDocument();
       expect(screen.getByText("Mandalpatti Peak Off-Road Jeep Safari")).toBeInTheDocument();
-      expect(screen.getByText("Published")).toBeInTheDocument();
-      expect(screen.getByText("Draft")).toBeInTheDocument();
+      expect(screen.getAllByText("Published").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Draft").length).toBeGreaterThan(0);
     });
   });
 
@@ -99,7 +100,7 @@ describe("Provider Service Management Component Suite", () => {
   });
 
   it("creates a new draft and review submission in PartnerServiceNewPage", async () => {
-    const createSpy = vi.spyOn(partnerService, "createPartnerService").mockResolvedValue(mockServices[1]);
+    const createSpy = vi.spyOn(providerService, "createListing").mockResolvedValue(mockServices[1] as any);
 
     render(
       <BrowserRouter>
@@ -108,22 +109,22 @@ describe("Provider Service Management Component Suite", () => {
     );
 
     // Step 1: Select Category
-    expect(screen.getByText("Step 1: Choose Your Offering Category")).toBeInTheDocument();
-    fireEvent.click(screen.getByText("Farmer / Agro-Host"));
+    expect(screen.getByText("Select Marketplace Category")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Farm Tours & Experiences"));
 
     // Step 2: Form configuration
     await waitFor(() => {
-      expect(screen.getByText("farmer Offering Form")).toBeInTheDocument();
+      expect(screen.getByText("Service Details & Parameters")).toBeInTheDocument();
     });
 
-    const titleInput = screen.getByLabelText(/Service \/ Stay Title/i);
+    const titleInput = screen.getByPlaceholderText(/e\.g\. Organic Arabica/i);
     fireEvent.change(titleInput, { target: { value: "Kabini Riverfront Agro Trail" } });
 
-    const priceInput = screen.getByLabelText(/Price \(₹ INR\)/i);
+    const priceInput = screen.getByPlaceholderText("1200");
     fireEvent.change(priceInput, { target: { value: "2900" } });
 
     // Save as Draft
-    const draftButton = screen.getByRole("button", { name: /Save as Draft/i });
+    const draftButton = screen.getByRole("button", { name: /Save Draft/i });
     fireEvent.click(draftButton);
 
     await waitFor(() => {
@@ -134,7 +135,7 @@ describe("Provider Service Management Component Suite", () => {
           status: "DRAFT",
         })
       );
-      expect(screen.getByText("Draft Service Saved Successfully")).toBeInTheDocument();
+      expect(screen.getByText("Draft Saved Successfully")).toBeInTheDocument();
     });
   });
 

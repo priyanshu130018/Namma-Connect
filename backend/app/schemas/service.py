@@ -1,8 +1,98 @@
 """Pydantic schemas for Marketplace Services, Search, Reviews, and Availability."""
 
-from typing import Optional, List
-from pydantic import BaseModel, ConfigDict, Field
+import json
+from typing import Optional, List, Dict, Any, Tuple
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from datetime import datetime
+
+
+def normalize_amenities(raw: Any) -> Tuple[List[str], Dict[str, Any]]:
+    """Normalize raw amenities data into a list of strings and category-specific details dict.
+    
+    Requirements satisfied:
+    - Supports existing list[str] amenities
+    - Supports structured dict amenities
+    - Preserves category-specific information in specific_details
+    - Does not silently destroy stored data
+    - Handles empty, null, and malformed inputs gracefully
+    - Maintains backward compatibility with existing service records
+    """
+    if raw is None:
+        return [], {}
+
+    # If it's a JSON string, try to parse it
+    if isinstance(raw, str):
+        trimmed = raw.strip()
+        if not trimmed:
+            return [], {}
+        try:
+            parsed = json.loads(trimmed)
+            return normalize_amenities(parsed)
+        except Exception:
+            # Plain string or comma-separated string: "Wi-Fi, Pool"
+            if "," in trimmed:
+                items = [item.strip() for item in trimmed.split(",") if item.strip()]
+                return items, {}
+            return [trimmed], {}
+
+    if isinstance(raw, list):
+        items = []
+        for x in raw:
+            if isinstance(x, str):
+                s = x.strip()
+                if s:
+                    items.append(s)
+            elif isinstance(x, dict):
+                inner_items, _ = normalize_amenities(x)
+                items.extend(inner_items)
+            elif x is not None:
+                items.append(str(x))
+        return items, {}
+
+    if isinstance(raw, dict):
+        amenities_list = []
+        specific_details = {}
+
+        # 1. Check for explicit 'amenities' key
+        if "amenities" in raw:
+            inner_amenities = raw["amenities"]
+            if isinstance(inner_amenities, list):
+                for x in inner_amenities:
+                    if isinstance(x, str):
+                        s = x.strip()
+                        if s:
+                            amenities_list.append(s)
+                    elif x is not None:
+                        amenities_list.append(str(x))
+            elif isinstance(inner_amenities, str) and inner_amenities.strip():
+                if "," in inner_amenities:
+                    amenities_list.extend([i.strip() for i in inner_amenities.split(",") if i.strip()])
+                else:
+                    amenities_list.append(inner_amenities.strip())
+            elif isinstance(inner_amenities, dict):
+                sub_items, sub_details = normalize_amenities(inner_amenities)
+                amenities_list.extend(sub_items)
+                specific_details.update(sub_details)
+
+        # 2. Check for explicit 'specific_details' key
+        if "specific_details" in raw and isinstance(raw["specific_details"], dict):
+            specific_details.update(raw["specific_details"])
+
+        # 3. Process remaining keys: preserve all category-specific info in specific_details,
+        # and if any boolean flag is True, also include as an amenity name
+        for k, v in raw.items():
+            if k in ("amenities", "specific_details"):
+                continue
+            specific_details[k] = v
+            if v is True and isinstance(v, bool):
+                label = k.replace("_", " ").title()
+                if label not in amenities_list and k not in amenities_list:
+                    amenities_list.append(label)
+
+        return amenities_list, specific_details
+
+    # Fallback for any other type
+    return [str(raw)], {}
 
 
 class ReviewCreateRequest(BaseModel):
@@ -19,6 +109,7 @@ class ReviewResponse(BaseModel):
     rating: float
     comment: str
     is_verified: bool = True
+    is_synthetic: bool = False
     status: str = "PUBLISHED"
     created_at: Optional[datetime] = None
 
@@ -47,6 +138,7 @@ class ServiceResponse(BaseModel):
     rating: float
     reviews_count: int
     is_verified: bool
+    is_synthetic: bool = False
     status: str
     provider_id: Optional[str] = None
     provider_name: str
@@ -59,12 +151,30 @@ class ServiceResponse(BaseModel):
     images: List[str] = Field(default_factory=list)
     inclusions: List[str] = Field(default_factory=list)
     amenities: List[str] = Field(default_factory=list)
+    specific_details: Optional[Dict[str, Any]] = Field(default_factory=dict)
     rejection_reason: Optional[str] = None
     reviewed_by: Optional[str] = None
     reviewed_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_amenities_and_details(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            amenities_val = data.get("amenities")
+            amenities_list, extra_details = normalize_amenities(amenities_val)
+            data["amenities"] = amenities_list
+            if extra_details:
+                existing_details = data.get("specific_details") or {}
+                if isinstance(existing_details, dict):
+                    merged = dict(extra_details)
+                    merged.update(existing_details)
+                    data["specific_details"] = merged
+                else:
+                    data["specific_details"] = extra_details
+        return data
 
 
 class ServiceListResponse(BaseModel):

@@ -10,6 +10,7 @@ import {
 import { PartnerServiceNewPage } from "@/routes/partner/PartnerServiceNew";
 import { PartnerServiceDetailPage } from "@/routes/partner/PartnerServiceDetail";
 import * as partnerService from "@/services/partnerService";
+import { providerService } from "@/services/providerService";
 import { MarketplaceService } from "@/types";
 
 describe("Provider Availability Component & Logic Suite", () => {
@@ -175,7 +176,7 @@ describe("Provider Availability Component & Logic Suite", () => {
       );
 
       // Step 1: Select Farmer category
-      const farmerCard = screen.getByText("Farmer / Agro-Host");
+      const farmerCard = screen.getByText("Farm Tours & Experiences");
       fireEvent.click(farmerCard);
 
       // Step 2: Verify Availability Section is visible in form
@@ -189,7 +190,7 @@ describe("Provider Availability Component & Logic Suite", () => {
     });
 
     it("creates service with availability data across multiple provider types", async () => {
-      const createSpy = vi.spyOn(partnerService, "createPartnerService").mockResolvedValue({
+      const createSpy = vi.spyOn(providerService, "createListing").mockResolvedValue({
         id: "srv-new-1",
         title: "Kurinji Flower Botanical Guided Trek",
         slug: "kurinji-flower-trek",
@@ -212,7 +213,7 @@ describe("Provider Availability Component & Logic Suite", () => {
         images: [],
         inclusions: [],
         amenities: [],
-      });
+      } as any);
 
       render(
         <MemoryRouter>
@@ -221,17 +222,17 @@ describe("Provider Availability Component & Logic Suite", () => {
       );
 
       // Select Guide provider type
-      const guideCard = screen.getByText("Guide & Naturalist");
+      const guideCard = screen.getByText("Adventure & Trekking");
       fireEvent.click(guideCard);
 
       // Fill basic inputs
-      fireEvent.change(screen.getByLabelText(/service \/ stay title/i), {
+      fireEvent.change(screen.getByPlaceholderText(/e\.g\. Organic Arabica/i), {
         target: { value: "Kurinji Flower Botanical Guided Trek" },
       });
-      fireEvent.change(screen.getByLabelText(/location/i), {
+      fireEvent.change(screen.getByPlaceholderText(/e\.g\. Madikeri, Coorg/i), {
         target: { value: "Mullayanagiri, Chikmagalur" },
       });
-      fireEvent.change(screen.getByLabelText(/price/i), {
+      fireEvent.change(screen.getByPlaceholderText("1200"), {
         target: { value: "1500" },
       });
 
@@ -240,7 +241,7 @@ describe("Provider Availability Component & Logic Suite", () => {
       fireEvent.change(capInput, { target: { value: "12" } });
 
       // Save as Draft
-      const saveDraftBtn = screen.getByRole("button", { name: /save as draft/i });
+      const saveDraftBtn = screen.getByRole("button", { name: /save draft/i });
       fireEvent.click(saveDraftBtn);
 
       await waitFor(() => {
@@ -249,14 +250,13 @@ describe("Provider Availability Component & Logic Suite", () => {
             title: "Kurinji Flower Botanical Guided Trek",
             location: "Mullayanagiri, Chikmagalur",
             price: 1500,
-            max_capacity: 12,
+            status: "DRAFT",
             specific_details: expect.objectContaining({
               weeklyAvailability: expect.objectContaining({
                 monday: true,
               }),
               startTime: "09:00",
               endTime: "18:00",
-              capacity: 12,
             }),
           })
         );

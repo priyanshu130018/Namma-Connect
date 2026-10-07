@@ -1,22 +1,18 @@
-import React, { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import {
-  Compass,
   Wheat,
-  Landmark,
+  Compass,
   ChefHat,
-  RefreshCw,
-  Search,
-  MapPin,
-  Calendar,
+  Landmark,
   Star,
+  RefreshCw,
 } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog } from "@/components/ui/dialog";
-import { ServiceGrid } from "@/components/marketplace";
+import { ServiceGrid, SearchFilterBar } from "@/components/marketplace";
 import { getMarketplaceServices } from "@/services/marketplaceService";
 import { MarketplaceService } from "@/types";
 
@@ -83,7 +79,6 @@ export function CustomerActivitiesPage() {
   const providerIdParam = searchParams.get("providerId") || searchParams.get("provider_id");
   const searchQuery = searchParams.get("q") || "";
   const locationQuery = searchParams.get("location") || "";
-  const dateQuery = searchParams.get("date") || "";
   const sortBy = searchParams.get("sort_by") || "rating";
   const currentPage = Number(searchParams.get("page") || "1");
 
@@ -94,8 +89,6 @@ export function CustomerActivitiesPage() {
 
   // Local Form Inputs
   const [activityInput, setActivityInput] = useState(searchQuery);
-  const [locationInput, setLocationInput] = useState(locationQuery);
-  const [dateInput, setDateInput] = useState(dateQuery);
 
   const [services, setServices] = useState<MarketplaceService[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -138,16 +131,18 @@ export function CustomerActivitiesPage() {
   }, [fetchActivities]);
 
   const updateFilters = (newParams: Record<string, string | null>) => {
-    const next = new URLSearchParams(searchParams);
-    Object.entries(newParams).forEach(([key, value]) => {
-      if (value === null || value === "") {
-        next.delete(key);
-      } else {
-        next.set(key, value);
-      }
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      Object.entries(newParams).forEach(([key, value]) => {
+        if (value === null || value === "") {
+          next.delete(key);
+        } else {
+          next.set(key, value);
+        }
+      });
+      if (!newParams.page && !next.get("page")) next.set("page", "1");
+      return next;
     });
-    if (!newParams.page) next.set("page", "1");
-    setSearchParams(next);
   };
 
   // Toggle multi-category selection
@@ -158,16 +153,7 @@ export function CustomerActivitiesPage() {
     } else {
       nextSlugs = [...selectedCategorySlugs, slug];
     }
-    updateFilters({ category: nextSlugs.length > 0 ? nextSlugs.join(",") : null });
-  };
-
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    updateFilters({
-      q: activityInput.trim() || null,
-      location: locationInput.trim() || null,
-      date: dateInput || null,
-    });
+    updateFilters({ category: nextSlugs.length > 0 ? nextSlugs.join(",") : null, page: "1" });
   };
 
   const handleCloseDrawer = () => {
@@ -203,7 +189,7 @@ export function CustomerActivitiesPage() {
           <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">Activity Categories</h3>
           {selectedCategorySlugs.length > 0 && (
             <button
-              onClick={() => updateFilters({ category: null })}
+              onClick={() => updateFilters({ category: null, page: "1" })}
               className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
             >
               Clear selected categories ({selectedCategorySlugs.length})
@@ -242,52 +228,35 @@ export function CustomerActivitiesPage() {
         </div>
       </div>
 
-      {/* ── 2. Page Content Search Bar (Activity, Location, Date) ── */}
-      <Card className="p-4 rounded-3xl border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-        <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
-          {/* Activity Input */}
-          <div className="sm:col-span-4 relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Search activity name or topic..."
-              value={activityInput}
-              onChange={(e) => setActivityInput(e.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 pl-9 pr-3 text-xs text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-
-          {/* Location Input */}
-          <div className="sm:col-span-3 relative">
-            <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="text"
-              placeholder="Location (e.g. Coorg, Chikmagalur)"
-              value={locationInput}
-              onChange={(e) => setLocationInput(e.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 pl-9 pr-3 text-xs text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-
-          {/* Date Input */}
-          <div className="sm:col-span-3 relative">
-            <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <input
-              type="date"
-              value={dateInput}
-              onChange={(e) => setDateInput(e.target.value)}
-              className="h-10 w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 pl-9 pr-3 text-xs text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-emerald-500"
-            />
-          </div>
-
-          {/* Search Button */}
-          <div className="sm:col-span-2">
-            <Button type="submit" size="sm" className="w-full h-10 rounded-xl font-bold bg-harvest-600 hover:bg-harvest-700 text-white">
-              Search
-            </Button>
-          </div>
-        </form>
-      </Card>
+      {/* ── 2. Unified Search & Filter Bar ── */}
+      <SearchFilterBar
+        searchQuery={activityInput}
+        onSearchChange={(val: string) => {
+          setActivityInput(val);
+        }}
+        selectedLocation={locationQuery}
+        selectedCategory={selectedCategorySlugs[0] || "all"}
+        sortBy={sortBy}
+        placeholder="Search activities, experiences, farm tours, trails..."
+        onApply={(filters: any) => {
+          updateFilters({
+            category: filters.category && filters.category !== "all" ? filters.category : null,
+            location: filters.location || null,
+            sort_by: filters.sortBy && filters.sortBy !== "rating" ? filters.sortBy : null,
+            page: "1",
+          });
+        }}
+        onReset={() => {
+          setActivityInput("");
+          setSearchParams(new URLSearchParams());
+        }}
+        onSubmit={() => {
+          updateFilters({
+            q: activityInput.trim() || null,
+            page: "1",
+          });
+        }}
+      />
 
       {/* ── 3. Results Grid ── */}
       <ServiceGrid
@@ -302,8 +271,6 @@ export function CustomerActivitiesPage() {
         emptyActionLabel={selectedCategorySlugs.length > 0 || searchQuery ? "Clear All Filters" : undefined}
         onEmptyAction={() => {
           setActivityInput("");
-          setLocationInput("");
-          setDateInput("");
           setSearchParams(new URLSearchParams());
         }}
       />

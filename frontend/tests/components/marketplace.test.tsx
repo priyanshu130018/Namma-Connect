@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { BrowserRouter, MemoryRouter, Routes, Route } from "react-router-dom";
 import { ServiceCard } from "@/components/cards/ServiceCard";
 import { ServiceCardSkeleton } from "@/components/cards/ServiceCardSkeleton";
 import { CustomerHomePage } from "@/routes/customer/CustomerHome";
@@ -95,6 +95,12 @@ describe("Customer Marketplace Discovery & Search Component Suite", () => {
       limit: 9,
       total_pages: 1,
     });
+    vi.spyOn(marketplaceService, "getExploreFeed").mockResolvedValue({
+      categories: [],
+      active_sections: ["top_and_most_visited"],
+      top_and_most_visited: [mockService],
+      user_signals: { is_authenticated: false, has_location: false },
+    } as any);
 
     render(
       <BrowserRouter>
@@ -102,10 +108,9 @@ describe("Customer Marketplace Discovery & Search Component Suite", () => {
       </BrowserRouter>
     );
 
-    expect(screen.getByRole("heading", { name: /Marketplace Catalog/i })).toBeInTheDocument();
-    expect(screen.getByPlaceholderText(/Search by estate, crop, or district/i)).toBeInTheDocument();
-    expect(screen.getByText(/All Offerings/i)).toBeInTheDocument();
-    expect(screen.getByText(/Max: ₹5000/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Explore Karnataka/i })).toBeInTheDocument();
+    expect(screen.getByPlaceholderText(/Search farm stays/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /filter/i })).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText("Coorg Heritage Coffee Estate")).toBeInTheDocument();
@@ -125,15 +130,17 @@ describe("Customer Marketplace Discovery & Search Component Suite", () => {
         },
       ],
     });
-
-    window.history.pushState({}, "Detail", "/app/services/srv-001");
+    vi.spyOn(marketplaceService, "getServiceAvailability").mockResolvedValue({
+      service_id: "srv-001",
+      days: [],
+    } as any);
 
     render(
-      <BrowserRouter>
+      <MemoryRouter initialEntries={["/app/services/srv-001"]}>
         <Routes>
           <Route path="/app/services/:service_id" element={<CustomerServiceDetailPage />} />
         </Routes>
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     await waitFor(() => {
@@ -143,6 +150,53 @@ describe("Customer Marketplace Discovery & Search Component Suite", () => {
       expect(screen.getByText("Kavita Nair")).toBeInTheDocument();
       expect(screen.getByText("Breathtaking estate walk and lovely hosts!")).toBeInTheDocument();
       expect(screen.getByRole("button", { name: /Message Host \/ Inquire/i })).toBeInTheDocument();
+    });
+  });
+
+  it("filters marketplace results when Category is selected and Apply is clicked", async () => {
+    const getServicesSpy = vi.spyOn(marketplaceService, "getMarketplaceServices").mockResolvedValue({
+      services: [mockService],
+      total: 1,
+      page: 1,
+      limit: 16,
+      total_pages: 1,
+    });
+    vi.spyOn(marketplaceService, "getExploreFeed").mockResolvedValue({
+      categories: [],
+      active_sections: ["top_and_most_visited"],
+      top_and_most_visited: [mockService],
+      user_signals: { is_authenticated: false, has_location: false },
+    } as any);
+
+    const { container } = render(
+      <MemoryRouter initialEntries={["/explore"]}>
+        <Routes>
+          <Route path="/explore" element={<CustomerExplorePage />} />
+        </Routes>
+      </MemoryRouter>
+    );
+
+    // 1. Open Filter Popover
+    const filterButton = screen.getByRole("button", { name: /filter/i });
+    fireEvent.click(filterButton);
+
+    // 2. Select Category "Farm Tours & Experiences" (value: "farm")
+    const selects = container.querySelectorAll("select");
+    expect(selects.length).toBeGreaterThanOrEqual(1);
+    const categorySelect = selects[0];
+    fireEvent.change(categorySelect, { target: { value: "farm" } });
+
+    // 3. Click Apply
+    const applyButton = screen.getByRole("button", { name: /^Apply$/i });
+    fireEvent.click(applyButton);
+
+    // 4. Verify API was called with category: "farm"
+    await waitFor(() => {
+      expect(getServicesSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          category: "farm",
+        })
+      );
     });
   });
 });

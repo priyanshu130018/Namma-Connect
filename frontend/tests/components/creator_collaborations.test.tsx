@@ -283,7 +283,7 @@ describe("Creator Collaboration Component Suite", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Content Creator Services")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /Content Creator (Marketplace|Services)/i })).toBeInTheDocument();
       expect(screen.getByText("Estate Harvest 4K Cinematography Package")).toBeInTheDocument();
     });
   });

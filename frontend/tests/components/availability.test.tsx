@@ -5,6 +5,7 @@ import { AvailabilityCalendar } from "@/components/availability/AvailabilityCale
 import { TimeSlotSelector } from "@/components/availability/TimeSlotSelector";
 import { CustomerServiceDetailPage } from "@/routes/customer/ServiceDetail";
 import * as marketplaceService from "@/services/marketplaceService";
+import * as savedService from "@/services/savedService";
 import { DayAvailability, TimeSlot } from "@/types";
 
 const mockDays: DayAvailability[] = [
@@ -143,6 +144,20 @@ describe("Service Availability Component Suite", () => {
       service: mockService,
       reviews: [],
     });
+    vi.spyOn(marketplaceService, "getServiceAvailability").mockResolvedValue({
+      service_id: "srv-exp-01",
+      service_title: "Cardamom & Black Pepper Canopy Trail",
+      booking_model: "time_slot",
+      min_guests: 1,
+      max_guests: 10,
+      min_days_notice: 1,
+      max_days_advance: 30,
+      start_date: "2026-09-10",
+      end_date: "2026-10-10",
+      days: mockDays,
+      blackout_dates: [],
+    });
+    vi.spyOn(savedService, "getSavedStatus").mockResolvedValue(false);
 
     window.history.pushState({}, "Detail", "/app/services/srv-exp-01");
 

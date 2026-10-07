@@ -188,3 +188,188 @@ class AgenticTripPlanner:
         # Generate pre-booking checkout handoff payload
         handoff_payload = BookingHandoffGenerator.generate_handoff_payload(state, trip_id=str(trip.id))
         return trip, handoff_payload
+
+    def handle_trip_turn(
+        self,
+        user: User,
+        current_state: Optional[PlannerState],
+        message: str,
+        extracted_requirements: Dict[str, Any],
+        existing_trip_id: Optional[str] = None,
+    ) -> Tuple[PlannerState, List[str]]:
+        """Orchestrate a single trip planner conversational turn (build or refine) with active trip context."""
+        import re
+        from datetime import datetime, timedelta
+
+        lower = message.lower().strip()
+        changed_items: List[str] = []
+
+        # 1. Recover active trip context if not passed in memory
+        target_trip_id = existing_trip_id or (current_state.associated_trip_id if current_state else None)
+        if (not current_state or not current_state.proposal) and target_trip_id:
+            try:
+                t_uuid = uuid.UUID(str(target_trip_id))
+                db_trip = self.db.query(Trip).filter(Trip.id == t_uuid).first()
+                if db_trip:
+                    current_state = PlannerState.from_trip_model(db_trip)
+            except Exception:
+                pass
+
+        # 2. Determine if this turn modifies an existing trip or plans a new one
+        has_active_trip = bool(current_state and current_state.proposal and current_state.proposal.days)
+        is_refinement = extracted_requirements.get("is_refinement", False)
+
+        # Detect modification keywords
+        day_match = re.search(r"day\s*(\d+)", lower)
+        target_day_num = int(day_match.group(1)) if day_match else None
+
+        is_cheaper_request = any(w in lower for w in ["cheaper", "lower budget", "reduce budget", "reduce the budget", "budget to", "less expensive", "cut cost", "save money", "budget"])
+        is_remove_request = any(w in lower for w in ["remove", "delete", "drop", "skip", "take out", "exclude"])
+        is_hotel_request = any(w in lower for w in ["hotel", "stay", "resort", "homestay", "cottage", "accommodation"]) and any(w in lower for w in ["change", "replace", "different", "switch", "another"])
+        is_add_request = any(w in lower for w in ["add", "include", "put in", "experience", "food", "dinner", "lunch", "workshop"]) and not any(w in lower for w in ["plan a", "create a"])
+        is_replace_request = any(w in lower for w in ["replace", "change activity", "swap", "another option", "different option", "alternative"])
+
+        is_modify_turn = has_active_trip and (
+            is_refinement
+            or is_cheaper_request
+            or is_remove_request
+            or is_hotel_request
+            or is_add_request
+            or is_replace_request
+            or target_day_num is not None
+            or not extracted_requirements.get("is_trip_plan")
+        )
+
+        if is_modify_turn and current_state and current_state.proposal:
+            state = current_state
+            proposal = state.proposal
+            district = state.constraints.destination_district or extracted_requirements.get("destination_district") or "Kodagu"
+            candidates = self.tools.search_candidates(district=district, limit=20)
+            if not candidates:
+                candidates = self.tools.search_candidates(limit=20)
+
+            PlannerStateMachine.transition(state, PlannerStatus.REFINING)
+
+            # A. Day-specific budget reduction ("Make Day 2 cheaper")
+            if is_cheaper_request and target_day_num:
+                cheaper_candidates = sorted(candidates, key=lambda s: float(s.price))
+                changed = ItineraryRefiner.refine_day_budget(
+                    proposal=proposal,
+                    day_number=target_day_num,
+                    cheaper_alternatives=cheaper_candidates,
+                )
+                changed_items.extend(changed)
+
+            # B. Remove activity / keyword ("Remove trekking")
+            elif is_remove_request:
+                # Extract keyword after remove/delete
+                kw_match = re.search(r"(?:remove|delete|drop|skip|take out|exclude)\s+([a-zA-Z\s]+)", lower)
+                kw = kw_match.group(1).strip() if kw_match else ""
+                # Clean up punctuation and stop words
+                kw = re.sub(r"\b(the|from|my|trip|itinerary|activity|day\s*\d+)\b", "", kw).strip()
+                if not kw and "trek" in lower:
+                    kw = "trek"
+                changed = ItineraryRefiner.remove_item_by_keyword(proposal=proposal, keyword=kw or "activity", day_number=target_day_num)
+                changed_items.extend(changed)
+
+            # C. Change hotel / stay ("Change my hotel")
+            elif is_hotel_request:
+                stay_candidates = [s for s in candidates if "stay" in (s.category_slug or s.category or "").lower() or "stay" in s.title.lower()]
+                current_stay_ids = {it.service_id for d in proposal.days for it in d.items}
+                alt_stays = [s for s in stay_candidates if str(s.id) not in current_stay_ids]
+                if not alt_stays and stay_candidates:
+                    alt_stays = stay_candidates
+                if alt_stays:
+                    changed = ItineraryRefiner.replace_item_by_category(proposal, "stay", alt_stays[0], day_number=target_day_num)
+                    changed_items.extend(changed)
+
+            # D. Add experience ("Add a local food experience")
+            elif is_add_request:
+                # Find matching activity candidate
+                cat_filter = None
+                if any(w in lower for w in ["food", "culinary", "dinner", "cooking"]):
+                    cat_filter = "workshops"
+                elif any(w in lower for w in ["tour", "plantation", "spice", "agro"]):
+                    cat_filter = "agro-tours"
+                act_candidates = [s for s in candidates if "stay" not in (s.category_slug or s.category or "").lower()]
+                current_act_ids = {it.service_id for d in proposal.days for it in d.items}
+                available_acts = [s for s in act_candidates if str(s.id) not in current_act_ids]
+                target_act = available_acts[0] if available_acts else (act_candidates[0] if act_candidates else candidates[0] if candidates else None)
+                if target_act:
+                    target_day = target_day_num or (2 if len(proposal.days) >= 2 else 1)
+                    new_id = ItineraryRefiner.add_item(proposal, day_number=target_day, new_service=target_act, notes=f"Added based on traveler request: {message}")
+                    if new_id:
+                        changed_items.append(new_id)
+
+            # E. Replace activity / show another option ("Replace this activity", "Show me another option")
+            elif is_replace_request:
+                act_candidates = [s for s in candidates if "stay" not in (s.category_slug or s.category or "").lower()]
+                current_act_ids = {it.service_id for d in proposal.days for it in d.items}
+                available_acts = [s for s in act_candidates if str(s.id) not in current_act_ids]
+                if available_acts and proposal.days:
+                    target_day = target_day_num or 1
+                    day_plan = next((d for d in proposal.days if d.day_number == target_day), proposal.days[0])
+                    if day_plan.items:
+                        old_item = day_plan.items[0]
+                        ItineraryRefiner.replace_item(proposal, day_plan.day_number, old_item.id, available_acts[0])
+                        changed_items.append(old_item.id)
+
+            # F. General budget reduction ("Reduce the budget", "Make it cheaper")
+            elif is_cheaper_request or extracted_requirements.get("max_budget"):
+                target_budget = extracted_requirements.get("max_budget") or (proposal.total_estimated_cost * 0.8)
+                state.constraints.max_budget = float(target_budget)
+                cheaper_candidates = sorted(candidates, key=lambda s: float(s.price))
+                prev_ids = {it.service_id for d in proposal.days for it in d.items}
+                ItineraryRefiner.resolve_budget_conflict(proposal, float(target_budget), cheaper_candidates)
+                for d in proposal.days:
+                    for it in d.items:
+                        if it.service_id not in prev_ids:
+                            changed_items.append(it.id)
+
+            # Re-validate after modification
+            PlannerStateMachine.transition(state, PlannerStatus.VALIDATING)
+            report = ItineraryValidator.validate(state.proposal, state.constraints)
+            state.validation_report = report
+            PlannerStateMachine.transition(state, PlannerStatus.READY_FOR_REVIEW)
+
+        else:
+            # 3. New Trip Planning Workflow
+            district = extracted_requirements.get("destination_district") or "Kodagu"
+            duration = extracted_requirements.get("duration_days", 2)
+            party_size = extracted_requirements.get("party_size", 2)
+            budget = extracted_requirements.get("max_budget")
+            start_date_str = extracted_requirements.get("target_date") or (datetime.utcnow() + timedelta(days=7)).strftime("%Y-%m-%d")
+            end_date_str = (datetime.utcnow() + timedelta(days=7 + duration - 1)).strftime("%Y-%m-%d")
+
+            constraints = TravelerConstraints(
+                destination_district=district,
+                duration_days=duration,
+                party_size=party_size,
+                max_budget=budget,
+                start_date=start_date_str,
+                end_date=end_date_str,
+                preferred_categories=extracted_requirements.get("preferred_categories", []),
+                pace="MODERATE",
+                notes=message,
+            )
+
+            state = self.plan_trip(
+                user=user,
+                constraints=constraints,
+                prompt_text=message or f"{duration}-day trip to {district}",
+            )
+
+        # 4. Persist Itinerary to DB
+        if state.proposal:
+            trip = TripPersistenceEngine.persist_itinerary(
+                db=self.db,
+                user=user,
+                state=state,
+                prompt_text=message or "Trip with AI",
+                commit=False,
+                trip_id=target_trip_id or state.associated_trip_id,
+            )
+            state.associated_trip_id = str(trip.id)
+
+        return state, changed_items
+

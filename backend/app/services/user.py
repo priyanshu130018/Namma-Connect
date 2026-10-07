@@ -234,7 +234,8 @@ class UserService:
     @classmethod
     def request_email_otp(cls, db: Session, user: User) -> Dict[str, Any]:
         """Generate secure 6-digit OTP for email verification."""
-        import random, hashlib
+        import random
+        import hashlib
         from datetime import datetime, timedelta
         from app.core.security import get_password_hash
 

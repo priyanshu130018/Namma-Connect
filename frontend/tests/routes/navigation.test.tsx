@@ -61,7 +61,19 @@ describe("App Routing & Public / Protected Shells", () => {
     localStorage.setItem("nc_access_token", "valid_test_token");
     window.history.pushState({}, "Become Partner", "/app/become-partner");
     render(<App />);
-    expect(await screen.findByRole("heading", { name: /NammaConnect Provider Onboarding/i })).toBeInTheDocument();
-    expect(screen.getByText(/Welcome to NammaConnect Provider Network/i)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: /Become a Partner/i })).toBeInTheDocument();
+    expect(screen.getByText(/List your experiences and start hosting on Namma Connect/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Start Provider Registration/i })).toBeInTheDocument();
+  });
+
+  it("redirects legacy /AI-trip-planner to /namma-ai", async () => {
+    localStorage.setItem("nc_access_token", "valid_test_token");
+    localStorage.setItem("nc_user", JSON.stringify({ id: "u1", email: "user@test.com", role: "customer", full_name: "Test Traveler" }));
+    window.history.pushState({}, "AI Planner", "/AI-trip-planner");
+    render(<App />);
+    await waitFor(() => {
+      expect(window.location.pathname).toBe("/namma-ai");
+    });
   });
 });
+

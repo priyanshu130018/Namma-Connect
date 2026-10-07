@@ -45,3 +45,4 @@ class UserProfileResponse(BaseModel):
     is_active: bool
     is_verified: bool
     phone_verified: bool
+    is_synthetic: bool = False

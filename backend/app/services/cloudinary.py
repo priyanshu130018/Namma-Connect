@@ -48,7 +48,7 @@ class CloudinaryService:
             if len(file_bytes) > MAX_DOCUMENT_SIZE_BYTES:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"KYC document exceeds maximum permitted size of 10MB.",
+                    detail="KYC document exceeds maximum permitted size of 10MB.",
                 )
         elif resource_type == "video":
             if content_type not in ALLOWED_VIDEO_TYPES:
@@ -59,7 +59,7 @@ class CloudinaryService:
             if len(file_bytes) > MAX_VIDEO_SIZE_BYTES:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Video exceeds maximum permitted size of 50MB.",
+                    detail="Video exceeds maximum permitted size of 50MB.",
                 )
         else:
             if content_type not in ALLOWED_IMAGE_TYPES:
@@ -70,7 +70,7 @@ class CloudinaryService:
             if len(file_bytes) > MAX_IMAGE_SIZE_BYTES:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Image exceeds maximum permitted size of 10MB.",
+                    detail="Image exceeds maximum permitted size of 10MB.",
                 )
 
     @classmethod
@@ -78,7 +78,7 @@ class CloudinaryService:
         cls,
         file_bytes: bytes,
         filename: str,
-        folder: str = "nammaconnect/media",
+        folder: str = "namma-connect/media",
         is_private: bool = False,
         resource_type: str = "image",
         content_type: Optional[str] = None,
@@ -158,7 +158,7 @@ class CloudinaryService:
         res = cls.upload_media(
             file_bytes,
             f"user_{user_id}_{filename}",
-            folder="nammaconnect/profiles",
+            folder="namma-connect/profiles",
             content_type=content_type,
         )
         return res["url"]
@@ -169,7 +169,7 @@ class CloudinaryService:
         res = cls.upload_media(
             file_bytes,
             f"srv_{service_id}_{filename}",
-            folder="nammaconnect/services",
+            folder="namma-connect/services",
             content_type=content_type,
         )
         return res["url"]
@@ -180,7 +180,7 @@ class CloudinaryService:
         return cls.upload_media(
             file_bytes,
             f"kyc_{partner_id}_{doc_name}",
-            folder="nammaconnect/kyc_private",
+            folder="namma-connect/kyc_private",
             is_private=True,
             resource_type="raw",
             content_type=content_type,

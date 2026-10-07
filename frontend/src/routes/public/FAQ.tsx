@@ -110,7 +110,7 @@ export function FAQPage() {
 
 
   return (
-    <Section className="py-8 sm:py-12 bg-slate-50 min-h-screen">
+    <Section className="py-8 sm:py-12 bg-slate-50 dark:bg-slate-950 min-h-screen">
       <PageMetadata
         title="Frequently Asked Questions"
         description="Answers to questions about booking rural stays, host onboarding, verified availability, payments, and the AI Trip Planner."
@@ -128,8 +128,8 @@ export function FAQPage() {
           {faqCategories.map((group, gIdx) => (
             <div key={gIdx} className="space-y-3">
               <div className="flex items-center gap-2">
-                <HelpCircle className="h-4 w-4 text-harvest-700" />
-                <h3 className="text-sm font-bold uppercase tracking-wider text-harvest-900">
+                <HelpCircle className="h-4 w-4 text-harvest-700 dark:text-harvest-400" />
+                <h3 className="text-sm font-bold uppercase tracking-wider text-harvest-900 dark:text-harvest-300">
                   {group.category}
                 </h3>
               </div>
@@ -142,23 +142,23 @@ export function FAQPage() {
                   return (
                     <Card
                       key={fIdx}
-                      className="bg-white rounded-2xl border-slate-200 overflow-hidden shadow-sm"
+                      className="bg-white dark:bg-slate-900 rounded-2xl border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm"
                     >
                       <button
                         type="button"
                         onClick={() => setOpenIndex(isOpen ? null : globalIdx)}
-                        className="w-full flex items-center justify-between p-5 text-left text-sm font-bold text-slate-900 hover:text-harvest-700 transition-colors"
+                        className="w-full flex items-center justify-between p-5 text-left text-sm font-bold text-slate-900 dark:text-slate-100 hover:text-harvest-700 dark:hover:text-harvest-400 transition-colors"
                         aria-expanded={isOpen}
                       >
                         <span className="pr-4">{faq.q}</span>
                         <ChevronDown
-                          className={`h-4 w-4 text-slate-400 shrink-0 transition-transform ${
-                            isOpen ? "rotate-180 text-harvest-700" : ""
+                          className={`h-4 w-4 text-slate-400 dark:text-slate-500 shrink-0 transition-transform ${
+                            isOpen ? "rotate-180 text-harvest-700 dark:text-harvest-400" : ""
                           }`}
                         />
                       </button>
                       {isOpen && (
-                        <div className="px-5 pb-5 pt-0 text-xs sm:text-sm text-slate-600 leading-relaxed border-t border-slate-50">
+                        <div className="px-5 pb-5 pt-0 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed border-t border-slate-50 dark:border-slate-800/80">
                           {faq.a}
                         </div>
                       )}

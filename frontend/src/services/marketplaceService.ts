@@ -113,6 +113,64 @@ export async function getRecentSearches(): Promise<string[]> {
   }
 }
 
+export interface ExploreCategory {
+  id: string;
+  slug: string;
+  name: string;
+  icon?: string;
+  description?: string;
+  sort_order?: number;
+}
+
+export interface BecauseYouVisitedData {
+  context: string;
+  source_service_id?: string;
+  source_title?: string;
+  items: MarketplaceService[];
+}
+
+export interface ExploreFeedData {
+  categories: ExploreCategory[];
+  active_sections: string[];
+  nearby_places?: MarketplaceService[];
+  because_you_visited?: BecauseYouVisitedData;
+  personalized_for_you?: MarketplaceService[];
+  top_and_most_visited: MarketplaceService[];
+  user_signals: {
+    is_authenticated: boolean;
+    has_location: boolean;
+    location?: string;
+    has_history: boolean;
+    has_preferences: boolean;
+    interaction_count: number;
+    is_cold_start: boolean;
+    has_sufficient_personalization: boolean;
+  };
+}
+
+export async function getExploreFeed(location?: string, seed?: number): Promise<ExploreFeedData> {
+  const response = await apiClient.get<ApiMessageResponse<ExploreFeedData>>("/recommendations/explore", {
+    params: {
+      location: location || undefined,
+      seed: seed !== undefined ? seed : undefined,
+    },
+  });
+  return response.data.data || {
+    categories: [],
+    active_sections: ["categories", "top_and_most_visited"],
+    top_and_most_visited: [],
+    user_signals: {
+      is_authenticated: false,
+      has_location: false,
+      has_history: false,
+      has_preferences: false,
+      interaction_count: 0,
+      is_cold_start: true,
+      has_sufficient_personalization: false,
+    },
+  };
+}
+
 export async function getHomeRecommendations(location?: string): Promise<{
   recommended_for_you: MarketplaceService[];
   top_rated: MarketplaceService[];

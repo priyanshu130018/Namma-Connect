@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { BrowserRouter } from "react-router-dom";
+import { BrowserRouter, MemoryRouter } from "react-router-dom";
 import { CustomerExplorePage } from "@/routes/customer/Explore";
 import * as marketplaceService from "@/services/marketplaceService";
 
@@ -40,6 +40,20 @@ describe("Semantic Search & Search Suggestions UI", () => {
   beforeEach(() => {
     localStorage.clear();
     vi.restoreAllMocks();
+    vi.spyOn(marketplaceService, "getExploreFeed").mockResolvedValue({
+      categories: [],
+      active_sections: [],
+      top_and_most_visited: [],
+      user_signals: {
+        is_authenticated: false,
+        has_location: false,
+        has_history: false,
+        has_preferences: false,
+        interaction_count: 0,
+        is_cold_start: true,
+        has_sufficient_personalization: false,
+      },
+    });
   });
 
   it("renders search bar and category filters correctly with results", async () => {
@@ -76,9 +90,9 @@ describe("Semantic Search & Search Suggestions UI", () => {
     });
 
     render(
-      <BrowserRouter>
+      <MemoryRouter initialEntries={["/explore?q=cardamom"]}>
         <CustomerExplorePage />
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     await waitFor(() => {
@@ -96,14 +110,14 @@ describe("Semantic Search & Search Suggestions UI", () => {
     });
 
     render(
-      <BrowserRouter>
+      <MemoryRouter initialEntries={["/explore?q=nonexistent"]}>
         <CustomerExplorePage />
-      </BrowserRouter>
+      </MemoryRouter>
     );
 
     await waitFor(() => {
-      expect(screen.getByText("No experiences or stays found")).toBeInTheDocument();
-      expect(screen.getByText("Browse All Offerings")).toBeInTheDocument();
+      expect(screen.getByText("No offerings found")).toBeInTheDocument();
+      expect(screen.getByText("Reset All Filters")).toBeInTheDocument();
     });
   });
 

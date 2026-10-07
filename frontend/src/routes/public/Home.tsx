@@ -153,27 +153,27 @@ export function HomePage() {
       </section>
 
       {/* 2. Marketplace Category Preview */}
-      <Section className="py-16 bg-white">
+      <Section className="py-16 bg-white dark:bg-slate-950">
         <Container className="space-y-10">
           <div className="text-center max-w-2xl mx-auto space-y-2">
-            <Badge variant="secondary">Verified Catalog</Badge>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">Explore Authentic Categories</h2>
-            <p className="text-xs sm:text-sm text-slate-500">From plantation homestays to seasonal harvest workshops across South India.</p>
+            <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">Verified Catalog</Badge>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100">Explore Authentic Categories</h2>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">From plantation homestays to seasonal harvest workshops across South India.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {categories.map((cat, idx) => {
               const Icon = cat.icon;
               return (
-                <Card key={idx} className="p-6 rounded-3xl border-slate-200 hover:border-emerald-300 hover:shadow-md transition-all space-y-3 bg-slate-50/50">
+                <Card key={idx} className="p-6 rounded-3xl border border-slate-200/80 dark:border-slate-800 hover:border-emerald-300 dark:hover:border-emerald-700 hover:shadow-md transition-all space-y-3 bg-slate-50/70 dark:bg-slate-900/90 text-slate-900 dark:text-slate-100">
                   <div className="flex items-center justify-between">
-                    <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                    <div className="h-10 w-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
                       <Icon className="h-5 w-5" />
                     </div>
-                    <Badge variant="outline" className="text-[10px] font-bold text-slate-600">{cat.tag}</Badge>
+                    <Badge variant="outline" className="text-[10px] font-bold text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700">{cat.tag}</Badge>
                   </div>
-                  <h3 className="text-base font-bold text-slate-900">{cat.title}</h3>
-                  <p className="text-xs text-slate-600 leading-relaxed">{cat.desc}</p>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">{cat.title}</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{cat.desc}</p>
                 </Card>
               );
             })}
@@ -182,24 +182,24 @@ export function HomePage() {
       </Section>
 
       {/* 3. Major Platform Features */}
-      <Section className="py-16 bg-slate-50">
+      <Section className="py-16 bg-slate-50 dark:bg-slate-900">
         <Container className="space-y-12">
           <div className="text-center max-w-2xl mx-auto space-y-2">
             <Badge variant="default" className="bg-emerald-600 text-white font-bold">Platform Capabilities</Badge>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">Engineered for Seamless Rural Journeys</h2>
-            <p className="text-xs sm:text-sm text-slate-500">Every feature is backed by real catalog data, availability checks, and reliable infrastructure.</p>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100">Engineered for Seamless Rural Journeys</h2>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Every feature is backed by real catalog data, availability checks, and reliable infrastructure.</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {features.map((feat, idx) => {
               const Icon = feat.icon;
               return (
-                <Card key={idx} className="p-6 bg-white rounded-3xl border-slate-200 shadow-sm space-y-3">
-                  <div className="h-10 w-10 rounded-2xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                <Card key={idx} className="p-6 bg-white dark:bg-slate-950/80 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3 text-slate-900 dark:text-slate-100">
+                  <div className="h-10 w-10 rounded-2xl bg-emerald-50 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-400 flex items-center justify-center">
                     <Icon className="h-5 w-5" />
                   </div>
-                  <h3 className="text-sm font-bold text-slate-900">{feat.title}</h3>
-                  <p className="text-xs text-slate-600 leading-relaxed">{feat.desc}</p>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">{feat.title}</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{feat.desc}</p>
                 </Card>
               );
             })}
@@ -208,78 +208,78 @@ export function HomePage() {
       </Section>
 
       {/* 4. How It Works */}
-      <Section className="py-16 bg-white">
+      <Section className="py-16 bg-white dark:bg-slate-950">
         <Container className="space-y-12">
           <div className="text-center max-w-2xl mx-auto space-y-2">
-            <Badge variant="secondary">Step-by-Step</Badge>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900">How Namma Connect Works</h2>
-            <p className="text-xs sm:text-sm text-slate-500">Clear workflows for both conscious travelers and rural hosts.</p>
+            <Badge variant="secondary" className="bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200">Step-by-Step</Badge>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-slate-100">How Namma Connect Works</h2>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">Clear workflows for both conscious travelers and rural hosts.</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
             {/* Customer Workflow */}
-            <Card className="p-8 bg-slate-50 rounded-3xl border-slate-200 space-y-6">
+            <Card className="p-8 bg-slate-50 dark:bg-slate-900/90 rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-6 text-slate-900 dark:text-slate-100">
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
                   <Compass className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">For Travelers</h3>
-                  <p className="text-xs text-slate-500">From discovery to confirmed stays</p>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">For Travelers</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">From discovery to confirmed stays</p>
                 </div>
               </div>
 
-              <div className="space-y-4 text-xs">
+              <div className="space-y-4 text-xs text-slate-700 dark:text-slate-300">
                 <div className="flex items-start gap-3">
-                  <span className="h-6 w-6 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center shrink-0">1</span>
+                  <span className="h-6 w-6 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold flex items-center justify-center shrink-0">1</span>
                   <div>
-                    <strong className="text-slate-900">Discover & Recommend:</strong> Browse categories or let the recommendation engine find matching farm retreats.
+                    <strong className="text-slate-900 dark:text-slate-100">Discover & Recommend:</strong> Browse categories or let the recommendation engine find matching farm retreats.
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="h-6 w-6 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center shrink-0">2</span>
+                  <span className="h-6 w-6 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold flex items-center justify-center shrink-0">2</span>
                   <div>
-                    <strong className="text-slate-900">Plan & Refine Itinerary:</strong> Use the AI Trip Planner to schedule multi-day activities and validate time conflicts.
+                    <strong className="text-slate-900 dark:text-slate-100">Plan & Refine Itinerary:</strong> Use the AI Trip Planner to schedule multi-day activities and validate time conflicts.
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="h-6 w-6 rounded-full bg-emerald-100 text-emerald-800 font-bold flex items-center justify-center shrink-0">3</span>
+                  <span className="h-6 w-6 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold flex items-center justify-center shrink-0">3</span>
                   <div>
-                    <strong className="text-slate-900">Confirm & Book:</strong> Review transparent pricing, confirm dates, and complete secure payment.
+                    <strong className="text-slate-900 dark:text-slate-100">Confirm & Book:</strong> Review transparent pricing, confirm dates, and complete secure payment.
                   </div>
                 </div>
               </div>
             </Card>
 
             {/* Provider Workflow */}
-            <Card className="p-8 bg-slate-50 rounded-3xl border-slate-200 space-y-6">
+            <Card className="p-8 bg-slate-50 dark:bg-slate-900/90 rounded-3xl border border-slate-200/80 dark:border-slate-800 space-y-6 text-slate-900 dark:text-slate-100">
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-xl bg-amber-600 text-white flex items-center justify-center font-bold">
                   <Sprout className="h-5 w-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-900">For Farm Hosts & Guides</h3>
-                  <p className="text-xs text-slate-500">Empowering rural entrepreneurship</p>
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">For Farm Hosts & Guides</h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Empowering rural entrepreneurship</p>
                 </div>
               </div>
 
-              <div className="space-y-4 text-xs">
+              <div className="space-y-4 text-xs text-slate-700 dark:text-slate-300">
                 <div className="flex items-start gap-3">
-                  <span className="h-6 w-6 rounded-full bg-amber-100 text-amber-800 font-bold flex items-center justify-center shrink-0">1</span>
+                  <span className="h-6 w-6 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 font-bold flex items-center justify-center shrink-0">1</span>
                   <div>
-                    <strong className="text-slate-900">Join & Onboard:</strong> Register your farm estate or guiding service with straightforward verification.
+                    <strong className="text-slate-900 dark:text-slate-100">Join & Onboard:</strong> Register your farm estate or guiding service with straightforward verification.
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="h-6 w-6 rounded-full bg-amber-100 text-amber-800 font-bold flex items-center justify-center shrink-0">2</span>
+                  <span className="h-6 w-6 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 font-bold flex items-center justify-center shrink-0">2</span>
                   <div>
-                    <strong className="text-slate-900">Manage Availability:</strong> Set real-time weekly schedules, guest capacities, and blackout dates.
+                    <strong className="text-slate-900 dark:text-slate-100">Manage Availability:</strong> Set real-time weekly schedules, guest capacities, and blackout dates.
                   </div>
                 </div>
                 <div className="flex items-start gap-3">
-                  <span className="h-6 w-6 rounded-full bg-amber-100 text-amber-800 font-bold flex items-center justify-center shrink-0">3</span>
+                  <span className="h-6 w-6 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 font-bold flex items-center justify-center shrink-0">3</span>
                   <div>
-                    <strong className="text-slate-900">Receive Bookings & Analytics:</strong> Welcome guests with direct payout settlements and track performance metrics.
+                    <strong className="text-slate-900 dark:text-slate-100">Receive Bookings & Analytics:</strong> Welcome guests with direct payout settlements and track performance metrics.
                   </div>
                 </div>
               </div>

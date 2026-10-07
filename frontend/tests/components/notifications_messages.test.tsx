@@ -132,7 +132,7 @@ describe("Notifications & Messages Suite", () => {
     });
 
     // Mark all as read
-    const markAllBtn = screen.getByRole("button", { name: /Mark all as read/i });
+    const markAllBtn = screen.getByRole("button", { name: /Mark all( as)? read/i });
     fireEvent.click(markAllBtn);
 
     await waitFor(() => {
@@ -160,8 +160,14 @@ describe("Notifications & Messages Suite", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Host & Partner Messages")).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: /Messages & Support/i })).toBeInTheDocument();
       expect(screen.getAllByText("Somanna (Kodagu Organics Host)")[0]).toBeInTheDocument();
+    });
+
+    // Select the conversation thread
+    fireEvent.click(screen.getAllByText("Somanna (Kodagu Organics Host)")[0]);
+
+    await waitFor(() => {
       expect(
         screen.getByText("Namaskara! We have reserved the Heritage Cottage for your upcoming stay.")
       ).toBeInTheDocument();

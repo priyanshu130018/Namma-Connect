@@ -1,7 +1,8 @@
 """Unified Semantic Search Service using pgvector and Gemini Embeddings."""
 
 import math
-from typing import List, Tuple, Optional, Dict, Any
+import uuid
+from typing import List, Tuple, Optional, Dict, Any, Set
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, desc, func
 from app.models.service import Service
@@ -187,7 +188,12 @@ class SemanticSearchService:
         return items, total
 
     @classmethod
-    def is_service_eligible(cls, service: Optional[Service], db: Session) -> bool:
+    def is_service_eligible(
+        cls,
+        service: Optional[Service],
+        db: Session,
+        valid_provider_ids: Optional[Set[uuid.UUID]] = None,
+    ) -> bool:
         """
         Hard business eligibility gate for AI recommendation.
         Returns True if and only if ALL conditions are satisfied:
@@ -210,6 +216,9 @@ class SemanticSearchService:
             return False
         if not getattr(service, "provider_id", None):
             return False
+
+        if valid_provider_ids is not None:
+            return service.provider_id in valid_provider_ids
 
         provider = db.query(User).filter(User.id == service.provider_id).first()
         if not provider:
@@ -473,9 +482,13 @@ class SemanticSearchService:
             "कॉफी", "फार्म", "खेत", "खेती", "मिट्टी", "बर्तन", "स्टे", "सफर", "कटाई", "मेला", "उत्सव", "चाय"
         ]
 
+        valid_provider_ids = set(
+            u[0] for u in db.query(User.id).filter(User.is_active == True, User.is_verified == True).all()
+        )
+
         for s in raw_candidates:
             # Secondary defense-in-depth eligibility validation
-            if not cls.is_service_eligible(s, db):
+            if not cls.is_service_eligible(s, db, valid_provider_ids=valid_provider_ids):
                 continue
 
             # Budget check

@@ -22,6 +22,9 @@ class BookingRepository:
     def get_by_booking_number(self, booking_number: str) -> Optional[Booking]:
         return self.db.query(Booking).filter(Booking.booking_code == booking_number).first()
 
+    def get_by_code(self, booking_code: str) -> Optional[Booking]:
+        return self.db.query(Booking).filter(Booking.booking_code == booking_code).first()
+
     def list_by_user(
         self,
         user_id,

@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Sparkles,
   X,
   Bot,
   Send,
   Calendar,
-  Compass,
   ArrowRight,
   RefreshCw,
   AlertCircle,
+  Maximize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
@@ -20,6 +21,14 @@ import {
 import { TripPlannerModal } from "./TripPlannerModal";
 
 export function TravelAIFloating() {
+  let navigate: (to: string) => void = (to: string) => {
+    if (typeof window !== "undefined") window.location.href = to;
+  };
+  try {
+    navigate = useNavigate();
+  } catch {
+    // rendered outside Router context
+  }
   const [isOpen, setIsOpen] = useState(false);
   const [plannerModalOpen, setPlannerModalOpen] = useState(false);
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -156,6 +165,17 @@ export function TravelAIFloating() {
                   type="button"
                   onClick={() => {
                     setIsOpen(false);
+                    navigate("/app/namma-ai");
+                  }}
+                  title="Open Full Namma AI Workspace"
+                  className="p-1.5 rounded-xl text-emerald-100 hover:text-white hover:bg-white/10 transition-colors"
+                >
+                  <Maximize2 className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
                     setPlannerModalOpen(true);
                   }}
                   title="Open Trip Planner"
@@ -174,21 +194,22 @@ export function TravelAIFloating() {
               </div>
             </div>
 
-            {/* Quick Action Trip Planner Bar */}
+            {/* Quick Action Workspace Bar */}
             <div className="bg-emerald-50 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900/40 px-3 py-2 flex items-center justify-between text-xs">
               <span className="text-emerald-900 dark:text-emerald-300 font-bold flex items-center gap-1 text-[11px]">
-                <Compass className="h-3.5 w-3.5" />
-                <span>Multi-Day Itinerary?</span>
+                <Sparkles className="h-3.5 w-3.5 text-emerald-600" />
+                <span>Namma AI Travel Agent</span>
               </span>
               <Button
                 size="sm"
                 onClick={() => {
                   setIsOpen(false);
-                  setPlannerModalOpen(true);
+                  navigate("/app/namma-ai");
                 }}
-                className="h-6 px-2 text-[10px] font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-none"
+                className="h-6 px-2 text-[10px] font-extrabold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-none flex items-center gap-1"
               >
-                Plan Trip
+                <span>Full Workspace</span>
+                <ArrowRight className="h-3 w-3" />
               </Button>
             </div>
 

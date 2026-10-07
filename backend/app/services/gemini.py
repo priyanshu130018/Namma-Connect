@@ -735,8 +735,8 @@ class GeminiService:
             if lang_code == "kn":
                 lines = [
                     f"{dest_name} ನಲ್ಲಿ {days}-ದಿನಗಳ ಕೃಷಿ ಪ್ರವಾಸ ಯೋಜನೆ:",
-                    f"• **ದಿನ 1:** ತೋಟದ ವಾಸ್ತವ್ಯಕ್ಕೆ ಆಗಮನ, ತಾಜಾ ಸಾಂಪ್ರದಾಯಿಕ ಊಟ ಮತ್ತು ಕಾಫಿ/ಏಲಕ್ಕಿ ತೋಟದ ನಡಿಗೆ.",
-                    f"• **ದಿನ 2:** ಸಾವಯವ ಕೊಯ್ಲು ಕಾರ್ಯಾಗಾರ, ಸ್ಥಳೀಯ ಜೇನುತುಪ್ಪ ಸಂಸ್ಕರಣೆ ಮತ್ತು ಹಳ್ಳಿಯ ನಿಸರ್ಗ ನಡಿಗೆ.",
+                    "• **ದಿನ 1:** ತೋಟದ ವಾಸ್ತವ್ಯಕ್ಕೆ ಆಗಮನ, ತಾಜಾ ಸಾಂಪ್ರದಾಯಿಕ ಊಟ ಮತ್ತು ಕಾಫಿ/ಏಲಕ್ಕಿ ತೋಟದ ನಡಿಗೆ.",
+                    "• **ದಿನ 2:** ಸಾವಯವ ಕೊಯ್ಲು ಕಾರ್ಯಾಗಾರ, ಸ್ಥಳೀಯ ಜೇನುತುಪ್ಪ ಸಂಸ್ಕರಣೆ ಮತ್ತು ಹಳ್ಳಿಯ ನಿಸರ್ಗ ನಡಿಗೆ.",
                 ]
                 if days >= 3:
                     lines.append("• **ದಿನ 3:** ಸಾಂಪ್ರದಾಯಿಕ ಮಣ್ಣಿನ ಪಾತ್ರೆ ತಯಾರಿಕೆ, ಸ್ಥಳೀಯ ಹಳ್ಳಿಯ ಸಂತೆ ಮತ್ತು ವಾಪಸಾತಿ.")
@@ -745,8 +745,8 @@ class GeminiService:
             elif lang_code == "hi":
                 lines = [
                     f"{dest_name} में {days}-दिवसीय कृषि पर्यटन यात्रा योजना:",
-                    f"• **दिन 1:** फार्म स्टे में चेक-इन, पारंपरिक भोजन और वृक्षारोपण वॉक.",
-                    f"• **दिन 2:** जैविक फसल कार्यशाला, स्थानीय शहद निष्कर्षण और सूर्यास्त दृश्य.",
+                    "• **दिन 1:** फार्म स्टे में चेक-इन, पारंपरिक भोजन और वृक्षारोपण वॉक.",
+                    "• **दिन 2:** जैविक फसल कार्यशाला, स्थानीय शहद निष्कर्षण और सूर्यास्त दृश्य.",
                 ]
                 if days >= 3:
                     lines.append("• **दिन 3:** मिट्टी के बर्तन कार्यशाला, स्थानीय ग्रामीण बाज़ार और प्रस्थान.")
@@ -755,8 +755,8 @@ class GeminiService:
             else:
                 lines = [
                     f"{days}-Day Agritourism Itinerary for {dest_name}:",
-                    f"• **Day 1:** Check-in at certified plantation stay, estate walk & farm-to-table lunch.",
-                    f"• **Day 2:** Hands-on harvest workshop, honey extraction demo & evening stream trail.",
+                    "• **Day 1:** Check-in at certified plantation stay, estate walk & farm-to-table lunch.",
+                    "• **Day 2:** Hands-on harvest workshop, honey extraction demo & evening stream trail.",
                 ]
                 if days >= 3:
                     lines.append("• **Day 3:** Artisanal pottery workshop, local village market visit & departure.")

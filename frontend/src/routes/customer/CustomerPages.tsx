@@ -18,4 +18,5 @@ export {
   CustomerSupportTicketsPage,
   CustomerSupportTicketDetailPage,
 } from "./Support";
+export { NammaAIWorkspace } from "./NammaAIWorkspace";
 

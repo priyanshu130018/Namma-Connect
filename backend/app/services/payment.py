@@ -455,11 +455,12 @@ class PaymentService:
             if not order_id:
                 return {"status": "ignored", "reason": "No order_id in webhook payload"}
 
-            payment = PaymentRepository.get_by_order_id(db, order_id)
+            payment = PaymentRepository.get_by_order_id(db, order_id, for_update=True)
             if not payment:
                 return {"status": "ignored", "reason": f"No payment record found for order {order_id}"}
 
             if event in ["payment.captured", "order.paid"]:
+                state_transitioned = False
                 if payment.status != "PAID":
                     PaymentRepository.update_verified(
                         db,
@@ -468,6 +469,7 @@ class PaymentService:
                         razorpay_signature="webhook_verified",
                     )
                     booking = BookingRepository.update_status(db, str(payment.booking_id), "CONFIRMED")
+                    state_transitioned = True
 
                     # Dispatch notifications and transactional confirmation emails if not already sent
                     try:
@@ -509,7 +511,7 @@ class PaymentService:
                     except Exception as wh_err:
                         logger.warning(f"Webhook notification dispatch error: {wh_err}")
 
-                return {"status": "success", "event": event, "order_id": order_id}
+                return {"status": "success", "event": event, "order_id": order_id, "state_transitioned": state_transitioned}
 
             elif event == "payment.authorized":
                 return {"status": "success", "event": "payment.authorized", "order_id": order_id}

@@ -103,6 +103,7 @@ class TripResponse(TripBase):
     user_id: UUID
     created_by: str
     ai_generated: bool
+    is_synthetic: bool = False
     created_at: datetime
     updated_at: datetime
 

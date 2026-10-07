@@ -25,6 +25,7 @@ class UserInteraction(Base, TimestampMixin):
     weight = sa.Column(sa.Float(), nullable=False, server_default="0.10")
     metadata_json = sa.Column(sa.Text(), nullable=False, server_default="{}")
     is_test_data = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"), index=True)
+    is_synthetic = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"), index=True)
 
     __table_args__ = (
         sa.Index("idx_user_interaction_event", "user_id", "event_type", "created_at"),
@@ -51,6 +52,7 @@ class UserInterestProfile(Base, TimestampMixin):
     language = sa.Column(sa.String(64), nullable=False, server_default="en")
     last_updated = sa.Column(sa.DateTime(), nullable=False, default=datetime.utcnow)
     is_test_data = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"), index=True)
+    is_synthetic = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"), index=True)
 
 
 class UserSimilarity(Base, TimestampMixin):
@@ -64,6 +66,7 @@ class UserSimilarity(Base, TimestampMixin):
     similarity_score = sa.Column(sa.Float(), nullable=False, server_default="0.0")
     evidence_count = sa.Column(sa.Integer(), nullable=False, server_default="0")
     is_test_data = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"), index=True)
+    is_synthetic = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"), index=True)
 
     __table_args__ = (
         sa.UniqueConstraint("user_id_1", "user_id_2", name="uq_user_similarity_pair"),
@@ -91,6 +94,7 @@ class RecommendationResult(Base, TimestampMixin):
     model_version = sa.Column(sa.String(64), nullable=False, server_default="v2.0.0")
     expires_at = sa.Column(sa.DateTime(), nullable=True, index=True)
     is_test_data = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"), index=True)
+    is_synthetic = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"), index=True)
 
     __table_args__ = (
         sa.Index("idx_user_rec_section", "user_id", "section", "score"),
@@ -115,6 +119,7 @@ class RecommendationImpression(Base, TimestampMixin):
     saved_at = sa.Column(sa.DateTime(), nullable=True)
     booked_at = sa.Column(sa.DateTime(), nullable=True)
     is_test_data = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"))
+    is_synthetic = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"))
 
 
 class RecommendationFeedback(Base, TimestampMixin):
@@ -129,3 +134,4 @@ class RecommendationFeedback(Base, TimestampMixin):
     feedback_type = sa.Column(sa.String(64), nullable=False, index=True, default=RecommendationFeedbackType.LIKE.value)
     feedback_text = sa.Column(sa.Text(), nullable=True)
     is_test_data = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"))
+    is_synthetic = sa.Column(sa.Boolean(), nullable=False, server_default=sa.text("false"))

@@ -1,4 +1,10 @@
-"""Pytest configuration and test fixtures."""
+import sys
+from pathlib import Path
+
+# Ensure backend root directory is on sys.path whether pytest is invoked from root or backend/
+backend_dir = Path(__file__).resolve().parent.parent
+if str(backend_dir) not in sys.path:
+    sys.path.insert(0, str(backend_dir))
 
 import pytest
 from fastapi.testclient import TestClient

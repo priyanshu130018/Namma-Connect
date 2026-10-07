@@ -32,8 +32,18 @@ class PaymentRepository:
             return None
 
     @staticmethod
-    def get_by_order_id(db: Session, razorpay_order_id: str) -> Optional[Payment]:
+    def get_by_order_id(db: Session, razorpay_order_id: str, for_update: bool = False) -> Optional[Payment]:
         """Fetch payment by Razorpay order ID."""
+        if for_update:
+            try:
+                return (
+                    db.query(Payment)
+                    .filter(Payment.razorpay_order_id == razorpay_order_id)
+                    .with_for_update(of=Payment)
+                    .first()
+                )
+            except Exception:
+                pass
         return (
             db.query(Payment)
             .options(joinedload(Payment.booking), joinedload(Payment.customer))
