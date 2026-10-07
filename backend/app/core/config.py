@@ -293,13 +293,19 @@ class Settings(BaseSettings):
             self.DATABASE_SYNC_URL = f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{port}/{self.POSTGRES_DB}"
 
         # 3. Synchronize sync and async database connection URLs
-        if self.DATABASE_SYNC_URL and not self.DATABASE_URL:
-            if self.DATABASE_SYNC_URL.startswith("postgresql://"):
-                self.DATABASE_URL = self.DATABASE_SYNC_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
-            elif self.DATABASE_SYNC_URL.startswith("postgres://"):
-                self.DATABASE_URL = self.DATABASE_SYNC_URL.replace("postgres://", "postgresql+asyncpg://", 1)
-            else:
-                self.DATABASE_URL = self.DATABASE_SYNC_URL
+        if self.DATABASE_SYNC_URL:
+            derived_async = (
+                self.DATABASE_SYNC_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+                if self.DATABASE_SYNC_URL.startswith("postgresql://")
+                else self.DATABASE_SYNC_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+                if self.DATABASE_SYNC_URL.startswith("postgres://")
+                else self.DATABASE_SYNC_URL
+            )
+            # Keep async DATABASE_URL consistent whenever DATABASE_SYNC_URL is provided
+            if not self.DATABASE_URL or not self.DATABASE_URL.startswith("postgresql+asyncpg://") or (
+                "@" in self.DATABASE_SYNC_URL and "@" in self.DATABASE_URL and self.DATABASE_SYNC_URL.split("@")[-1] != self.DATABASE_URL.split("@")[-1]
+            ):
+                self.DATABASE_URL = derived_async
         elif self.DATABASE_URL and not self.DATABASE_SYNC_URL:
             if self.DATABASE_URL.startswith("postgresql+asyncpg://"):
                 self.DATABASE_SYNC_URL = self.DATABASE_URL.replace("postgresql+asyncpg://", "postgresql://", 1)

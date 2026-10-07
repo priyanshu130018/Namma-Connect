@@ -10,16 +10,27 @@ import pytest
 from app.main import app
 
 
+def _get_all_app_routes(app_instance):
+    """Recursively extract all routes from FastAPI app and any included/nested routers."""
+    extracted = []
+    for r in getattr(app_instance, "routes", []):
+        if hasattr(r, "routes"):
+            extracted.extend(_get_all_app_routes(r))
+        if hasattr(r, "path"):
+            extracted.append(r)
+    return extracted
+
+
 def test_no_accidental_v2_v2_routes():
     """Verify that no double-prefixed /v2/v2 routes exist in the application."""
-    routes = [r.path for r in app.routes]
+    routes = [r.path for r in _get_all_app_routes(app)]
     v2_v2_routes = [r for r in routes if "/v2/v2" in r or "/api/v2/v2" in r]
     assert v2_v2_routes == [], f"Found accidental double-prefixed routes: {v2_v2_routes}"
 
 
 def test_canonical_provider_routes_present():
     """Verify key provider routes are registered under /api/v2/provider/... canonically."""
-    routes = {r.path for r in app.routes}
+    routes = {r.path for r in _get_all_app_routes(app)}
     expected_canonical_provider_routes = [
         "/api/v2/provider/profile",
         "/api/v2/provider/listings",
@@ -37,8 +48,8 @@ def test_no_duplicate_provider_route_methods():
     """Verify each (path, HTTP method) combination in provider routes is unique."""
     seen_endpoints = set()
     duplicates = []
-    for r in app.routes:
-        if "/provider/" in r.path and hasattr(r, "methods"):
+    for r in _get_all_app_routes(app):
+        if hasattr(r, "path") and "/provider/" in r.path and hasattr(r, "methods"):
             for method in r.methods:
                 pair = (r.path, method)
                 if pair in seen_endpoints:

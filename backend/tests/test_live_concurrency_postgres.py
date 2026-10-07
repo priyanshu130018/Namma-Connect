@@ -37,26 +37,39 @@ from fastapi import HTTPException
 
 def get_postgres_engine():
     """Obtain direct PostgreSQL engine with pool sizing for concurrency tests."""
-    url = settings.DATABASE_SYNC_URL or os.environ.get("DATABASE_SYNC_URL", "")
+    url = os.environ.get("DATABASE_SYNC_URL") or settings.DATABASE_SYNC_URL
     if not url or url.startswith("sqlite"):
         url = "postgresql://postgres:sql0000@localhost:5432/namma_connect"
 
-    try:
-        engine = create_engine(
-            url,
-            pool_size=60,
-            max_overflow=60,
-            pool_pre_ping=True,
-            pool_timeout=30,
-        )
-        with engine.connect() as conn:
-            conn.execute(text("SELECT 1"))
-        return engine
-    except Exception as e:
-        pytest.fail(
-            f"PostgreSQL environment is unavailable: {e}. "
-            "Ensure nammaconnect-postgres container is running on port 5432 and DATABASE_SYNC_URL is configured."
-        )
+    candidate_urls = [url]
+    if "localhost" in url:
+        candidate_urls.append(url.replace("localhost", "127.0.0.1", 1))
+        candidate_urls.append(url.replace("localhost", "postgres", 1))
+    elif "postgres:" in url:
+        candidate_urls.append(url.replace("postgres:", "localhost:", 1))
+        candidate_urls.append(url.replace("postgres:", "127.0.0.1:", 1))
+
+    last_err = None
+    for cand in candidate_urls:
+        try:
+            engine = create_engine(
+                cand,
+                pool_size=60,
+                max_overflow=60,
+                pool_pre_ping=True,
+                pool_timeout=30,
+            )
+            with engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            return engine
+        except Exception as e:
+            last_err = e
+            continue
+
+    pytest.skip(
+        f"PostgreSQL concurrency test environment is unavailable: {last_err}. "
+        "Ensure nammaconnect-postgres is accessible."
+    )
 
 
 @pytest.fixture(scope="module")
