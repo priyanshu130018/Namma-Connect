@@ -2,14 +2,14 @@
 
 ## 1. System Overview
 
-**Namma Connect** is a production-grade digital marketplace and intelligent travel platform designed for agro-tourism, rural stays, cultural workshops, culinary heritage, and guided experiences across the 31 districts of Karnataka.
+**Namma Connect** is a production-grade digital marketplace and intelligent travel platform designed for agro-tourism, rural homestays, agricultural workshops, culinary heritage, and guided experiences across the districts of Karnataka.
 
-The system is structured as a **Modular Monolith** pairing a high-throughput **FastAPI** backend with a modern **React 18 / TypeScript** Single Page Application (SPA). It integrates relational ACID transactions with pgvector cosine similarity search, asynchronous background task processing via Redis and Celery, and an **Agentic AI Orchestration Engine** powered by LangGraph and Google Gemini.
+The system is structured as a **Modular Monolith** pairing a high-throughput **FastAPI** backend with a modern **React 18 / TypeScript** Single Page Application (SPA). It integrates relational ACID persistence with PostgreSQL 16, pgvector cosine similarity search, asynchronous background task processing via Redis and Celery, and an **Agentic AI Orchestration Engine** powered by LangGraph and Google Gemini.
 
 ```mermaid
 flowchart TD
     subgraph Client ["Frontend Client (React 18 + TypeScript + Vite)"]
-        SPA["React SPA Routing Shells"]
+        SPA["React SPA Application Shells"]
         Contexts["Auth / Theme / I18n Contexts"]
         ClientAPI["Axios API Client (/api/v2)"]
         RazorpayModal["Razorpay Checkout Modal"]
@@ -19,7 +19,7 @@ flowchart TD
         FastAPIApp["FastAPI Gateway (/api/v2)"]
         SecHeaders["Security Headers Middleware"]
         ReqContext["Request Context & Logging"]
-        CORSMid["CORS & CSRF Validation"]
+        CORSMid["CORS Validation"]
         RateLimiter["Redis Token Bucket Rate Limiter"]
         AuthGuard["JWT / RBAC Authorization Guards"]
     end
@@ -53,15 +53,7 @@ flowchart TD
     ClientAPI -->|HTTPS REST + Bearer JWT| FastAPIApp
     FastAPIApp --> SecHeaders --> ReqContext --> CORSMid --> RateLimiter --> AuthGuard
 
-    AuthGuard --> AuthMod
-    AuthGuard --> MarketMod
-    AuthGuard --> TripMod
-    AuthGuard --> BookingMod
-    AuthGuard --> PaymentMod
-    AuthGuard --> AIMod
-    AuthGuard --> RecMod
-    AuthGuard --> NotifMod
-
+    AuthGuard --> AuthMod & MarketMod & TripMod & BookingMod & PaymentMod & AIMod & RecMod & NotifMod
     AuthMod & MarketMod & TripMod & BookingMod & PaymentMod & AIMod & RecMod & NotifMod --> PostgreSQL
     MarketMod & RecMod & AIMod --> PGVector
     FastAPIApp & AIMod & RecMod -.-> Redis
@@ -76,136 +68,123 @@ flowchart TD
 
 ---
 
-## 2. Frontend Architecture
+## 2. User Roles & Application Boundaries
 
-The frontend is built on **React 18**, **TypeScript 5**, **Vite 5**, and **Tailwind CSS 3**. It is organized around role-specific shell layouts, centralized reactive contexts, declarative route guards, and an Axios-based typed client.
+The application is engineered around two active user-facing roles:
 
-### 2.1 Four Application Shells & Layouts
+```text
+USER (Traveler / Explorer)
+  │
+  ├── Marketplace & Experience Discovery
+  ├── Faceted & Vector Semantic Search
+  ├── Reservation & Booking Workflow
+  ├── Razorpay Checkout & Payment Settlement
+  ├── Personal Trips & Booking History
+  └── Namma AI Conversational Travel Assistant
+
+PROVIDER (Experience Host / Farmer / Guide)
+  │
+  ├── Provider Profile & Host Studio
+  ├── Service Listing Creation & Management
+  ├── Date & Slot Availability Scheduling
+  ├── Guest Manifest & Booking Management
+  └── Earnings Tracking & Payout History
+```
+
+### 2.1 Role Definitions & Permissions
+
+| Role | Target User | Security Guard | Key Layout & Available Capabilities |
+|---|---|---|---|
+| **`USER`** | Travelers & Tourists | `get_current_user` / `require_user` | `CustomerLayout` (`/app`, `/explore`, `/my-trip`, `/namma-ai`): Search experiences, inspect listings, reserve dates, pay via Razorpay, manage itineraries, use Namma AI chatbot, write reviews, bookmark favorites. |
+| **`PROVIDER`** | Farmers, Guides & Homestay Hosts | `require_partner` / `require_provider` | `PartnerLayout` (`/provider`, `/provider/services`, `/provider/bookings`, `/provider/earnings`, `/provider/analytics`): Create/edit listings, manage slot schedules, accept/complete guest bookings, track earnings and platform fees. |
+
+> [!NOTE]
+> **Historical Role Normalization**: Legacy role identifiers (`customer`, `partner`, `farmer`, `creator`, `admin`) are normalized on authentication (`role_mapping` in `AuthService`) into the active `user` and `provider` authorization flows, with frontend compatibility redirects ensuring legacy route safety.
+
+---
+
+## 3. Frontend Architecture
+
+The frontend is built on **React 18**, **TypeScript 5**, **Vite 5**, and **Tailwind CSS 3**. It is structured around modular layouts, centralized state contexts, route guards, and an Axios-based typed client.
+
+### 3.1 Application Shells & Layouts
 
 ```text
 frontend/src/layouts/
 ├── PublicLayout.tsx      # Public website shell: Navbar, hero headers, marketing footer
-├── CustomerLayout.tsx    # Traveler app (/app): Bottom nav, search bar, floating AI assistant
-├── PartnerLayout.tsx     # Host studio (/partner): Sidebar, KYC alerts, listing wizards
-└── AdminLayout.tsx       # Operator portal (/admin): Dense metrics table, moderation queue
+├── CustomerLayout.tsx    # User app (/app, /explore, /my-trip): Search bar, floating AI assistant, trip drawer
+└── PartnerLayout.tsx     # Provider studio (/provider): Host sidebar, service forms, booking management
 ```
 
-| Shell / Area | Route Prefix | Target User | Security / Access | Key Navigation Elements |
-|---|---|---|---|---|
-| **Public Website** | `/` | Prospective travelers & hosts | Public / Anonymous | Public Navbar, Discovery, About, FAQ, Partner Teaser |
-| **Customer App** | `/app`, `/trips` | Registered tourists | Authenticated Customer | Customer Header, Explore Feed, Trip Drawer, Bookings Bar |
-| **Partner Studio** | `/partner`, `/creator` | Farm hosts, guides, creators | Authenticated (`PARTNER`, `CREATOR`) | Partner Studio Sidebar, KYC Verification, Listings Manager |
-| **Admin Console** | `/admin` | Platform operators | Authenticated (`ADMIN`) | High-density Admin Sidebar, Audit Logs, Payout Approvals |
-
-### 2.2 Client State & Routing Architecture
+### 3.2 Client State & Routing Architecture
 
 1. **Context Providers** (`frontend/src/contexts/`):
-   - `AuthContext`: Manages login session, current user state, token refresh triggers, and role definitions.
+   - `AuthContext`: Manages login session, active token persistence, user profile, and role state.
    - `ThemeContext`: Toggles `light`, `dark`, and `system` themes via the root `<html>` class list and `localStorage`.
    - `I18nContext`: Supplies reactive multi-language strings across English (`en`), Kannada (`kn`), and Hindi (`hi`).
-2. **Route Guarding Components** (`frontend/src/routes/`):
-   - `PublicRoute`: Unauthenticated access; automatically redirects authenticated users to their respective home dashboard.
-   - `ProtectedRoute`: Validates token presence; redirects unauthenticated users to `/login?returnUrl=...`.
-   - `RoleGuard`: Compares current JWT role against allowable permissions (`CUSTOMER`, `PARTNER`, `CREATOR`, `ADMIN`); renders a strict 403 Forbidden screen on violation.
+2. **Route Guarding Components** (`frontend/src/routes/guards/`):
+   - `PublicRoute`: Unauthenticated access; automatically routes logged-in users to their respective home dashboard.
+   - `ProtectedRoute`: Asserts active token presence; redirects unauthenticated visitors to `/login?returnUrl=...`.
+   - `RoleGuard`: Verifies authorization role (`allowedRoles={["provider"]}`); renders a 403 Forbidden screen on violation.
 3. **API Client Layer** (`frontend/src/services/api-client.ts`):
-   - Injects `Authorization: Bearer <nc_access_token>` into every outbound request.
-   - Intercepts `401 Unauthorized` responses and automatically initiates a single-flight token refresh against `/api/v2/auth/refresh`.
-   - Queues concurrent failing requests during refresh to prevent race conditions and token thrashing.
+   - Injects `Authorization: Bearer <nc_access_token>` on outbound requests.
+   - Intercepts `401 Unauthorized` responses and triggers a single-flight refresh against `/api/v2/auth/refresh`.
+   - Queues concurrent failing requests during token renewal to prevent duplicate requests.
 
 ---
 
-## 3. FastAPI Backend Architecture
+## 4. FastAPI Backend Architecture
 
-The backend is engineered with **FastAPI** (Python 3.10+) adhering to a clean **Domain-Driven Modular Monolith** topology.
+The backend is built with **FastAPI** (Python 3.10+) adhering to a clean **Domain-Driven Modular Monolith** pattern.
 
-### 3.1 Separation of Concerns (SoC) Flow
+### 4.1 Separation of Concerns (SoC) Flow
 
 ```text
 HTTP Request
      │
      ▼
-[Middleware Pipeline] (Security Headers, Request Context, CORS, Rate Limit)
+[Middleware Pipeline] (Security Headers, Request Context, CORS, Rate Limiter)
      │
      ▼
 [FastAPI Router] (/api/v2/...)
      │
      ▼
-[Dependencies & Guards] (get_db, get_current_user, require_role)
+[Dependencies & Guards] (get_db, get_current_user, require_provider)
      │
      ▼
-[Application Service Layer] (Pure business rules, validations, orchestrations)
+[Application Service Layer] (Pure business logic, validation, orchestration)
      │
      ▼
-[Repository Layer] (SQLAlchemy ORM queries, database operations)
+[Repository Layer] (SQLAlchemy ORM queries, data access)
      │
      ▼
 [PostgreSQL Database / Redis]
 ```
 
-### 3.2 Directory Hierarchy
+### 4.2 Lifespan Management
 
-```text
-backend/app/
-├── api/
-│   ├── health.py            # /health monitoring endpoint
-│   └── v2/                  # API v2 aggregation router & legacy endpoints
-├── core/
-│   ├── config.py            # Pydantic Settings configuration with runtime validation
-│   ├── database.py          # SQLAlchemy 2 engine, SessionLocal, and declarative Base
-│   ├── logging.py           # Structured JSON and colored console logger
-│   ├── security.py          # Cryptographic hashing (Argon2id/Bcrypt) & JWT encode/decode
-│   └── rate_limiter.py      # Redis token bucket rate limiter dependency
-├── dependencies/            # FastAPI Dependency Injection helpers (auth, db, rbac)
-├── middleware/              # SecurityHeaders, RequestContext, CORS, ExceptionHandlers
-├── models/                  # Declarative SQLAlchemy ORM models
-├── modules/                 # Modular Domain Packages:
-│   ├── admin/               # Platform administration & moderation
-│   ├── ai/                  # LangGraph orchestrator, trip planner, tools, LLM providers
-│   ├── analytics/           # Interaction logging and KPI aggregation
-│   ├── auth/                # Identity, token lifecycle, OTP verification
-│   ├── booking/             # Reservation lifecycle and availability validation
-│   ├── marketplace/         # Services catalog, listings, categories
-│   ├── messaging/           # In-app customer-host direct chat
-│   ├── notification/        # Database notifications & transactional dispatch
-│   ├── payment/             # Razorpay order generation & HMAC-SHA256 signature verification
-│   ├── provider/            # Host KYC onboarding & partner intelligence
-│   ├── recommendation/      # NC Score engine & behavioral personalization
-│   ├── review/              # Post-trip customer reviews & ratings
-│   ├── support/             # Help tickets & dispute management
-│   ├── trip/                # Multi-day trip itineraries & trip day/item persistence
-│   └── user/                # Profile management & role assignment
-├── repositories/            # Data access abstractions
-├── schemas/                 # Pydantic v2 request/response schemas
-├── services/                # Cross-cutting business services (email, cloudinary, translation)
-└── main.py                  # Monolithic FastAPI app instance, lifespan, middleware mounting
-```
-
-### 3.3 Lifespan Management
-
-On startup, FastAPI executes the lifespan context:
-1. Initializes structured logging and request context formatters.
+On startup, FastAPI executes application lifecycle hooks:
+1. Initializes structured JSON and console logging.
 2. Validates runtime environment configuration without silent fallbacks.
-3. Verifies PostgreSQL connectivity and executes `CREATE EXTENSION IF NOT EXISTS vector`.
+3. Verifies PostgreSQL connectivity and ensures `CREATE EXTENSION IF NOT EXISTS vector`.
 4. Establishes Redis connection pools for caching and rate limiting.
 
 ---
 
-## 4. PostgreSQL Architecture & Relational Schema
+## 5. PostgreSQL Architecture & Relational Schema
 
-Database persistence is handled by **PostgreSQL 16** using **SQLAlchemy 2.0** with **Alembic** migrations. All models utilize UUID primary keys to ensure distributed safety and prevent enumeration attacks.
+Database persistence is handled by **PostgreSQL 16** using **SQLAlchemy 2.0** with **Alembic** migrations. All models use UUID primary keys for distributed safety and to prevent enumeration attacks.
 
-### 4.1 Entity-Relationship Overview
+### 5.1 Entity-Relationship Overview
 
 ```mermaid
 erDiagram
-    users ||--o{ services : "hosts"
-    users ||--o{ bookings : "places"
-    users ||--o{ trips : "owns"
-    users ||--o| creator_profiles : "has"
-    users ||--o{ partner_applications : "submits"
+    users ||--o{ services : "hosts (Provider)"
+    users ||--o{ bookings : "places (User)"
+    users ||--o{ trips : "plans (User)"
     users ||--o{ notifications : "receives"
     users ||--o{ reviews : "writes"
-    users ||--o{ payouts : "requests"
+    users ||--o{ payouts : "requests (Provider)"
 
     services ||--o{ bookings : "reserved_in"
     services ||--o{ reviews : "receives"
@@ -223,7 +202,7 @@ erDiagram
         uuid id PK
         string email UK
         string hashed_password
-        enum role "CUSTOMER, PARTNER, CREATOR, ADMIN"
+        enum role "USER, PROVIDER"
         string full_name
         string mobile
         boolean is_active
@@ -309,16 +288,16 @@ erDiagram
 
 ---
 
-## 5. pgvector & Vector Semantic Search
+## 6. pgvector & Vector Semantic Search
 
-To enable natural language discovery across Karnataka's rural catalog, Namma Connect uses **pgvector** inside PostgreSQL.
+To enable natural language discovery across Karnataka's rural experiences, Namma Connect uses **pgvector** inside PostgreSQL.
 
-### 5.1 Dense Embedding Pipeline
+### 6.1 Dense Embedding Pipeline
 - Model: Google Gemini `embedding-001` (or deterministic 768-dim mathematical fallback in offline/test environments).
 - Dimension: **768 dimensions**.
-- Ingestion: Service titles, descriptions, categories, districts, and inclusions are serialized into text chunks and vectorized upon listing creation or updates.
+- Ingestion: Service titles, descriptions, categories, districts, and inclusions are vectorized on creation/update.
 
-### 5.2 HNSW Indexing Specification
+### 6.2 HNSW Indexing
 Vector search uses a Hierarchical Navigable Small World (HNSW) index using cosine distance operators:
 ```sql
 CREATE INDEX ix_services_embedding_hnsw
@@ -326,19 +305,19 @@ ON services USING hnsw (embedding vector_cosine_ops)
 WITH (m = 16, ef_construction = 64);
 ```
 
-### 5.3 Hybrid Retrieval Engine
-`SemanticSearchService` combines vector similarity with hard relational SQL filtering:
+### 6.3 Hybrid Retrieval Engine
+`SemanticSearchService` combines vector similarity with relational SQL filtering:
 1. Computes cosine distance `(embedding <=> :query_vector)`.
 2. Applies relational predicates (`status = 'PUBLISHED'`, `district = :district`, `price <= :max_budget`, `is_active = true`).
-3. Sorts by blended score: \( \text{Score} = 0.70 \times \text{SemanticSimilarity} + 0.10 \times \text{CategoryMatch} + 0.10 \times \text{LocationMatch} + 0.05 \times \text{Rating} + 0.05 \times \text{Availability} \).
+3. Sorts by blended ranking: \( \text{Score} = 0.70 \times \text{SemanticSimilarity} + 0.10 \times \text{CategoryMatch} + 0.10 \times \text{LocationMatch} + 0.05 \times \text{Rating} + 0.05 \times \text{Availability} \).
 
 ---
 
-## 6. LangGraph Architecture & Namma AI Orchestrator
+## 7. LangGraph Architecture & Namma AI Orchestrator
 
 The conversational intelligence layer is structured as a stateful graph using **LangGraph** (`langgraph.graph.StateGraph`).
 
-### 6.1 Unified Agentic Workflow
+### 7.1 Agentic AI Workflow
 
 The complete end-to-end journey from natural language prompt to confirmed trip:
 
@@ -369,9 +348,7 @@ Payment
 Confirmed Trip
 ```
 
-### 6.2 LangGraph StateGraph Definition
-
-The compiled LangGraph workflow consists of 7 functional nodes:
+### 7.2 LangGraph StateGraph Definition
 
 ```mermaid
 flowchart TD
@@ -393,7 +370,7 @@ flowchart TD
 ```
 
 #### Node Responsibilities:
-1. **`understand_request`**: Classifies incoming human message, detects natural language (English, Kannada, Hindi), and parses extracted entities (districts, dates, party size, budget, preferences).
+1. **`understand_request`**: Classifies incoming human message, detects natural language (English, Kannada, Hindi), and parses extracted entities (districts, dates, party size, budget).
 2. **`load_user_context`**: Rehydrates traveler session from database—fetches active bookings, saved services, ongoing trip itineraries, and previous conversation turns.
 3. **`decide_actions`**: Policy engine assessing whether the intent requires general discovery, itinerary synthesis, booking execution, or human-in-the-loop approval.
 4. **`tool_execution`**: Invokes authorized backend tools (`search_services`, `get_service_details`, `get_service_availability`, `get_user_recommendations`) with bounded parameters.
@@ -403,7 +380,7 @@ flowchart TD
 
 ---
 
-## 7. Intent Routing & Language Detection
+## 8. Intent Routing & Language Detection
 
 The conversational orchestrator classifies requests into 6 distinct intents:
 
@@ -424,7 +401,7 @@ The orchestrator uses script and vocabulary detection:
 
 ---
 
-## 8. Agentic Trip Planner Workflow
+## 9. Agentic Trip Planner Workflow
 
 The Trip Planner moves through an explicit 9-state machine with deterministic validation:
 
@@ -445,33 +422,12 @@ stateDiagram-v2
     HANDED_OFF --> [*]
 ```
 
-### 8.1 Deterministic Conflict & Constraint Validation
-Unlike unconstrained LLM generators that hallucinate impossible timelines, `ItineraryValidator` runs deterministic arithmetic and calendar checks:
+### 9.1 Deterministic Conflict & Constraint Validation
+`ItineraryValidator` runs deterministic arithmetic and calendar checks:
 - **Time Slot Overlaps**: Computes exact start and end minute boundaries on each day to prevent concurrent scheduling collisions.
 - **Live Inventory Capacity**: Verifies that party size \(\le\) `service.max_capacity` and that dates do not hit blackout windows.
 - **Date Consistency**: Enforces all items fall between trip `start_date` and `end_date`.
 - **Budget Ceiling**: Asserts that \(\sum \text{Item Estimated Cost} \le \text{User Target Budget}\).
-
-### 8.2 Iterative Refinement Actions
-- `REPLACE`: Swaps a specific item for an alternative verified service in the same district.
-- `REMOVE`: Removes an activity from a day schedule and re-sequences remaining slots.
-- `REDUCE_BUDGET`: Automatically identifies top-cost items and substitutes them with lower-cost alternatives until total cost \(\le\) target budget.
-
----
-
-## 9. Persistent Conversation & Trip Architecture
-
-### 9.1 LangGraph State Checkpointing
-Agent execution state is checkpointed in PostgreSQL using `SQLAlchemyCheckpointSaver`. Every conversation turn stores:
-- `thread_id`: Bound to `AIConversation.id`.
-- `checkpoint`: Serialized state containing extracted constraints, candidate service IDs, draft itinerary, pending approval flags, and message history.
-
-### 9.2 Trip Persistence Model
-When a trip is confirmed by the traveler:
-1. `TripPersistenceEngine` creates a root `Trip` record (`ai_generated=True`, `status='PLANNED'`).
-2. Iterates over planned days to insert `TripDay` records (`day_number`, `date`, `title`).
-3. Inserts schedule rows into `TripItem` (`service_id`, `start_time`, `end_time`, `sequence_order`, `is_booked=False`).
-4. Creates an `AITripPlan` record storing the initial prompt, preferences JSON, constraints JSON, and model provenance.
 
 ---
 
@@ -486,12 +442,12 @@ When a user returns to the chat or opens an existing trip:
 ### 10.2 Booking Readiness Check
 Before initiating any reservation, the system validates:
 - [x] All scheduled items have verified, published `service_id` references.
-- [x] Host provider accounts are active and KYC-verified.
+- [x] Host provider accounts are active.
 - [x] Requested dates have open capacity for the requested guest count.
 - [x] The traveler is authenticated and is not the host of the service (preventing self-booking).
 
 ### 10.3 Explicit Approval Flow (Human-in-the-Loop)
-Namma Connect strictly forbids autonomous financial charges:
+Namma Connect strictly requires user consent:
 - The AI presents a structured **Itinerary Proposal** with itemized costs, dates, and provider details.
 - The user must provide **Explicit Approval** (e.g., clicking *"Confirm Itinerary"* or saying *"Yes, proceed to booking"*).
 - The state transitions from `READY_FOR_REVIEW` to `CONFIRMED`.
@@ -504,7 +460,7 @@ Namma Connect strictly forbids autonomous financial charges:
 ```mermaid
 sequenceDiagram
     autonumber
-    actor Traveler as Customer / Traveler
+    actor Traveler as User / Traveler
     participant SPA as React Frontend SPA
     participant Backend as FastAPI Backend
     participant DB as PostgreSQL 16 DB
@@ -531,7 +487,7 @@ sequenceDiagram
     SPA->>Backend: POST /api/v2/payments/verify
     Backend->>Backend: Verify HMAC-SHA256 signature
     Backend->>DB: Update Payment -> 'PAID', Booking -> 'CONFIRMED'
-    Backend->>DB: Trigger Customer & Provider Notifications
+    Backend->>DB: Trigger User & Provider Notifications
     Backend-->>SPA: Verification Successful (Confirmed Booking)
     SPA-->>Traveler: Display Receipt & Itinerary Confirmation
 ```
@@ -539,7 +495,7 @@ sequenceDiagram
 ### 11.1 Authoritative Pricing Principles
 - **No Client-Side Pricing**: The client never passes financial totals. Price is calculated as:
   $$\text{Total Price} = (\text{service.price} \times \text{units} \times \text{guests}) + \text{Platform Fee}$$
-- **Integer Standard**: Razorpay transactions are computed in **paise** (1 INR = 100 paise) to eliminate IEEE-754 floating-point inaccuracies.
+- **Integer Standard**: Razorpay transactions are computed in **paise** (1 INR = 100 paise) to eliminate floating-point inaccuracies.
 
 ### 11.2 Cryptographic Signature Verification
 Payment confirmations require strict HMAC-SHA256 signature validation:
@@ -555,15 +511,11 @@ if not hmac.compare_digest(expected_signature, razorpay_signature):
     raise HTTPException(status_code=400, detail="Invalid cryptographic payment signature.")
 ```
 
-### 11.3 Idempotency & Webhook Resilience
-- Re-verifying an already `PAID` booking returns the verified confirmation safely without duplicate state transitions or duplicate notification dispatches.
-- Asynchronous webhook at `POST /api/v2/payments/webhook` verifies webhook signatures using `RAZORPAY_WEBHOOK_SECRET` to capture asynchronous gateway events (`payment.captured`, `payment.failed`).
-
 ---
 
 ## 12. Agent Tools & Security Boundaries
 
-The LLM is strictly isolated from direct database queries or raw Python execution. All tool executions flow through typed classes registered in `AIToolRegistry`:
+The LLM is strictly isolated from direct database queries or raw Python execution. All tool executions flow through typed classes in `AIToolRegistry`:
 
 | Tool Name | Underlying Service / Repository | Access Control |
 |---|---|---|
@@ -571,9 +523,9 @@ The LLM is strictly isolated from direct database queries or raw Python executio
 | `get_service_details` | `MarketplaceRepository.get_service_by_id()` | Public / Authenticated |
 | `get_service_availability` | `MarketplaceRepository.get_availabilities()` | Public / Authenticated |
 | `get_categories` | `MarketplaceRepository.list_active_categories()` | Public / Authenticated |
-| `get_user_recommendations` | `RecommendationService.get_personalized_recommendations()` | Authenticated (Own User) |
-| `get_user_saved_services` | `MarketplaceRepository.list_saved_services()` | Authenticated (Own User) |
-| `get_user_trips` | `TripRepository.list_user_trips()` | Authenticated (Own User) |
+| `get_user_recommendations` | `RecommendationService.get_personalized_recommendations()` | Authenticated (`USER`) |
+| `get_user_saved_services` | `MarketplaceRepository.list_saved_services()` | Authenticated (`USER`) |
+| `get_user_trips` | `TripRepository.list_user_trips()` | Authenticated (`USER`) |
 
 ### 12.1 Security Guarantees
 - **Tenant Isolation**: Tools verify `user_id == current_user.id`. Cross-user access returns HTTP 403 Forbidden.

@@ -10,17 +10,17 @@ Namma Connect V2 enforces dual-token authentication utilizing JSON Web Tokens (J
 
 ```mermaid
 flowchart TD
-    Client["Client / Browser"]
+    Client["Client / Browser (React SPA)"]
     AuthService["AuthService (FastAPI)"]
     DB[("PostgreSQL Database")]
 
-    Client -->|1. POST /api/v2/auth/login (Email + Password)| AuthService
-    AuthService -->|2. Verify Argon2id/Bcrypt Hash| DB
+    Client -->|1. POST /api/v2/auth/login (Email/Mobile + Password)| AuthService
+    AuthService -->|2. Verify Argon2id / Bcrypt Hash| DB
     DB -->>|Password Match| AuthService
     AuthService -->|3. Issue Access Token (60m) + Refresh Token (30d)| Client
     
     Client -->|4. Authenticated Request with Authorization: Bearer <Token>| AuthService
-    AuthService -->|5. Cryptographic Signature & Expiry Check| AuthService
+    AuthService -->|5. Cryptographic Signature & Expiry Validation| AuthService
     AuthService -->>|6. Valid Identity & Role Extracted| Client
 ```
 
@@ -39,7 +39,7 @@ flowchart TD
   - **Single-Flight Rotation**: When the access token expires, `apiClient` transparently intercepts the 401 response and calls `POST /api/v2/auth/refresh` with the refresh token.
 
 ### 1.3 Google OAuth 2.0 Identity Federation
-When travelers authenticate via Google Sign-In:
+When users authenticate via Google Sign-In:
 1. Google OAuth ID Token is sent to `POST /api/v2/auth/google`.
 2. The backend cryptographically validates the token against Google's public keys using `google-auth` (`id_token.verify_oauth2_token`) and asserts `audience == GOOGLE_CLIENT_ID`.
 3. Account is matched by email or created as a verified account (`auth_provider = 'google'`).
@@ -48,32 +48,25 @@ When travelers authenticate via Google Sign-In:
 
 ## 2. Role-Based Access Control (RBAC) & Authorization
 
-Namma Connect defines 4 distinct system roles (`app.models.user.UserRole`):
+Namma Connect V2 enforces two primary user-facing roles:
 
 ```text
-       ┌──────────┐
-       │  ADMIN   │ (Global Moderation, Financial Audit, User Governance)
-       └────┬─────┘
-            │
-      ┌─────┴───────────────┐
-      ▼                     ▼
-┌───────────┐         ┌───────────┐
-│  PARTNER  │         │  CREATOR  │
-│  (Hosts)  │         │(Promoters)│
-└─────┬─────┘         └─────┬─────┘
-      │                     │
-      └──────────┬──────────┘
-                 ▼
-          ┌─────────────┐
-          │  CUSTOMER   │ (Traveler, Booking, Reviews, Saved Wishlist)
-          └─────────────┘
+       Namma Connect V2
+        ├── USER (Traveler / Explorer)
+        └── PROVIDER (Host / Experience Guide)
 ```
 
 ### 2.1 Declarative Dependency Enforcement
 FastAPI route decorators enforce granular permission checks:
 ```python
-@router.get("/admin/stats")
-def get_stats(current_user: User = Depends(require_role(["ADMIN"]))):
+# User authentication guard
+@router.get("/bookings/me")
+def get_my_bookings(current_user: User = Depends(get_current_user)):
+    ...
+
+# Provider authorization guard
+@router.get("/bookings/partner")
+def get_provider_bookings(current_user: User = Depends(require_partner)):
     ...
 ```
 
@@ -83,14 +76,15 @@ def get_stats(current_user: User = Depends(require_role(["ADMIN"]))):
 
 ---
 
-## 3. Tenant & User Data Isolation
+## 3. Tenant & Resource Data Isolation
 
-Cross-tenant data access is strictly prevented at the repository and service layers:
+Cross-user and cross-provider data access is strictly prevented at the repository and service layers:
 
 ### 3.1 Resource Ownership Verification
 Every mutative operation verifies that the target resource belongs to `current_user`:
-- **Bookings**: `booking.customer_id == current_user.id` or `booking.provider_id == current_user.id` or `current_user.role == "ADMIN"`.
-- **Trips**: `trip.user_id == current_user.id` or `current_user.role == "ADMIN"`.
+- **Bookings**: `booking.customer_id == current_user.id` or `booking.provider_id == current_user.id`.
+- **Services / Listings**: `service.provider_id == current_user.id`.
+- **Trips & Itineraries**: `trip.user_id == current_user.id`.
 - **AI Conversations**: `conversation.user_id == current_user.id`.
 - **Saved Wishlists**: `saved_service.user_id == current_user.id`.
 
@@ -105,19 +99,19 @@ Namma Connect V2 employs an authoritative payment lifecycle ensuring zero financ
 
 ```mermaid
 sequenceDiagram
-    actor Traveler
+    actor Traveler as User
     participant Server as Backend API
     participant DB as PostgreSQL
     participant Razorpay as Razorpay Gateway
 
     Traveler->>Server: POST /api/v2/payments/create-order
     Server->>Server: Calculate authoritative amount server-side (paise)
-    Server->>Razorpay: Create order with strict amount
+    Server->>Razorpay: Create order with strict integer amount
     Razorpay-->>Server: order_id
     Server->>DB: Record Payment (ORDER_CREATED)
     Server-->>Traveler: Return order_id
     
-    Traveler->>Razorpay: Complete payment
+    Traveler->>Razorpay: Complete payment via Checkout Modal
     Razorpay-->>Traveler: payment_id & signature
     Traveler->>Server: POST /api/v2/payments/verify (order_id, payment_id, signature)
     
@@ -168,7 +162,7 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains; preload (in prod
 
 ### 5.2 CORS (Cross-Origin Resource Sharing)
 Explicit origin allowlists configured via `CORS_ORIGINS` settings:
-- Wildcard `*` origins are strictly prohibited in non-development environments.
+- Wildcard `*` origins are strictly prohibited in production.
 - Supports credentials (`allow_credentials=True`) with explicit trusted domains.
 
 ### 5.3 SQL Injection Prevention

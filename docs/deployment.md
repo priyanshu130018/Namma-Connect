@@ -27,30 +27,29 @@ The backend utilizes `pydantic-settings` to strictly load and validate environme
 # ── Application Configuration ──
 PROJECT_NAME="Namma Connect"
 VERSION="2.0.0"
-ENV=production                        # development | staging | production | test
-DEBUG=False
+ENV=development                       # development | staging | production | test
+DEBUG=True
 API_V2_PREFIX=/api/v2
-FRONTEND_URL="https://nammaconnect.in"
+FRONTEND_URL="http://localhost:5173"
 
 # ── CORS Allowlist (JSON array or comma-separated string) ──
-CORS_ORIGINS=["https://nammaconnect.in", "https://admin.nammaconnect.in"]
+CORS_ORIGINS=["http://localhost:5173", "http://localhost:3000", "http://127.0.0.1:5173"]
 
 # ── PostgreSQL Database Credentials ──
-DATABASE_URL="postgresql+asyncpg://postgres:YourSecurePassword@localhost:5432/namma_connect"
-DATABASE_SYNC_URL="postgresql://postgres:YourSecurePassword@localhost:5432/namma_connect"
+DATABASE_URL="postgresql+asyncpg://postgres:postgres@localhost:5432/namma_connect"
+DATABASE_SYNC_URL="postgresql://postgres:postgres@localhost:5432/namma_connect"
 
 # ── Redis In-Memory Cache & Broker ──
 REDIS_URL="redis://localhost:6379/0"
 
 # ── Authentication & Cryptography ──
-# Minimum 32 characters required in production
-JWT_SECRET="generate_a_secure_random_32_character_secret_key"
+# Minimum 32 characters required
+JWT_SECRET="test_dev_jwt_secret_must_be_32_characters_long_min"
 JWT_ALGORITHM="HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 REFRESH_TOKEN_EXPIRE_DAYS=30
 
-# ── Third-Party Service Credentials ──
-# Google OAuth 2.0 (Optional for local testing)
+# ── Third-Party Service Credentials (Optional for local dev) ──
 GOOGLE_CLIENT_ID=""
 GOOGLE_CLIENT_SECRET=""
 
@@ -78,74 +77,115 @@ GEMINI_MODEL="gemini-3.5-flash-lite"
 ### 2.2 Frontend Environment Variables (`frontend/.env` or `.env.local`)
 
 ```bash
-# Base URL for API requests (in dev, defaults to /api/v2 or localhost:8000)
+# Base URL for API requests
 VITE_API_URL="http://localhost:8000/api/v2"
 VITE_RAZORPAY_KEY_ID="rzp_test_xxxxxxxxxxxxxx"
 ```
 
 ---
 
-## 3. Database & pgvector Setup
+## 3. Supported Execution Workflows
 
-Namma Connect requires PostgreSQL 16 with the native `pgvector` extension enabled.
-
-### 3.1 Dockerized PostgreSQL with pgvector
-The recommended local and CI image is `pgvector/pgvector:pg16`:
-```bash
-docker run -d \
-  --name namma_postgres \
-  -e POSTGRES_USER=postgres \
-  -e POSTGRES_PASSWORD=postgres \
-  -e POSTGRES_DB=namma_connect \
-  -p 5432:5432 \
-  pgvector/pgvector:pg16
-```
-
-### 3.2 Manual / Managed Database Extension Initialization
-Connect to your PostgreSQL database instance using `psql` or a management tool and run:
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-```
-
-### 3.3 Running Alembic Migrations
-Migrations must be executed prior to starting application containers:
-```bash
-cd backend
-
-# Apply all migrations to the latest revision
-alembic upgrade head
-
-# Verify current database version
-alembic current
-```
+Namma Connect V2 supports two execution models:
 
 ---
 
-## 4. Docker & Container Orchestration
+### Option A: Local Development Workflow
 
-The repository includes two complete Docker Compose topologies:
-
-### 4.1 Development Orchestration (`compose.yaml`)
-Mounts local source code into containers with hot-reloading for rapid development:
+#### 1. Clone the Repository & Configure Environment
 ```bash
-# Start all development services (FastAPI, Vite Frontend, PostgreSQL, Redis)
-docker compose up --build
+git clone https://github.com/priyanshu130018/Namma-Connect.git
+cd Namma-Connect
 
-# Run in detached background mode
-docker compose up -d
-
-# Stop services
-docker compose down
+# Copy example environment configuration
+cp .env.example .env
 ```
 
-### 4.2 Production Multi-Stage Orchestration (`compose.prod.yaml`)
-Optimized for immutable, multi-stage production container images with Nginx reverse proxying:
+#### 2. Start PostgreSQL & Redis
+```bash
+docker compose up -d postgres redis
+```
+
+#### 3. Setup Backend & Run Migrations
+```bash
+cd backend
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# Windows (PowerShell):
+.\venv\Scripts\Activate.ps1
+# macOS/Linux:
+source venv/bin/activate
+
+# Install Python dependencies
+pip install --upgrade pip
+pip install -r requirements.txt
+pip install pgvector
+
+# Run database migrations to head
+alembic upgrade head
+
+# (Optional) Seed realistic test data
+python scripts/seed_dev_data.py
+
+# Start FastAPI backend
+uvicorn app.main:app --reload --port 8000
+```
+- API Base: `http://localhost:8000/api/v2`
+- Interactive Swagger UI: `http://localhost:8000/api/v2/docs`
+- Health Endpoint: `http://localhost:8000/health`
+
+#### 4. Setup Frontend
+```bash
+# In a separate terminal
+cd frontend
+
+# Install Node dependencies
+npm install
+
+# Start Vite development server
+npm run dev
+```
+- Frontend Web App: `http://localhost:5173`
+
+---
+
+### Option B: Docker Compose Full-Stack Workflow
+
+To run the complete stack inside containers:
+
+```bash
+# From repository root
+cp .env.example .env
+
+# Build and start all services
+docker compose up --build
+```
+
+#### Services Started:
+- **`frontend`**: React 18 / Vite SPA (`http://localhost:5173`)
+- **`backend`**: FastAPI REST API Gateway (`http://localhost:8000`)
+- **`worker`**: Celery background task worker
+- **`postgres`**: PostgreSQL 16 with native `pgvector` extension (port `5432`)
+- **`redis`**: Redis 7 cache and message broker (port `6379`)
+
+---
+
+## 4. Production Multi-Stage Deployment (`compose.prod.yaml`)
+
+For production environments, the repository provides multi-stage immutable image orchestration with Nginx reverse proxying:
+
 ```bash
 # Start production containers with environment variables injected
 docker compose -f compose.prod.yaml up --build -d
+
+# Execute database migrations
+docker compose -f compose.prod.yaml run --rm migration
 ```
 
-### 4.3 Container Architecture Topology
+### Production Topology
 ```text
                   Internet / Client
                          │
@@ -161,72 +201,36 @@ docker compose -f compose.prod.yaml up --build -d
 
 ---
 
-## 5. Production Deployment Specification
+## 5. Continuous Integration & Quality Gates (CI/CD)
 
-### 5.1 Host & Cloud Infrastructure
-Namma Connect V2 is designed for flexible deployment across Linux VM environments (such as AWS EC2, DigitalOcean, or bare-metal Ubuntu 22.04 LTS) and container platforms:
-- **Compute**: Linux host with Docker Engine and Docker Compose (or AWS ECS / Kubernetes).
-- **Managed Database (Optional)**: AWS RDS for PostgreSQL 16 with `pgvector` enabled in parameter groups.
-- **Managed Cache (Optional)**: AWS ElastiCache for Redis (or containerized Redis 7).
-- **Edge Routing & SSL**: Nginx / Traefik reverse proxy terminating TLS with Let's Encrypt certificates.
+GitHub Actions (`.github/workflows/ci.yml`) enforces 3 parallel verification gates on pushes and pull requests:
 
-### 5.2 Zero-Downtime Deployment Runbook
-
-```bash
-# 1. Pull latest code release from main branch
-git pull origin main
-
-# 2. Export / inject verified production secrets
-export $(grep -v '^#' .env.production | xargs)
-
-# 3. Build immutable multi-stage container images
-docker compose -f compose.prod.yaml build
-
-# 4. Run database migrations safely
-docker compose -f compose.prod.yaml run --rm backend alembic upgrade head
-
-# 5. Bring up updated services
-docker compose -f compose.prod.yaml up -d --remove-orphans
-
-# 6. Verify health check status
-curl -fsS http://localhost:8000/health || exit 1
-```
+1. **Backend Verification**:
+   - Live `pgvector/pgvector:pg16` and `redis:7-alpine` test services.
+   - Python compilation check: `python -m compileall app tests`.
+   - Database migrations: `alembic upgrade head`.
+   - Full Pytest suite execution.
+2. **Frontend Verification**:
+   - TypeScript compilation: `npm run typecheck` (`tsc --noEmit`).
+   - Vitest component suite: `npx vitest run`.
+   - Static bundle build: `npm run build`.
+3. **Secret Hygiene**:
+   - Asserts zero committed `.env` secrets in git tracking.
 
 ---
 
-## 6. Continuous Integration & Quality Gates (CI/CD)
+## 6. Health Checks & Observability
 
-The repository uses GitHub Actions (`.github/workflows/ci.yml`) to enforce 3 parallel verification gates on all pull requests and pushes:
-
-### 6.1 Gate 1: Backend Verification Job
-- Spins up live `pgvector/pgvector:pg16` and `redis:7-alpine` service containers.
-- Verifies clean Python compilation (`python -m compileall app tests`).
-- Runs full Alembic migration cycle (`alembic upgrade head`).
-- Executes the complete Pytest integration suite (320+ tests covering models, auth, payments, agentic trip planner, recommendation engine, and hardening).
-
-### 6.2 Gate 2: Frontend Verification Job
-- Executes TypeScript compilation check (`npm run typecheck` / `tsc --noEmit`).
-- Executes Vitest test suite (`npx vitest run`).
-- Validates production static bundling (`npm run build`).
-
-### 6.3 Gate 3: Secret Hygiene & Security Scan
-- Scans tracked git files to verify no sensitive `.env`, `.env.local`, or `.env.production` files are committed.
-
----
-
-## 7. Health Checks & Observability
-
-### 7.1 Health Endpoint (`GET /health`)
+### 6.1 Health Endpoint (`GET /health`)
 The backend provides a deep dependency health check:
 - **HTTP 200 OK**: PostgreSQL is reachable, `vector` extension is registered, and Redis ping succeeds.
 - **HTTP 503 Service Unavailable**: Core database dependency unreachable.
 
 ```bash
-# Inspect health status
 curl http://localhost:8000/health
 ```
 
-### 7.2 Docker Container Healthcheck
+### 6.2 Docker Container Healthcheck
 Defined in `compose.prod.yaml`:
 ```yaml
 healthcheck:
@@ -235,25 +239,4 @@ healthcheck:
   timeout: 5s
   retries: 3
   start_period: 10s
-```
-
----
-
-## 8. Build & Verification Commands Summary
-
-```bash
-# ── Backend Verification ──
-cd backend
-python -m compileall app tests
-pytest tests/ -v
-
-# ── Frontend Verification ──
-cd ../frontend
-npm run typecheck
-npm run test:run
-npm run build
-
-# ── Vector Search Benchmark Verification ──
-cd ../backend
-python scripts/benchmark_vector_search.py
 ```
